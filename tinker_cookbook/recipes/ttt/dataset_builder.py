@@ -10,7 +10,6 @@ from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, Literal, Sequence, Tuple, TypeVar
 
 import chz
-import tinker
 from tinker_cookbook import renderers
 from tinker_cookbook.rl.problem_env import ProblemEnv, ProblemGroupBuilder
 from tinker_cookbook.rl.types import Action, EnvGroupBuilder, RLDataset, RLDatasetBuilder, StepResult

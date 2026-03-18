@@ -4,15 +4,14 @@ Basic interfaces and types for reinforcement learning.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Sequence, TypeAlias
+from typing import Any, Sequence, TypeAlias
 
 import chz
-import tinker
 from tinker_cookbook.completers import StopCondition, TokensWithLogprobs
 from tinker_cookbook.utils.misc_utils import safezip
 
 Action: TypeAlias = list[int]
-Observation: TypeAlias = tinker.ModelInput
+Observation: TypeAlias = Any
 Logprobs: TypeAlias = list[float]
 Metrics: TypeAlias = dict[str, float | int]
 

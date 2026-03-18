@@ -75,6 +75,47 @@ def parse_cp_problem_idx(problem_idx: str) -> tuple[int, str | None]:
     return int(problem_idx), "v1"
 
 
+def build_cp_prompt(
+    state: CirclePackingState,
+    n: int = 26,
+) -> str:
+    """Build improvement prompt for CP tasks. Standalone version of CirclePackingEnv._get_improvement_prompt()."""
+    import inspect
+    validator_src = inspect.getsource(validate_packing)
+    target = 2.636 if n == 26 else 2.940
+
+    has_code = state.code and state.code.strip()
+
+    if state.parent_values and state.value is not None:
+        before_sum = state.parent_values[0]
+        after_sum = state.value
+        value_ctx = f"\nHere are the sum of radii before and after running the code above (higher is better): {before_sum:.6f} -> {after_sum:.6f}"
+        value_ctx += f"\nTarget: {target}. Current gap: {target - after_sum:.6f}. Further improvements will also be generously rewarded."
+    elif state.value is not None:
+        value_ctx = f"\nCurrent sum of radii (higher is better): {state.value:.6f}"
+        value_ctx += f"\nTarget: {target}. Current gap: {target - state.value:.6f}. Further improvements will also be generously rewarded."
+    else:
+        value_ctx = f"\nTarget sum of radii: {target}"
+
+    if state.observation and state.observation.strip():
+        stdout = state.observation.strip()
+        if len(stdout) > 500:
+            stdout = "\n\n\t\t ...(TRUNCATED)...\n" + stdout[-500:]
+        value_ctx += f"\n\n--- Previous Program Output ---\n{stdout}\n--- End Output ---"
+
+    prompt = CP_IMPROVEMENT_TEMPLATE
+    prompt = prompt.replace("<<<N>>>", str(n))
+    prompt = prompt.replace("<<<VALIDATOR_SRC>>>", validator_src)
+
+    if has_code:
+        prompt = prompt.replace("<<<LAST_CODE>>>", state.code)
+    else:
+        prompt = prompt.replace("<<<LAST_CODE>>>", "# No previous code available.")
+
+    prompt = prompt.replace("<<<VALUE_CONTEXT>>>", value_ctx)
+    return prompt
+
+
 class CirclePackingEnv(BaseTTTEnv):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

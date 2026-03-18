@@ -91,6 +91,63 @@ def verify_ac(
     }
 
 
+def build_ac_prompt(
+    state: InequalitiesState,
+    env_name: str = "ac1",
+    problem_idx: str = "improvement",
+    budget_s: int = 1000,
+    num_cpus_per_task: int = 1,
+) -> str:
+    """Build improvement prompt for AC tasks. Standalone version of AutoCorrInequalityEnv._get_improvement_prompt()."""
+    hide_code = "state_only" in problem_idx
+    has_code = state.code and state.code.strip() and not hide_code
+
+    if state.parent_values and state.value is not None:
+        if env_name == "ac1":
+            before_bound = -state.parent_values[0]
+            after_bound = -state.value
+            value_ctx = f"\nHere are the upper bounds before and after running the code above (lower is better): {before_bound:.10f} -> {after_bound:.10f}"
+            value_ctx += f"\nOur target is to make the upper bound tighter, just as a reference, lower it to at least 1.5030. Further improvements will also be generously rewarded."
+        else:
+            before_bound = state.parent_values[0]
+            after_bound = state.value
+            value_ctx = f"\nHere are the lower bounds before and after running the code above (higher is better): {before_bound:.10f} -> {after_bound:.10f}"
+            value_ctx += f"\nOur target is to make the lower bound tighter, just as a reference, close to at least 0.97. Further improvements will also be generously rewarded."
+    elif state.value is not None:
+        if env_name == "ac1":
+            value_ctx = f"\nCurrent upper bound (lower is better): {-state.value:.10f}"
+            value_ctx += f"\nOur target is to make the upper bound tighter, just as a reference, close to at least 1.5030. Further improvements will also be generously rewarded."
+        else:
+            value_ctx = f"\nCurrent lower bound (higher is better): {state.value:.10f}"
+            value_ctx += f"\nOur target is to make the lower bound tighter, just as a reference, close to at least 0.97. Further improvements will also be generously rewarded."
+    else:
+        value_ctx = ""
+
+    if state.construction:
+        value_ctx += f"\nLength of the construction: {len(state.construction)}"
+
+    if state.observation and state.observation.strip():
+        stdout = state.observation.strip()
+        if len(stdout) > 500:
+            stdout = "\n\n\t\t ...(TRUNCATED)...\n" + stdout[-500:]
+        value_ctx += f"\n\n--- Previous Program Output ---\n{stdout}\n--- End Output ---"
+
+    prompt = AC1_IMPROVEMENT_TEMPLATE if env_name == "ac1" else AC2_IMPROVEMENT_TEMPLATE
+
+    if has_code:
+        prompt = prompt.replace("<<<LAST_CODE>>>", state.code)
+    else:
+        prompt = prompt.replace("Here is the last code we ran:\n<<<LAST_CODE>>>\n\n", "")
+        prompt = prompt.replace("You are iteratively optimizing constructions.", "")
+        prompt = prompt.replace("Reason about how you could further improve this construction.",
+                                "Write code to optimize this construction.")
+
+    prompt = prompt.replace("<<<VALUE_CONTEXT>>>", value_ctx)
+    prompt = prompt.replace("<<<BUDGET_S>>>", str(budget_s))
+    prompt = prompt.replace("<<<CPUS>>>", str(num_cpus_per_task))
+    return prompt
+
+
 class AutoCorrInequalityEnv(BaseTTTEnv):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -275,7 +332,6 @@ class AutoCorrInequalityEnv(BaseTTTEnv):
     async def step(self, action, step_idx):
         """Override step to handle result_construction check - only update state if construction exists."""
         from tinker_cookbook.rl.types import Action, StepResult
-        import tinker
         
         message, parse_success = self.renderer.parse_response(action)
         response = message["content"]
@@ -308,7 +364,7 @@ class AutoCorrInequalityEnv(BaseTTTEnv):
         step_result = StepResult(
             reward=reward,
             episode_done=True,
-            next_observation=tinker.ModelInput.empty(),
+            next_observation=None,
             next_stop_condition=self.stop_condition,
             metrics=metrics,
         )

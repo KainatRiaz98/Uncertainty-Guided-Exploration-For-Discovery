@@ -3,7 +3,6 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Callable, Sequence
 
-import tinker
 from tinker_cookbook import renderers
 from tinker_cookbook.completers import StopCondition
 from tinker_cookbook.rl.types import (
@@ -76,7 +75,7 @@ class ProblemEnv(Env):
         return StepResult(
             reward=total_reward,
             episode_done=True,
-            next_observation=tinker.ModelInput.empty(),
+            next_observation=None,
             next_stop_condition=self.stop_condition,
             metrics={
                 "format": correct_format,

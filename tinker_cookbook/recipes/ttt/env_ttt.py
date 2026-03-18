@@ -7,7 +7,6 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import Any
 
-import tinker
 from tinker_cookbook import renderers
 from tinker_cookbook.rl.problem_env import ProblemEnv
 from tinker_cookbook.rl.types import Action, StepResult
@@ -311,11 +310,11 @@ class BaseTTTEnv(ProblemEnv, ABC):
         step_result = StepResult(
             reward=reward,
             episode_done=True,
-            next_observation=tinker.ModelInput.empty(),
+            next_observation=None,
             next_stop_condition=self.stop_condition,
             metrics=metrics,
         )
-        
+
         # Update sampler with new state if we have valid result
         if correctness > 0:
             try:
