@@ -3,7 +3,8 @@ import os
 import queue
 import uuid
 from threading import Thread
-from typing import Any, Dict, override
+from typing import Any, Dict
+from typing_extensions import override
 
 import torch
 import torch.distributed.rpc

@@ -2,7 +2,8 @@ import json
 import logging
 import os
 from collections import OrderedDict
-from typing import Dict, List, Optional, Tuple, override
+from typing import Dict, List, Optional, Tuple
+from typing_extensions import override
 
 import torch
 

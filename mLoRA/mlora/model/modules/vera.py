@@ -1,5 +1,6 @@
 import math
-from typing import Dict, List, Tuple, override
+from typing import Dict, List, Tuple
+from typing_extensions import override
 
 import torch
 

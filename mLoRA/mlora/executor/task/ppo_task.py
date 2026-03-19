@@ -3,7 +3,8 @@ import json
 import logging
 import os
 from enum import Enum
-from typing import Callable, Dict, List, Optional, OrderedDict, Tuple, override
+from typing import Callable, Dict, List, Optional, OrderedDict, Tuple
+from typing_extensions import override
 
 import torch
 from datasets import load_dataset

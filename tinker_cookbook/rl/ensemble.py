@@ -52,7 +52,7 @@ class LoRAEnsemble:
         lora_alpha: int = 64,
         lora_dropout: float = 0.05,
         target_modules: Optional[Dict[str, bool]] = None,
-        learning_rate: float = 3e-4,
+        learning_rate: float = 4e-5,
         optimizer: str = "adamw",
     ):
         self.model = model

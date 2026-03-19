@@ -1,6 +1,7 @@
 import copy
 import logging
-from typing import List, Optional, OrderedDict, Tuple, override
+from typing import List, Optional, OrderedDict, Tuple
+from typing_extensions import override
 
 import torch
 import torch.nn.functional as F

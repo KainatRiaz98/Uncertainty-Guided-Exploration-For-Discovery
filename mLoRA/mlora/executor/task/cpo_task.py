@@ -1,6 +1,7 @@
 import logging
 from collections import OrderedDict
-from typing import List, Tuple, override
+from typing import List, Tuple
+from typing_extensions import override
 
 import torch
 import torch.nn.functional as F
@@ -41,8 +42,7 @@ class CPOTask(TrainTask):
     @override
     def data(self, start_idx: int) -> Tuple[List[Tokens], List[MLoRADataConfig]]:
         logging.info(
-            f"Adapter {self.context_.name_} epoch: {
-                self.now_epoch_}/{self.config_.num_epochs_}"
+            f"Adapter {self.context_.name_} epoch: {self.now_epoch_}/{self.config_.num_epochs_}"
             f" iteration: {self.now_data_idx_}/{len(self.data_)} step: {self.now_step_}"
         )
         data_idx_s = self.now_data_idx_

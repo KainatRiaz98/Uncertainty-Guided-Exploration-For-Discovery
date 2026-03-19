@@ -1,4 +1,5 @@
-from typing import List, Set, override
+from typing import List, Set
+from typing_extensions import override
 
 from mlora.config.dispatcher import DispatcherConfig
 from mlora.executor.task import Task

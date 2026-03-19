@@ -1,4 +1,5 @@
-from typing import Dict, List, override
+from typing import Dict, List
+from typing_extensions import override
 
 from .prompter import Prompter
 

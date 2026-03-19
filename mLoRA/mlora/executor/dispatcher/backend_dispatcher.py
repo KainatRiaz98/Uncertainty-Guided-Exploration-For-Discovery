@@ -1,6 +1,6 @@
 import logging
 import threading
-from typing import override
+from typing_extensions import override
 
 from mlora.config.dispatcher import DispatcherConfig
 from mlora.config.task import TaskConfig

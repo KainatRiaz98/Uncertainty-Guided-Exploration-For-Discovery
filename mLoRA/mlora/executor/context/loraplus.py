@@ -1,5 +1,6 @@
 from collections import OrderedDict
-from typing import List, override
+from typing import List
+from typing_extensions import override
 
 import torch
 

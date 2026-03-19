@@ -1,5 +1,6 @@
 from abc import abstractmethod
-from typing import Any, Dict, override
+from typing import Any, Dict
+from typing_extensions import override
 
 from .config import DictConfig
 

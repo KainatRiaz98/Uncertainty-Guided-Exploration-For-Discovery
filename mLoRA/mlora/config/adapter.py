@@ -1,6 +1,7 @@
 import logging
 from abc import abstractmethod
-from typing import Any, Dict, Optional, override
+from typing import Any, Dict, Optional
+from typing_extensions import override
 
 from .config import DictConfig
 from .lr_scheduler import LRSCHEDULERCONFIG_CLASS, LRSchedulerConfig

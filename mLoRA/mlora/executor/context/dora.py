@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import override
+from typing_extensions import override
 
 from mlora.config import DoRAConfig
 from mlora.model.args import LinearInfo

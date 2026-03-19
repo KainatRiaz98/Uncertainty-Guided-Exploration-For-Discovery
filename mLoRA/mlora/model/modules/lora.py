@@ -1,5 +1,6 @@
 import math
-from typing import Any, Dict, List, Optional, Tuple, override
+from typing import Any, Dict, List, Optional, Tuple
+from typing_extensions import override
 
 import torch
 import torch.nn.functional as F

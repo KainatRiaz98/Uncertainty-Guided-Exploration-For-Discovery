@@ -64,8 +64,8 @@ class Config:
     """
 
     # ── Model (replaces model_name + Tinker service) ──────────────────────
-    base_model: str = "meta-llama/Llama-3.1-8B"
-    precision: str = "nf4"
+    base_model: str = "Qwen/Qwen3-8B"
+    precision: str = "fp16"
     device: str = "cuda"
 
     # ── Environment ───────────────────────────────────────────────────────
@@ -80,15 +80,15 @@ class Config:
     num_epochs: int = 50
     max_tokens: int = 26000
     temperature: float = 1.0
-    adv_estimator: str = "entropic"
+    adv_estimator: str = "entropic_adaptive_beta"
     adv_estimator_beta: float = 2.0
     loss_fn: Literal["importance_sampling", "ppo"] = "importance_sampling"
     ppo_clip: float = 0.2
     num_substeps: int = 1
     remove_constant_reward_groups: bool = True
 
-    # ── KL penalty (matching original Config defaults) ─────────────────
-    kl_penalty_coef: float = 0.0
+    # ── KL penalty (paper uses λ ∈ {0.01, 0.1}) ───────────────────────
+    kl_penalty_coef: float = 0.01
     kl_discount_factor: float = 0.0
     compute_post_kl: bool = False
 
@@ -528,10 +528,16 @@ def do_rollout(
     # ── 4. Augmented reward ──────────────────────────────────────────────
     reward_total = reward_exec + rmi_coef * reward_rmi
 
+    # Pad sampling_logprobs to full-sequence length (T-1) with 0.0 for
+    # prompt positions — matches original train.py's trajectory_to_data()
+    # which does: [0.0] * ob_len + action_logprobs
+    prompt_pad = [0.0] * (len(prompt_tokens) - 1)
+    full_sampling_logprobs = prompt_pad + list(sampling_logprobs)
+
     return Rollout(
         prompt_tokens=prompt_tokens,
         full_tokens=full_tokens,
-        sampling_logprobs=sampling_logprobs,
+        sampling_logprobs=full_sampling_logprobs,
         reward_exec=reward_exec,
         reward_rmi=reward_rmi,
         reward_total=reward_total,
@@ -921,8 +927,8 @@ def cli_main():
     parser = argparse.ArgumentParser(description="Multi-LoRA Ensemble RL Training")
 
     # Model
-    parser.add_argument("--base_model", default="meta-llama/Llama-3.1-8B")
-    parser.add_argument("--precision", default="nf4",
+    parser.add_argument("--base_model", default="Qwen/Qwen3-8B")
+    parser.add_argument("--precision", default="fp16",
                         choices=["nf4", "fp4", "int8", "bf16", "fp16", "fp32"])
     parser.add_argument("--device", default="cuda")
 
@@ -937,7 +943,7 @@ def cli_main():
     parser.add_argument("--num_epochs", type=int, default=50)
     parser.add_argument("--max_tokens", type=int, default=26000)
     parser.add_argument("--temperature", type=float, default=1.0)
-    parser.add_argument("--adv_estimator", default="entropic")
+    parser.add_argument("--adv_estimator", default="entropic_adaptive_beta")
     parser.add_argument("--loss_fn", default="importance_sampling")
 
     # Ensemble
@@ -953,7 +959,7 @@ def cli_main():
 
     # Sampler
     # KL penalty
-    parser.add_argument("--kl_penalty_coef", type=float, default=0.0)
+    parser.add_argument("--kl_penalty_coef", type=float, default=0.01)
     parser.add_argument("--kl_discount_factor", type=float, default=0.0)
     parser.add_argument("--compute_post_kl", action="store_true", default=False)
 

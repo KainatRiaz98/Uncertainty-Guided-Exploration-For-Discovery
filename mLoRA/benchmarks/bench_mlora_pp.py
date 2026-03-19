@@ -1,7 +1,8 @@
 import logging
 import random
 import time
-from typing import List, Tuple, override
+from typing import List, Tuple
+from typing_extensions import override
 
 import mlora.config
 import mlora.executor
