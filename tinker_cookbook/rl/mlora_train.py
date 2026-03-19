@@ -40,7 +40,12 @@ from mlora.model.tokenizer import Tokenizer as MLoRATokenizer
 
 # ── Our new modules ────────────────────────────────────────────────────────────
 from tinker_cookbook.rl.ensemble import LoRAEnsemble
-from tinker_cookbook.rl.uncertainty import UNCERTAINTY_FNS
+from tinker_cookbook.rl.uncertainty import (
+    UNCERTAINTY_FNS,
+    compute_rmi,
+    compute_variance,
+    compute_predictive_entropy,
+)
 
 # ── Existing TTT-Discover modules (no Tinker dependency) ──────────────────────
 from tinker_cookbook.recipes.ttt.state import State
@@ -116,7 +121,7 @@ class Config:
     gamma_max_ratio: float = 10.0   # clip γ_eff/rmi_coef to prevent explosion
 
     # ── Sampler ───────────────────────────────────────────────────────────
-    sampler_type: str = "greedy"
+    sampler_type: str = "puct_backprop"
     initial_exp_type: str = "random"
 
     # ── Logging (same as original) ────────────────────────────────────────
@@ -521,9 +526,26 @@ def do_rollout(
     reward_exec = result["reward"]
     child_state = result.get("child_state")
 
-    # ── 3. Ensemble scoring → RMI (all K adapters, single forward pass) ──
+    # ── 3. Ensemble scoring → uncertainty (all K adapters, single forward pass) ──
     ensemble_logprobs = ensemble.compute_ensemble_logprobs(full_tokens)  # (K, T-1)
     reward_rmi = float(uncertainty_fn(ensemble_logprobs))
+
+    # Compute ALL uncertainty metrics for ablation comparison logging
+    # (The selected one is used for reward; all three are logged)
+    rmi_val = float(compute_rmi(ensemble_logprobs))
+    variance_val = float(compute_variance(ensemble_logprobs))
+    pred_entropy_val = float(compute_predictive_entropy(ensemble_logprobs))
+
+    # Ensemble member disagreement stats — proves K adapters actually diverge
+    # per_member_mean_lp[k] = mean logprob assigned by member k to the sequence
+    per_member_mean_lp = ensemble_logprobs.mean(dim=1)  # (K,)
+    member_logprob_spread = float(per_member_mean_lp.std())  # σ across members
+    member_logprob_range = float(per_member_mean_lp.max() - per_member_mean_lp.min())
+
+    # Per-token disagreement: how much do members disagree at each position?
+    per_token_var = ensemble_logprobs.var(dim=0)  # (T-1,)
+    max_token_disagreement = float(per_token_var.max())
+    frac_high_disagreement = float((per_token_var > per_token_var.median()).float().mean())
 
     # ── 4. Augmented reward ──────────────────────────────────────────────
     reward_total = reward_exec + rmi_coef * reward_rmi
@@ -550,6 +572,15 @@ def do_rollout(
             "gen/num_tokens": len(full_tokens) - len(prompt_tokens),
             "gen/adapter_idx": adapter_idx,
             "correctness": result.get("correctness", 0.0),
+            # ── Uncertainty decomposition (ablation study) ──
+            "uncertainty/rmi": rmi_val,
+            "uncertainty/variance": variance_val,
+            "uncertainty/predictive_entropy": pred_entropy_val,
+            # ── Ensemble disagreement (proves members diverge) ──
+            "ensemble/member_logprob_spread": member_logprob_spread,
+            "ensemble/member_logprob_range": member_logprob_range,
+            "ensemble/max_token_disagreement": max_token_disagreement,
+            "ensemble/frac_high_disagreement": frac_high_disagreement,
         },
     )
 
@@ -560,6 +591,34 @@ def _split_list(lst: list, n: int) -> List[list]:
         return []
     k, m = divmod(len(lst), n)
     return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
+
+
+def _collect_rollout_metrics(rollout: "Rollout", accum: Dict[str, List[float]]):
+    """Collect per-rollout metrics into the accumulator dict."""
+    accum["reward/exec"].append(rollout.reward_exec)
+    accum["reward/rmi"].append(rollout.reward_rmi)
+    accum["reward/total"].append(rollout.reward_total)
+    accum["gen/num_tokens"].append(rollout.metrics.get("gen/num_tokens", 0))
+    accum["correctness"].append(rollout.metrics.get("correctness", 0.0))
+    # Uncertainty decomposition — all 3 for ablation comparison
+    accum["uncertainty/rmi"].append(rollout.metrics.get("uncertainty/rmi", 0.0))
+    accum["uncertainty/variance"].append(rollout.metrics.get("uncertainty/variance", 0.0))
+    accum["uncertainty/predictive_entropy"].append(
+        rollout.metrics.get("uncertainty/predictive_entropy", 0.0)
+    )
+    # Ensemble disagreement — proves members actually diverge
+    accum["ensemble/member_logprob_spread"].append(
+        rollout.metrics.get("ensemble/member_logprob_spread", 0.0)
+    )
+    accum["ensemble/member_logprob_range"].append(
+        rollout.metrics.get("ensemble/member_logprob_range", 0.0)
+    )
+    accum["ensemble/max_token_disagreement"].append(
+        rollout.metrics.get("ensemble/max_token_disagreement", 0.0)
+    )
+    accum["ensemble/frac_high_disagreement"].append(
+        rollout.metrics.get("ensemble/frac_high_disagreement", 0.0)
+    )
 
 
 def train_step(
@@ -587,6 +646,17 @@ def train_step(
         "advantage/mean": [], "advantage/std": [],
         "advantage/min": [], "advantage/max": [],
         "beta": [], "gamma_eff": [],
+        "gen/num_tokens": [], "correctness": [],
+        # Uncertainty decomposition (all 3 metrics — critical for ablation)
+        "uncertainty/rmi": [], "uncertainty/variance": [],
+        "uncertainty/predictive_entropy": [],
+        # Ensemble disagreement (proves K members actually diverge)
+        "ensemble/member_logprob_spread": [],
+        "ensemble/member_logprob_range": [],
+        "ensemble/max_token_disagreement": [],
+        "ensemble/frac_high_disagreement": [],
+        # Per-group: RMI-reward correlation (proves RMI isn't just noise)
+        "group/rmi_exec_corr": [],
     }
 
     # ── Phase 1: Compute advantages for all groups, collect trainable rollouts ──
@@ -619,6 +689,15 @@ def train_step(
         metrics_accum["beta"].append(float(beta))
         metrics_accum["gamma_eff"].append(float(gamma_eff))
 
+        # ── Per-group: RMI-reward correlation (proves RMI targets novelty, not noise) ──
+        if len(group.rollouts) >= 3:
+            exec_rewards = [r.reward_exec for r in group.rollouts]
+            rmi_rewards = [r.reward_rmi for r in group.rollouts]
+            if np.std(exec_rewards) > 1e-8 and np.std(rmi_rewards) > 1e-8:
+                corr = float(np.corrcoef(exec_rewards, rmi_rewards)[0, 1])
+                if not np.isnan(corr):
+                    metrics_accum["group/rmi_exec_corr"].append(corr)
+
         # ── KL penalty adjustment → promotes to per-token advantages ──
         kl_metrics = {}
         if cfg.kl_penalty_coef > 0:
@@ -638,9 +717,7 @@ def train_step(
             for rollout, scalar_adv, token_adv in zip(
                 group.rollouts, scalar_advantages, per_token_advs
             ):
-                metrics_accum["reward/exec"].append(rollout.reward_exec)
-                metrics_accum["reward/rmi"].append(rollout.reward_rmi)
-                metrics_accum["reward/total"].append(rollout.reward_total)
+                _collect_rollout_metrics(rollout, metrics_accum)
 
                 if abs(scalar_adv.item()) < 1e-8:
                     continue
@@ -653,9 +730,7 @@ def train_step(
             metrics_accum["advantage/max"].append(scalar_advantages.max().item())
 
             for rollout, adv in zip(group.rollouts, scalar_advantages):
-                metrics_accum["reward/exec"].append(rollout.reward_exec)
-                metrics_accum["reward/rmi"].append(rollout.reward_rmi)
-                metrics_accum["reward/total"].append(rollout.reward_total)
+                _collect_rollout_metrics(rollout, metrics_accum)
 
                 if abs(adv.item()) < 1e-8:
                     continue
@@ -715,22 +790,75 @@ def train_step(
 
     # ── Aggregate metrics ──
     metrics: Dict[str, float] = {}
-    for key, vals in metrics_accum.items():
+
+    # Rewards: mean, std, min, max
+    for key in ["reward/exec", "reward/rmi", "reward/total"]:
+        vals = metrics_accum[key]
         if vals:
             metrics[f"train/{key}/mean"] = float(np.mean(vals))
-            if "reward" in key:
-                metrics[f"train/{key}/max"] = float(np.max(vals))
-            if "advantage" in key and key.endswith("/mean"):
-                # Already covered by the mean aggregation above
-                pass
-    # Ensure advantage min/max across all groups are tracked
+            metrics[f"train/{key}/std"] = float(np.std(vals))
+            metrics[f"train/{key}/min"] = float(np.min(vals))
+            metrics[f"train/{key}/max"] = float(np.max(vals))
+
+    # Advantages: already per-group mean/std/min/max, aggregate across groups
+    if metrics_accum["advantage/mean"]:
+        metrics["train/advantage/mean"] = float(np.mean(metrics_accum["advantage/mean"]))
+        metrics["train/advantage/std"] = float(np.mean(metrics_accum["advantage/std"]))
     if metrics_accum["advantage/min"]:
         metrics["train/advantage/min"] = float(np.min(metrics_accum["advantage/min"]))
     if metrics_accum["advantage/max"]:
         metrics["train/advantage/max"] = float(np.max(metrics_accum["advantage/max"]))
 
+    # Beta and gamma_eff
+    if metrics_accum["beta"]:
+        metrics["train/beta/mean"] = float(np.mean(metrics_accum["beta"]))
+        metrics["train/beta/std"] = float(np.std(metrics_accum["beta"]))
+    if metrics_accum["gamma_eff"]:
+        metrics["train/gamma_eff/mean"] = float(np.mean(metrics_accum["gamma_eff"]))
+
+    # Generation stats
+    if metrics_accum["gen/num_tokens"]:
+        metrics["train/gen/num_tokens/mean"] = float(np.mean(metrics_accum["gen/num_tokens"]))
+        metrics["train/gen/num_tokens/std"] = float(np.std(metrics_accum["gen/num_tokens"]))
+        metrics["train/gen/num_tokens/max"] = float(np.max(metrics_accum["gen/num_tokens"]))
+
+    # Correctness (fraction of rollouts that got reward > 0)
+    if metrics_accum["correctness"]:
+        metrics["train/correctness/mean"] = float(np.mean(metrics_accum["correctness"]))
+        metrics["train/correctness/rate"] = float(
+            np.mean([1.0 if c > 0 else 0.0 for c in metrics_accum["correctness"]])
+        )
+
+    # ── Uncertainty decomposition (ablation: RMI vs variance vs predictive_entropy) ──
+    for key in ["uncertainty/rmi", "uncertainty/variance", "uncertainty/predictive_entropy"]:
+        vals = metrics_accum[key]
+        if vals:
+            metrics[f"train/{key}/mean"] = float(np.mean(vals))
+            metrics[f"train/{key}/std"] = float(np.std(vals))
+            metrics[f"train/{key}/min"] = float(np.min(vals))
+            metrics[f"train/{key}/max"] = float(np.max(vals))
+
+    # ── Ensemble disagreement (proves K members actually diverge) ──
+    for key in ["ensemble/member_logprob_spread", "ensemble/member_logprob_range",
+                "ensemble/max_token_disagreement", "ensemble/frac_high_disagreement"]:
+        vals = metrics_accum[key]
+        if vals:
+            metrics[f"train/{key}/mean"] = float(np.mean(vals))
+
+    # ── RMI-reward correlation (is uncertainty tracking novelty or noise?) ──
+    if metrics_accum["group/rmi_exec_corr"]:
+        corrs = metrics_accum["group/rmi_exec_corr"]
+        metrics["train/group/rmi_exec_corr/mean"] = float(np.mean(corrs))
+        metrics["train/group/rmi_exec_corr/std"] = float(np.std(corrs))
+
+    # Core training stats
     metrics["train/loss"] = total_loss_val
-    metrics["train/num_rollouts"] = len(trainable_rollouts)
+    metrics["train/num_rollouts"] = float(len(trainable_rollouts))
+    metrics["train/num_rollouts_total"] = float(
+        sum(len(g.rollouts) for g in rollout_groups)
+    )
+    metrics["train/num_groups"] = float(len(rollout_groups))
+
     metrics.update(kl_track_metrics)
     if kl_metrics:
         metrics.update(kl_metrics)
@@ -812,6 +940,9 @@ def main(
         f"K={cfg.num_ensemble_members} adapters, γ={cfg.rmi_coef}"
     )
 
+    best_reward_exec = float("-inf")
+    best_reward_total = float("-inf")
+
     for epoch in range(start_epoch, cfg.num_epochs):
         t_start = time.time()
         metrics: Dict[str, Any] = {
@@ -869,6 +1000,30 @@ def main(
         metrics.update(train_metrics)
         metrics["time/train"] = time.time() - t_train
 
+        # ── Epoch-level metrics ──────────────────────────────────────
+        # Track best rewards seen so far (running max)
+        epoch_exec_max = metrics.get("train/reward/exec/max", float("-inf"))
+        epoch_total_max = metrics.get("train/reward/total/max", float("-inf"))
+        best_reward_exec = max(best_reward_exec, epoch_exec_max)
+        best_reward_total = max(best_reward_total, epoch_total_max)
+        metrics["train/reward/exec/best"] = best_reward_exec
+        metrics["train/reward/total/best"] = best_reward_total
+
+        # How many groups were filtered out (constant reward)
+        num_groups_attempted = len(parent_states)
+        num_groups_kept = len(rollout_groups)
+        metrics["rollout/groups_attempted"] = float(num_groups_attempted)
+        metrics["rollout/groups_kept"] = float(num_groups_kept)
+        metrics["rollout/groups_filtered"] = float(num_groups_attempted - num_groups_kept)
+
+        # Reward diversity within groups (important for advantage estimation)
+        if rollout_groups:
+            group_reward_stds = []
+            for group in rollout_groups:
+                rews = [r.reward_exec for r in group.rollouts]
+                group_reward_stds.append(float(np.std(rews)))
+            metrics["rollout/intra_group_reward_std"] = float(np.mean(group_reward_stds))
+
         # ── Update sampler buffer with child states ──────────────────
         for group in rollout_groups:
             child_states = []
@@ -889,12 +1044,15 @@ def main(
 
         r_exec = metrics.get("train/reward/exec/mean", 0)
         r_max = metrics.get("train/reward/exec/max", 0)
+        r_best = metrics.get("train/reward/exec/best", 0)
         r_rmi = metrics.get("train/reward/rmi/mean", 0)
         loss = metrics.get("train/loss", 0)
+        beta = metrics.get("train/beta/mean", 0)
+        corr = metrics.get("train/correctness/rate", 0)
         logger.info(
-            f"[Epoch {epoch}] R_exec={r_exec:.4f} (max={r_max:.4f}) "
-            f"RMI={r_rmi:.4f} loss={loss:.4f} "
-            f"time={metrics['time/total']:.1f}s"
+            f"[Epoch {epoch}] R_exec={r_exec:.4f} (max={r_max:.4f} best={r_best:.4f}) "
+            f"RMI={r_rmi:.4f} beta={beta:.2f} corr={corr:.1%} loss={loss:.4f} "
+            f"groups={num_groups_kept}/{num_groups_attempted} time={metrics['time/total']:.1f}s"
         )
 
         # ── Checkpointing ─────────────────────────────────────────────
@@ -974,7 +1132,7 @@ def cli_main():
     parser.add_argument("--gpu_mode_score_scale", type=float, default=3000.0)
     parser.add_argument("--remove_constant_reward_groups", action="store_true", default=True)
 
-    parser.add_argument("--sampler_type", default="greedy")
+    parser.add_argument("--sampler_type", default="puct_backprop")
     parser.add_argument("--initial_exp_type", default="random")
 
     # Logging
