@@ -22,10 +22,13 @@ class Tokenizer:
 
     def encode(self, data: str, bos=True, eos=True, cutoff_len=4096) -> Tokens:
         tokens = self.tokenizer_.encode(data, add_special_tokens=False)
-        tokens = tokens[: cutoff_len - int(bos) - int(eos)]
-        if bos:
+        # Qwen and others have bos_token_id / eos_token_id = None; never insert None.
+        use_bos = bos and self.bos_id_ is not None
+        use_eos = eos and self.eos_id_ is not None
+        tokens = tokens[: cutoff_len - int(use_bos) - int(use_eos)]
+        if use_bos:
             tokens = [self.bos_id_] + tokens
-        if eos:
+        if use_eos:
             tokens = tokens + [self.eos_id_]
         return tokens
 
