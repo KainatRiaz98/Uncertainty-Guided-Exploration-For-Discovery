@@ -374,6 +374,7 @@ def _compute_base_logprobs(
         batch_mask=[[True] * T],
         data_config=[data_config],
     )
+    mlora_data.use_flash_causal_ = True
 
     logits = ensemble.model.forward(mlora_data.model_data())  # (1, T, V)
 
@@ -681,8 +682,15 @@ def train_step(
                 [r.reward_rmi for r in group.rollouts], dtype=torch.float32
             )
             rmi_centered = rmi_values - rmi_values.mean()
+            # Normalize RMI to unit scale so γ_eff directly controls strength
+            # relative to A_exec, regardless of raw RMI magnitude
+            rmi_std = rmi_centered.std()
+            if rmi_std > 1e-8:
+                rmi_centered = rmi_centered / rmi_std
             gamma_eff = cfg.rmi_coef * min(beta / cfg.adv_estimator_beta, cfg.gamma_max_ratio)
-            scalar_advantages = scalar_advantages + gamma_eff * rmi_centered
+            # Scale RMI bonus proportional to advantage magnitude
+            adv_scale = scalar_advantages.abs().mean().clamp(min=1e-8)
+            scalar_advantages = scalar_advantages + gamma_eff * adv_scale * rmi_centered
         else:
             gamma_eff = 0.0
 

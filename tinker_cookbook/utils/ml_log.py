@@ -401,7 +401,12 @@ def initialize_or_resume_wandb_logger(wandb_project, config, log_dir, wandb_name
     project_path = f"{entity}/{wandb_project}"
 
     # Filter by run "Name" (API key is `display_name`)
-    runs = api.runs(project_path, filters={"display_name": wandb_name})
+    # api.runs() returns a lazy paginator; fetch eagerly so project-not-found
+    # errors surface here rather than silently breaking the iterator.
+    try:
+        runs = list(api.runs(project_path, filters={"display_name": wandb_name}))
+    except ValueError:
+        runs = []  # project doesn't exist yet; will be created on first wandb.init
 
     latest_run_id = None
     latest_created_at = None
