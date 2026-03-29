@@ -21,6 +21,7 @@ New additions over original:
 
 import argparse
 import asyncio
+import concurrent.futures
 import logging
 import math
 import os
@@ -119,6 +120,9 @@ class Config:
     rmi_coef: float = 0.1           # α: base exploration strength (γ_eff adapts via β-coupling)
     uncertainty_metric: str = "rmi"  # "rmi", "variance", "predictive_entropy"
     gamma_max_ratio: float = 10.0   # clip γ_eff/rmi_coef to prevent explosion
+
+    # ── Performance ──────────────────────────────────────────────────────
+    kv_quantize: bool = True  # int8 KV cache: halves bandwidth, ~2× faster batched decode
 
     # ── Sampler ───────────────────────────────────────────────────────────
     sampler_type: str = "puct_backprop"
@@ -586,6 +590,156 @@ def do_rollout(
     )
 
 
+def _build_rollout_from_scored(
+    prompt_tokens: List[int],
+    full_tokens: List[int],
+    sampling_logprobs: List[float],
+    ensemble_logprobs: torch.Tensor,
+    result: Dict[str, Any],
+    adapter_idx: int,
+    uncertainty_fn: Callable,
+    rmi_coef: float,
+) -> Rollout:
+    """Build a Rollout from pre-generated tokens and pre-scored ensemble logprobs."""
+    reward_exec = result["reward"]
+    child_state = result.get("child_state")
+
+    reward_rmi = float(uncertainty_fn(ensemble_logprobs))
+
+    rmi_val = float(compute_rmi(ensemble_logprobs))
+    variance_val = float(compute_variance(ensemble_logprobs))
+    pred_entropy_val = float(compute_predictive_entropy(ensemble_logprobs))
+
+    per_member_mean_lp = ensemble_logprobs.mean(dim=1)
+    member_logprob_spread = float(per_member_mean_lp.std())
+    member_logprob_range = float(per_member_mean_lp.max() - per_member_mean_lp.min())
+
+    per_token_var = ensemble_logprobs.var(dim=0)
+    max_token_disagreement = float(per_token_var.max())
+    frac_high_disagreement = float((per_token_var > per_token_var.median()).float().mean())
+
+    reward_total = reward_exec + rmi_coef * reward_rmi
+
+    prompt_pad = [0.0] * (len(prompt_tokens) - 1)
+    full_sampling_logprobs = prompt_pad + list(sampling_logprobs)
+
+    return Rollout(
+        prompt_tokens=prompt_tokens,
+        full_tokens=full_tokens,
+        sampling_logprobs=full_sampling_logprobs,
+        reward_exec=reward_exec,
+        reward_rmi=reward_rmi,
+        reward_total=reward_total,
+        adapter_idx=adapter_idx,
+        child_state=child_state,
+        metrics={
+            "reward/exec": reward_exec,
+            "reward/rmi": reward_rmi,
+            "reward/total": reward_total,
+            "gen/num_tokens": len(full_tokens) - len(prompt_tokens),
+            "gen/adapter_idx": adapter_idx,
+            "correctness": result.get("correctness", 0.0),
+            "uncertainty/rmi": rmi_val,
+            "uncertainty/variance": variance_val,
+            "uncertainty/predictive_entropy": pred_entropy_val,
+            "ensemble/member_logprob_spread": member_logprob_spread,
+            "ensemble/member_logprob_range": member_logprob_range,
+            "ensemble/max_token_disagreement": max_token_disagreement,
+            "ensemble/frac_high_disagreement": frac_high_disagreement,
+        },
+    )
+
+
+def do_group_rollout_batched(
+    ensemble: LoRAEnsemble,
+    tokenizer: MLoRATokenizer,
+    prompt_tokens: List[int],
+    group_size: int,
+    parent_state: Optional[Any],
+    epoch: int,
+    group_idx: int,
+    process_fn: Callable[[str, Any, int], Dict[str, Any]],
+    uncertainty_fn: Callable,
+    rmi_coef: float,
+    max_tokens: int,
+    temperature: float,
+    reward_workers: concurrent.futures.ThreadPoolExecutor,
+    kv_quantize: bool = True,
+) -> List[Rollout]:
+    """
+    Generate all rollouts for a group using batched generation + parallel
+    reward computation + batched ensemble scoring.
+
+    3-layer parallelism:
+        1. GPU: generate_batch() — all group_size sequences in parallel
+        2. CPU: ThreadPoolExecutor — reward computation in parallel
+        3. GPU: compute_ensemble_logprobs_batch() — score all at once
+
+    Args:
+        reward_workers: Thread pool for parallel CPU reward computation.
+
+    Returns:
+        List of Rollout objects for this group.
+    """
+    K = ensemble.K
+
+    # ── 1. Multi-adapter batched generation (GPU) ────────────────────────
+    # Rotate adapters across rollouts for diversity (matches original do_rollout loop):
+    #   adapter_idx_for_rollout_i = (epoch * group_size + i) % K
+    # All sequences generated in a SINGLE batched forward pass per decode step,
+    # with mLoRA routing each batch element to its assigned adapter.
+    adapter_assignments = [(epoch * group_size + i) % K for i in range(group_size)]
+    t_gen_start = time.time()
+    gen_results = ensemble.generate_batch_multi_adapter(
+        prompt_tokens=prompt_tokens,
+        adapter_assignments=adapter_assignments,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        eos_token_id=tokenizer.eos_id_,
+        kv_quantize=kv_quantize,
+    )
+    t_gen = time.time() - t_gen_start
+    logger.debug(f"  Group {group_idx}: multi-adapter generation {group_size} seqs in {t_gen:.1f}s")
+
+    # ── 2. Parallel reward computation (CPU) ─────────────────────────────
+    t_reward_start = time.time()
+    reward_futures = []
+    for i, (full_tokens, sampling_logprobs) in enumerate(gen_results):
+        step_idx = epoch * 1000 + group_idx * group_size + i
+        generated_text = tokenizer.decode(full_tokens)
+        future = reward_workers.submit(process_fn, generated_text, parent_state, step_idx)
+        reward_futures.append(future)
+
+    # ── 3. Batched ensemble scoring (GPU, overlaps with CPU rewards) ─────
+    t_score_start = time.time()
+    all_full_tokens = [ft for ft, _ in gen_results]
+    all_ensemble_logprobs = ensemble.compute_ensemble_logprobs_batch(all_full_tokens)
+    t_score = time.time() - t_score_start
+    logger.debug(f"  Group {group_idx}: batched ensemble scoring in {t_score:.1f}s")
+
+    # ── 4. Collect rewards and build Rollout objects ─────────────────────
+    reward_results = [f.result() for f in reward_futures]
+    t_reward = time.time() - t_reward_start
+    logger.debug(f"  Group {group_idx}: rewards computed in {t_reward:.1f}s")
+
+    rollouts = []
+    for i, (full_tokens, sampling_logprobs) in enumerate(gen_results):
+        rollout = _build_rollout_from_scored(
+            prompt_tokens=prompt_tokens,
+            full_tokens=full_tokens,
+            sampling_logprobs=sampling_logprobs,
+            ensemble_logprobs=all_ensemble_logprobs[i],
+            result=reward_results[i],
+            adapter_idx=adapter_assignments[i],
+            uncertainty_fn=uncertainty_fn,
+            rmi_coef=rmi_coef,
+        )
+        rollout.state = parent_state
+        rollouts.append(rollout)
+
+    return rollouts
+
+
 def _split_list(lst: list, n: int) -> List[list]:
     """Split list into n roughly equal chunks. Port of train.py:split_list()."""
     if n <= 0:
@@ -947,9 +1101,18 @@ def main(
         f"{cfg.groups_per_batch} groups/batch × {cfg.group_size} rollouts/group, "
         f"K={cfg.num_ensemble_members} adapters, γ={cfg.rmi_coef}"
     )
+    logger.info(
+        f"Parallelism: batched generation ({cfg.group_size} seqs/batch), "
+        f"threaded rewards ({cfg.group_size} workers), batched ensemble scoring"
+    )
 
     best_reward_exec = float("-inf")
     best_reward_total = float("-inf")
+
+    # Thread pool for parallel CPU reward computation
+    reward_workers = concurrent.futures.ThreadPoolExecutor(
+        max_workers=max(cfg.group_size, 8)
+    )
 
     for epoch in range(start_epoch, cfg.num_epochs):
         t_start = time.time()
@@ -958,38 +1121,30 @@ def main(
             "progress/done_frac": (epoch + 1) / cfg.num_epochs,
         }
 
-        # ── Rollout phase ─────────────────────────────────────────────
+        # ── Rollout phase (batched) ──────────────────────────────────
         rollout_groups: List[RolloutGroup] = []
-        # Sample parent states for this epoch
         parent_states = sampler.sample_states(cfg.groups_per_batch)
 
         for g, parent_state in enumerate(parent_states):
-            group_rollouts: List[Rollout] = []
-
-            # Build prompt text once per parent state, tokenize
             prompt_text = prompt_fn(parent_state)
             prompt_tokens = tokenizer.encode(prompt_text, bos=True, eos=False)
 
-            for i in range(cfg.group_size):
-                # Rotate adapter for generation diversity
-                adapter_idx = (epoch * cfg.group_size + i) % ensemble.K
-                step_idx = epoch * cfg.groups_per_batch * cfg.group_size + g * cfg.group_size + i
-
-                rollout = do_rollout(
-                    ensemble=ensemble,
-                    tokenizer=tokenizer,
-                    prompt_tokens=prompt_tokens,
-                    adapter_idx=adapter_idx,
-                    parent_state=parent_state,
-                    step=step_idx,
-                    process_fn=process_fn,
-                    uncertainty_fn=uncertainty_fn,
-                    rmi_coef=cfg.rmi_coef,
-                    max_tokens=cfg.max_tokens,
-                    temperature=cfg.temperature,
-                )
-                rollout.state = parent_state
-                group_rollouts.append(rollout)
+            group_rollouts = do_group_rollout_batched(
+                ensemble=ensemble,
+                tokenizer=tokenizer,
+                prompt_tokens=prompt_tokens,
+                group_size=cfg.group_size,
+                parent_state=parent_state,
+                epoch=epoch,
+                group_idx=g,
+                process_fn=process_fn,
+                uncertainty_fn=uncertainty_fn,
+                rmi_coef=cfg.rmi_coef,
+                max_tokens=cfg.max_tokens,
+                temperature=cfg.temperature,
+                reward_workers=reward_workers,
+                kv_quantize=cfg.kv_quantize,
+            )
 
             # Filter constant-reward groups (same as original)
             rewards = [r.reward_total for r in group_rollouts]
@@ -1070,7 +1225,8 @@ def main(
                 f.write(str(epoch))
             logger.info(f"Checkpoint saved at epoch {epoch}")
 
-    # ── 5. Final checkpoint ───────────────────────────────────────────────
+    # ── 5. Cleanup + final checkpoint ────────────────────────────────────
+    reward_workers.shutdown(wait=False)
     ensemble.save(cfg.log_path, cfg.num_epochs - 1)
     with open(checkpoint_file, "w") as f:
         f.write(str(cfg.num_epochs - 1))
@@ -1111,6 +1267,11 @@ def cli_main():
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--adv_estimator", default="entropic_adaptive_beta")
     parser.add_argument("--loss_fn", default="importance_sampling")
+
+    # Performance
+    parser.add_argument("--kv_quantize", action="store_true", default=True,
+                        help="Int8 KV cache: halves memory bandwidth for faster batched decode")
+    parser.add_argument("--no_kv_quantize", dest="kv_quantize", action="store_false")
 
     # Ensemble
     parser.add_argument("--num_ensemble_members", type=int, default=5)

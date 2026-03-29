@@ -104,6 +104,8 @@ class ModelData:
     kv_cache_: Optional[List[Optional[Tuple[torch.Tensor, torch.Tensor]]]] = None
     # RoPE position offset: absolute position of the first token in the current input
     cache_position_: int = 0
+    # Int8 KV cache quantization: halves memory bandwidth for faster batched decode
+    kv_cache_quantize_: bool = False
 
 
 class MLoRADataConfig:
@@ -183,6 +185,7 @@ class MLoRAData:
             return_hidden_states_=getattr(self, 'return_hidden_states_', False),
             kv_cache_=getattr(self, 'kv_cache_', None),
             cache_position_=getattr(self, 'cache_position_', 0),
+            kv_cache_quantize_=getattr(self, 'kv_cache_quantize_', False),
         )
 
     def batch_size(self) -> int:
