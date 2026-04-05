@@ -16,7 +16,7 @@ The training loop (mlora_train.py) should never call mLoRA directly.
 import logging
 import math
 import os
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -61,7 +61,8 @@ class LoRAEnsemble:
 
         if target_modules is None:
             target_modules = {
-                "q_proj": True, "o_proj": True,
+                "q_proj": True, "k_proj": True,
+                "v_proj": True, "o_proj": True,
             }
 
         self._init_adapters(
@@ -150,57 +151,102 @@ class LoRAEnsemble:
         hidden: torch.Tensor,
         token_ids: List[int],
         chunk_size: int = 256,
-    ) -> torch.Tensor:
+        compute_mi: bool = False,
+    ):
         """
         Extract per-token logprobs from hidden states without materializing
         the full (K, T, V) logits tensor.
 
+        When compute_mi=True, also computes true mutual information from the
+        full vocabulary distribution at each position:
+
+            MI(t) = H[p̄(·|y_{<t})] - E_k[H[p_k(·|y_{<t})]]
+
+        The MI computation reuses the log_softmax already computed for logprob
+        extraction, adding only entropy sums (<0.03% of LM head matmul cost).
+
         Applies the LM head in chunks over the sequence dimension.
         Peak logit memory: K × chunk_size × V × 4 bytes.
+
+        Returns:
+            If compute_mi=False: (K, T-1) tensor of per-token logprobs.
+            If compute_mi=True: tuple of (K, T-1) logprobs and (T-1,) true MI.
         """
         K = hidden.shape[0]
         T = len(token_ids)
         lm_head = self._get_lm_head()
         target = torch.tensor(token_ids[1:], dtype=torch.long, device=hidden.device)
 
-        results = []
+        logprob_chunks = []
+        mi_chunks = [] if compute_mi else None
+
         for start in range(0, T - 1, chunk_size):
             end = min(start + chunk_size, T - 1)
             # hidden[:, start:end] predicts tokens[start+1:end+1]
             chunk_logits = lm_head(hidden[:, start:end, :]).float()  # (K, chunk, V)
             chunk_lp = F.log_softmax(chunk_logits, dim=-1)
+
+            # Gather logprobs at generated tokens
             chunk_target = target[start:end].unsqueeze(0).unsqueeze(-1).expand(K, -1, 1)
-            results.append(chunk_lp.gather(2, chunk_target).squeeze(-1))
+            logprob_chunks.append(chunk_lp.gather(2, chunk_target).squeeze(-1))
+
+            if compute_mi:
+                # True MI = H[mixture] - E_k[H[member]] per position
+                #
+                # Per-member entropy: H[p_k] = -Σ_v p_k(v) log p_k(v)
+                # chunk_lp is finite (log_softmax is stable), exp() may underflow
+                # to 0 but 0 * finite = 0 in IEEE float, so product is safe.
+                chunk_probs = chunk_lp.exp()  # (K, chunk, V)
+                H_members = -(chunk_probs * chunk_lp).sum(dim=-1)  # (K, chunk)
+
+                # Mixture log-probs: log p̄(v) = logsumexp(log p_k(v)) - log(K)
+                log_mix = torch.logsumexp(chunk_lp, dim=0) - math.log(K)  # (chunk, V)
+                mix_probs = log_mix.exp()  # (chunk, V)
+                # Mixture entropy: H[p̄] = -Σ_v p̄(v) log p̄(v)
+                H_mixture = -(mix_probs * log_mix).sum(dim=-1)  # (chunk,)
+
+                mi_chunks.append(H_mixture - H_members.mean(dim=0))  # (chunk,)
+                del chunk_probs, H_members, log_mix, mix_probs, H_mixture
+
             del chunk_logits, chunk_lp
 
-        return torch.cat(results, dim=1)  # (K, T-1)
+        logprobs = torch.cat(logprob_chunks, dim=1)  # (K, T-1)
+        if compute_mi:
+            per_token_mi = torch.cat(mi_chunks, dim=0)  # (T-1,)
+            return logprobs, per_token_mi
+        return logprobs
 
     def compute_ensemble_logprobs(
         self,
         token_ids: List[int],
         chunk_size: int = 256,
-    ) -> torch.Tensor:
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Score a token sequence through all K adapters in a single forward pass.
 
         Uses flash causal attention (O(n) memory) and chunked logit extraction
-        to avoid materializing the full (K, T, V) logits tensor.
+        to avoid materializing the full (K, T, V) logits tensor. Also computes
+        true mutual information from the full vocabulary distribution.
 
         Args:
             token_ids: Complete token sequence (prompt + generated), length T.
             chunk_size: Tokens per chunk for LM head. Lower = less memory.
 
         Returns:
-            (K, T-1) tensor of log p_k(y_t | y_{<t}) for each adapter k,
-            shifted so position t predicts token t+1.
+            Tuple of:
+                - (K, T-1) tensor of log p_k(y_t | y_{<t}) for each adapter k
+                - (T-1,) tensor of per-position true MI
         """
         mlora_data = self._build_mlora_data(token_ids, "score")
         mlora_data.return_hidden_states_ = True
 
-        with torch.no_grad():
-            hidden = self.model.forward(mlora_data.model_data())  # (K, T, D)
-
-        return self._chunked_logprobs(hidden, token_ids, chunk_size)
+        self.model.seq_module_.eval()
+        try:
+            with torch.no_grad():
+                hidden = self.model.forward(mlora_data.model_data())  # (K, T, D)
+            return self._chunked_logprobs(hidden, token_ids, chunk_size, compute_mi=True)
+        finally:
+            self.model.seq_module_.train()
 
     def compute_training_logprobs(
         self,
@@ -395,6 +441,179 @@ class LoRAEnsemble:
         return tokens, gen_logprobs
 
     @torch.no_grad()
+    def generate_two_phase(
+        self,
+        prompt_tokens: List[int],
+        phase1_max_tokens: int,
+        context_window: int,
+        context_buffer: int,
+        prefill_tokens: List[int],
+        temperature: float = 1.0,
+        eos_token_id: int = 2,
+        stop_token_ids: Optional[List[int]] = None,
+        adapter_idx: int = 0,
+        kv_quantize: bool = False,
+    ) -> Tuple[List[int], List[float], Optional[List[float]]]:
+        """
+        Two-phase autoregressive generation matching TwoPhaseTokenCompleter.
+
+        Phase 1 (thinking): decode up to phase1_max_tokens - prompt_len tokens.
+        If Phase 1 exhausts budget without stop → inject teacher-forced prefill →
+        Phase 2 (code): decode with remaining context budget.
+
+        Args:
+            phase1_max_tokens: Total budget for prompt + Phase 1 output (e.g. 26000).
+            context_window: Total context window size (e.g. 32768).
+            context_buffer: Safety margin tokens (e.g. 50).
+            prefill_tokens: Teacher-forced transition tokens (already tokenized).
+            stop_token_ids: Additional stop tokens (e.g. [im_end_id]).
+
+        Returns:
+            full_tokens: prompt + phase1 + (prefill + phase2 if triggered).
+            logprobs: Per-generated-token logprobs (0.0 for prefill tokens).
+            custom_mask: (T-1)-length mask or None if single-phase completed.
+                0.0 for prompt + prefill positions, 1.0 for trained positions.
+        """
+        adapter_name = f"ensemble_{adapter_idx}"
+        n_layers = self._get_n_layers()
+        kv_cache: List[Optional[Tuple[torch.Tensor, torch.Tensor]]] = [None] * n_layers
+        prompt_len = len(prompt_tokens)
+        phase1_max_output = phase1_max_tokens - prompt_len
+        if phase1_max_output <= 0:
+            raise ValueError(
+                f"Prompt length {prompt_len} exceeds phase1_max_tokens {phase1_max_tokens}."
+            )
+
+        all_stop_ids = set()
+        if stop_token_ids:
+            all_stop_ids.update(stop_token_ids)
+
+        # ── Prefill prompt into KV cache ──
+        mlora_data = self._make_gen_data(
+            list(prompt_tokens), adapter_name,
+            kv_cache=kv_cache, cache_position=0, kv_quantize=kv_quantize,
+        )
+        logits = self.model.forward(mlora_data.model_data())  # (1, P, V)
+        next_logits = logits[0, -1, :]
+        del logits
+
+        tokens = list(prompt_tokens)
+        gen_logprobs: List[float] = []
+        cur_pos = prompt_len
+        hit_stop = False
+
+        # ── Phase 1: Thinking tokens ──
+        for step in range(phase1_max_output):
+            if temperature > 0:
+                probs = F.softmax(next_logits / temperature, dim=-1)
+                next_token = torch.multinomial(probs, num_samples=1).item()
+            else:
+                next_token = next_logits.argmax().item()
+
+            log_prob = F.log_softmax(next_logits, dim=-1)[next_token].item()
+            gen_logprobs.append(log_prob)
+            tokens.append(next_token)
+
+            if next_token == eos_token_id or next_token in all_stop_ids:
+                hit_stop = True
+                break
+
+            if step < phase1_max_output - 1:
+                mlora_data = self._make_gen_data(
+                    [next_token], adapter_name,
+                    kv_cache=kv_cache, cache_position=cur_pos, kv_quantize=kv_quantize,
+                )
+                logits = self.model.forward(mlora_data.model_data())
+                next_logits = logits[0, -1, :]
+                del logits
+                cur_pos += 1
+
+        phase1_gen_count = len(gen_logprobs)
+
+        # If Phase 1 completed naturally (hit stop or didn't exhaust budget),
+        # return as single-phase — no prefill needed.
+        if hit_stop or phase1_gen_count < phase1_max_output:
+            return tokens, gen_logprobs, None
+
+        # ── Phase boundary: inject teacher-forced prefill ──
+        # Feed prefill tokens one at a time through KV cache (teacher forcing).
+        cur_pos = prompt_len + phase1_gen_count
+        # Need a forward pass for the last Phase 1 token to get KV cache updated
+        # (the loop above skipped the last forward when step == phase1_max_output - 1)
+        last_phase1_token = tokens[-1]
+        mlora_data = self._make_gen_data(
+            [last_phase1_token], adapter_name,
+            kv_cache=kv_cache, cache_position=cur_pos - 1, kv_quantize=kv_quantize,
+        )
+        logits = self.model.forward(mlora_data.model_data())
+        del logits
+        # cur_pos is already correct (prompt_len + phase1_gen_count)
+
+        for prefill_tok in prefill_tokens:
+            mlora_data = self._make_gen_data(
+                [prefill_tok], adapter_name,
+                kv_cache=kv_cache, cache_position=cur_pos, kv_quantize=kv_quantize,
+            )
+            logits = self.model.forward(mlora_data.model_data())
+            next_logits = logits[0, -1, :]
+            del logits
+            tokens.append(prefill_tok)
+            gen_logprobs.append(0.0)  # Teacher-forced: no real logprob
+            cur_pos += 1
+
+        prefill_len = len(prefill_tokens)
+
+        # ── Phase 2: Code tokens ──
+        phase2_budget = (
+            context_window - prompt_len - phase1_gen_count - prefill_len - context_buffer
+        )
+        if phase2_budget <= 0:
+            # No room for Phase 2 — build mask and return
+            total = len(tokens) - 1
+            mask = [0.0] * (prompt_len - 1)  # prompt pad
+            mask += [1.0] * phase1_gen_count  # Phase 1 (trained)
+            mask += [0.0] * prefill_len       # prefill (not trained)
+            return tokens, gen_logprobs, mask
+
+        phase2_gen_count = 0
+        for _ in range(phase2_budget):
+            if temperature > 0:
+                probs = F.softmax(next_logits / temperature, dim=-1)
+                next_token = torch.multinomial(probs, num_samples=1).item()
+            else:
+                next_token = next_logits.argmax().item()
+
+            log_prob = F.log_softmax(next_logits, dim=-1)[next_token].item()
+            gen_logprobs.append(log_prob)
+            tokens.append(next_token)
+            phase2_gen_count += 1
+
+            if next_token == eos_token_id or next_token in all_stop_ids:
+                break
+
+            mlora_data = self._make_gen_data(
+                [next_token], adapter_name,
+                kv_cache=kv_cache, cache_position=cur_pos, kv_quantize=kv_quantize,
+            )
+            logits = self.model.forward(mlora_data.model_data())
+            next_logits = logits[0, -1, :]
+            del logits
+            cur_pos += 1
+
+        # ── Build mask (T-1 length) ──
+        # prompt_pad (0) | phase1 (1) | prefill (0) | phase2 (1)
+        mask = [0.0] * (prompt_len - 1)
+        mask += [1.0] * phase1_gen_count
+        mask += [0.0] * prefill_len
+        mask += [1.0] * phase2_gen_count
+        assert len(mask) == len(tokens) - 1, (
+            f"Mask length {len(mask)} != tokens-1 {len(tokens)-1}: "
+            f"prompt={prompt_len}, p1={phase1_gen_count}, prefill={prefill_len}, p2={phase2_gen_count}"
+        )
+
+        return tokens, gen_logprobs, mask
+
+    @torch.no_grad()
     def generate_batch(
         self,
         prompt_tokens: List[int],
@@ -573,6 +792,7 @@ class LoRAEnsemble:
             of adapter_assignments (not grouped by adapter).
         """
         N = len(adapter_assignments)
+        logger.info(f"  generate_batch_multi_adapter: N={N} max_tokens={max_tokens} kv_q={kv_quantize}")
 
         # ── Fast path: single adapter → delegate to existing method ──
         unique_adapters = set(adapter_assignments)
@@ -721,6 +941,10 @@ class LoRAEnsemble:
             if all(finished):
                 break
 
+            if step % 2048 == 0:
+                n_active = sum(1 for f in finished if not f)
+                logger.info(f"    [gen] step={step}/{max_tokens} active={n_active}/{N}")
+
             batch_tokens = []
             for i in range(N):
                 if finished[i]:
@@ -760,13 +984,433 @@ class LoRAEnsemble:
             results[orig_pos] = results_batch_order[batch_pos]
         return results
 
+    @torch.no_grad()
+    def generate_batch_multi_adapter_two_phase(
+        self,
+        prompt_tokens: List[int],
+        adapter_assignments: List[int],
+        phase1_max_tokens: int,
+        context_window: int,
+        context_buffer: int,
+        prefill_tokens: List[int],
+        temperature: float = 1.0,
+        eos_token_id: int = 2,
+        stop_token_ids: Optional[List[int]] = None,
+        kv_quantize: bool = False,
+        # ── Streaming MI early stop parameters ──
+        streaming_mi_enabled: bool = False,
+        mi_window_size: int = 4096,
+        mi_check_interval: int = 2048,
+        mi_min_gen: int = 4096,
+        mi_threshold: float = 0.0,
+        mi_wrap_budget: int = 1024,
+    ) -> List[Tuple[List[int], List[float], Optional[List[float]], Optional[Dict[str, Any]]]]:
+        """
+        Batched multi-adapter two-phase generation with optional streaming MI early stop.
+
+        Like generate_batch_multi_adapter but with Phase 1/Phase 2 boundary:
+        sequences that exhaust Phase 1 budget get teacher-forced prefill tokens
+        injected before continuing to Phase 2.
+
+        When streaming_mi_enabled=True, periodically checks ensemble MI on a
+        window of recent tokens. Low-MI sequences get early-stopped with
+        teacher-forced prefill + wrap budget, saving tokens for high-MI rollouts.
+
+        Returns:
+            List of (full_tokens, logprobs, custom_mask_or_None, mi_meta) per
+            sequence, in the ORIGINAL order of adapter_assignments.
+            mi_meta is a dict with keys: mi_stopped, mi_stop_step, mi_values,
+            mi_check_steps — or None if streaming MI was disabled.
+        """
+        N = len(adapter_assignments)
+        prompt_len = len(prompt_tokens)
+        logger.info(
+            f"  generate_batch_multi_adapter_two_phase: N={N} "
+            f"phase1_max={phase1_max_tokens} streaming_mi={streaming_mi_enabled} kv_q={kv_quantize}"
+        )
+        phase1_max_output = phase1_max_tokens - prompt_len
+        if phase1_max_output <= 0:
+            raise ValueError(
+                f"Prompt length {prompt_len} exceeds phase1_max_tokens {phase1_max_tokens}."
+            )
+
+        all_stop_ids = set()
+        if stop_token_ids:
+            all_stop_ids.update(stop_token_ids)
+
+        # ── Fast path: single sequence → delegate (only when no streaming MI) ──
+        if N == 1 and not streaming_mi_enabled:
+            tokens, lps, mask = self.generate_two_phase(
+                prompt_tokens, phase1_max_tokens, context_window, context_buffer,
+                prefill_tokens, temperature, eos_token_id, stop_token_ids,
+                adapter_idx=adapter_assignments[0], kv_quantize=kv_quantize,
+            )
+            return [(tokens, lps, mask, None)]
+
+        n_layers = self._get_n_layers()
+
+        # ── Phase 1: Group sequences by adapter for contiguous batch ranges ──
+        adapter_groups: Dict[int, List[int]] = {}
+        for i, a in enumerate(adapter_assignments):
+            adapter_groups.setdefault(a, []).append(i)
+        sorted_adapters = sorted(adapter_groups.keys())
+
+        batch_to_orig: List[int] = []
+        adapter_configs: List[Tuple[str, int, int]] = []
+        batch_pos = 0
+        for k in sorted_adapters:
+            positions = adapter_groups[k]
+            n_seqs = len(positions)
+            batch_to_orig.extend(positions)
+            adapter_configs.append((f"ensemble_{k}", batch_pos, batch_pos + n_seqs))
+            batch_pos += n_seqs
+
+        # ── Phase 2: Batched multi-adapter prefill ──
+        num_unique = len(sorted_adapters)
+        prefill_kv_cache: List = [None] * n_layers
+        prefill_configs = [
+            (f"ensemble_{k}", idx, idx + 1)
+            for idx, k in enumerate(sorted_adapters)
+        ]
+        prefill_data = self._make_gen_data_multi_adapter(
+            token_ids_batch=[list(prompt_tokens)] * num_unique,
+            adapter_configs=prefill_configs,
+            kv_cache=prefill_kv_cache,
+            cache_position=0,
+            kv_quantize=False,
+        )
+        logits = self.model.forward(prefill_data.model_data())
+
+        adapter_prefill_logits: Dict[int, torch.Tensor] = {}
+        for idx, k in enumerate(sorted_adapters):
+            adapter_prefill_logits[k] = logits[idx, -1, :]
+        del logits
+
+        # ── Phase 3: Expand KV cache from num_unique → N sequences ──
+        kv_cache_batch: List = []
+        for layer_cache in prefill_kv_cache:
+            if layer_cache is None:
+                kv_cache_batch.append(None)
+                continue
+            cached_k, cached_v = layer_cache
+
+            if kv_quantize:
+                k_absmax = cached_k.abs().amax(dim=-1, keepdim=True).clamp(min=1e-8)
+                v_absmax = cached_v.abs().amax(dim=-1, keepdim=True).clamp(min=1e-8)
+                k_scale = k_absmax / 127.0
+                v_scale = v_absmax / 127.0
+                k_q = (cached_k / k_scale).round().to(torch.int8)
+                v_q = (cached_v / v_scale).round().to(torch.int8)
+                del cached_k, cached_v
+
+                expanded_kq, expanded_vq = [], []
+                expanded_ks, expanded_vs = [], []
+                for idx, k in enumerate(sorted_adapters):
+                    n_seqs = len(adapter_groups[k])
+                    expanded_kq.append(k_q[idx:idx + 1].expand(n_seqs, -1, -1, -1).contiguous())
+                    expanded_vq.append(v_q[idx:idx + 1].expand(n_seqs, -1, -1, -1).contiguous())
+                    expanded_ks.append(k_scale[idx:idx + 1].expand(n_seqs, -1, -1, -1).contiguous())
+                    expanded_vs.append(v_scale[idx:idx + 1].expand(n_seqs, -1, -1, -1).contiguous())
+                kv_cache_batch.append((
+                    torch.cat(expanded_kq, dim=0),
+                    torch.cat(expanded_vq, dim=0),
+                    torch.cat(expanded_ks, dim=0),
+                    torch.cat(expanded_vs, dim=0),
+                ))
+            else:
+                expanded_k_parts, expanded_v_parts = [], []
+                for idx, k in enumerate(sorted_adapters):
+                    n_seqs = len(adapter_groups[k])
+                    expanded_k_parts.append(
+                        cached_k[idx:idx + 1].expand(n_seqs, -1, -1, -1).contiguous()
+                    )
+                    expanded_v_parts.append(
+                        cached_v[idx:idx + 1].expand(n_seqs, -1, -1, -1).contiguous()
+                    )
+                kv_cache_batch.append((
+                    torch.cat(expanded_k_parts, dim=0),
+                    torch.cat(expanded_v_parts, dim=0),
+                ))
+        del prefill_kv_cache
+
+        # ── Phase 4: Sample first token for all N sequences ──
+        all_tokens: List[List[int]] = [list(prompt_tokens) for _ in range(N)]
+        all_logprobs: List[List[float]] = [[] for _ in range(N)]
+        finished = [False] * N
+        cur_pos = prompt_len
+
+        # ── Streaming MI early stop state ──
+        mi_stopped = [False] * N
+        mi_stop_step = [-1] * N
+        mi_values_all: List[List[float]] = [[] for _ in range(N)]
+        mi_check_steps_all: List[List[int]] = [[] for _ in range(N)]
+        mi_prefill_cursor = [0] * N   # position in prefill_tokens for MI-stopped seqs
+        mi_wrap_remaining = [0] * N   # remaining wrap budget after prefill
+
+        for name, start, end in adapter_configs:
+            k = int(name.split("_")[1])
+            next_logits_k = adapter_prefill_logits[k]
+            log_probs_k = F.log_softmax(next_logits_k, dim=-1)
+            n_seqs = end - start
+
+            if temperature > 0:
+                probs_k = F.softmax(next_logits_k / temperature, dim=-1)
+                first_tokens_k = torch.multinomial(
+                    probs_k.unsqueeze(0).expand(n_seqs, -1), num_samples=1
+                ).squeeze(-1)
+            else:
+                first_tokens_k = next_logits_k.argmax().unsqueeze(0).expand(n_seqs)
+
+            for j in range(n_seqs):
+                bp = start + j
+                tok = first_tokens_k[j].item()
+                lp = log_probs_k[tok].item()
+                all_tokens[bp].append(tok)
+                all_logprobs[bp].append(lp)
+                if tok == eos_token_id or tok in all_stop_ids:
+                    finished[bp] = True
+        del adapter_prefill_logits
+
+        # ── Phase 5a: Phase 1 decode loop (thinking tokens) ──
+        for step in range(1, phase1_max_output):
+            if all(finished):
+                break
+
+            if step % 2048 == 0:
+                n_active = sum(1 for f in finished if not f)
+                n_mi_stopped = sum(mi_stopped)
+                logger.info(
+                    f"    [gen/p1] step={step}/{phase1_max_output} "
+                    f"active={n_active}/{N} mi_stopped={n_mi_stopped}"
+                )
+
+            # ── Streaming MI checkpoint ──
+            if (streaming_mi_enabled
+                    and step >= mi_min_gen
+                    and (step - mi_min_gen) % mi_check_interval == 0):
+                check_indices = [
+                    i for i in range(N)
+                    if not finished[i] and not mi_stopped[i]
+                ]
+                if check_indices:
+                    windows = []
+                    for i in check_indices:
+                        w_start = max(0, len(all_tokens[i]) - mi_window_size)
+                        windows.append(all_tokens[i][w_start:])
+                    window_mis = self.compute_window_mi_batch(windows)
+                    for j, i in enumerate(check_indices):
+                        mi_values_all[i].append(window_mis[j])
+                        mi_check_steps_all[i].append(step)
+                        if window_mis[j] < mi_threshold:
+                            mi_stopped[i] = True
+                            mi_stop_step[i] = step
+                            mi_prefill_cursor[i] = 0
+                            mi_wrap_remaining[i] = mi_wrap_budget
+                            logger.debug(
+                                f"  MI early stop: seq {i} at step {step}, "
+                                f"MI={window_mis[j]:.6f} < threshold={mi_threshold:.6f}"
+                            )
+
+            batch_tokens = []
+            for i in range(N):
+                if finished[i]:
+                    batch_tokens.append([eos_token_id])
+                else:
+                    batch_tokens.append([all_tokens[i][-1]])
+
+            mlora_data = self._make_gen_data_multi_adapter(
+                token_ids_batch=batch_tokens,
+                adapter_configs=adapter_configs,
+                kv_cache=kv_cache_batch,
+                cache_position=cur_pos,
+                kv_quantize=kv_quantize,
+            )
+            logits = self.model.forward(mlora_data.model_data())
+            cur_pos += 1
+
+            for i in range(N):
+                if finished[i]:
+                    continue
+
+                if mi_stopped[i]:
+                    # ── MI-stopped: inject prefill tokens, then wrap decode ──
+                    if mi_prefill_cursor[i] < len(prefill_tokens):
+                        # Teacher-forced prefill token
+                        all_tokens[i].append(prefill_tokens[mi_prefill_cursor[i]])
+                        all_logprobs[i].append(0.0)
+                        mi_prefill_cursor[i] += 1
+                    elif mi_wrap_remaining[i] > 0:
+                        # Free decode for wrap-up code
+                        seq_logits = logits[i, -1, :]
+                        log_probs_i = F.log_softmax(seq_logits, dim=-1)
+                        if temperature > 0:
+                            probs_i = F.softmax(seq_logits / temperature, dim=-1)
+                            next_tok = torch.multinomial(probs_i, num_samples=1).item()
+                        else:
+                            next_tok = seq_logits.argmax().item()
+                        all_tokens[i].append(next_tok)
+                        all_logprobs[i].append(log_probs_i[next_tok].item())
+                        mi_wrap_remaining[i] -= 1
+                        if (next_tok == eos_token_id or next_tok in all_stop_ids
+                                or mi_wrap_remaining[i] <= 0):
+                            finished[i] = True
+                    else:
+                        finished[i] = True
+                else:
+                    # ── Normal Phase 1 decode ──
+                    seq_logits = logits[i, -1, :]
+                    log_probs_i = F.log_softmax(seq_logits, dim=-1)
+                    if temperature > 0:
+                        probs_i = F.softmax(seq_logits / temperature, dim=-1)
+                        next_tok = torch.multinomial(probs_i, num_samples=1).item()
+                    else:
+                        next_tok = seq_logits.argmax().item()
+                    all_tokens[i].append(next_tok)
+                    all_logprobs[i].append(log_probs_i[next_tok].item())
+                    if next_tok == eos_token_id or next_tok in all_stop_ids:
+                        finished[i] = True
+
+        # Track which sequences completed in Phase 1 vs need Phase 2
+        # MI-stopped sequences already handled prefill+wrap inside Phase 5a
+        phase1_finished = list(finished)  # snapshot
+        phase1_gen_counts = [len(all_logprobs[i]) for i in range(N)]
+        needs_phase2 = [
+            not phase1_finished[i] and not mi_stopped[i]
+            for i in range(N)
+        ]
+
+        if any(needs_phase2):
+            # ── Phase 5b: Teacher-forced prefill injection ──
+            # Feed prefill tokens one at a time through the batch.
+            # Finished/phase1-completed sequences get dummy tokens.
+            for prefill_tok in prefill_tokens:
+                batch_tokens = []
+                for i in range(N):
+                    if finished[i] or not needs_phase2[i]:
+                        batch_tokens.append([eos_token_id])
+                    else:
+                        batch_tokens.append([all_tokens[i][-1]] if len(all_tokens[i]) > prompt_len else [eos_token_id])
+
+                mlora_data = self._make_gen_data_multi_adapter(
+                    token_ids_batch=batch_tokens,
+                    adapter_configs=adapter_configs,
+                    kv_cache=kv_cache_batch,
+                    cache_position=cur_pos,
+                    kv_quantize=kv_quantize,
+                )
+                logits = self.model.forward(mlora_data.model_data())
+                cur_pos += 1
+
+                for i in range(N):
+                    if needs_phase2[i] and not finished[i]:
+                        all_tokens[i].append(prefill_tok)
+                        all_logprobs[i].append(0.0)  # teacher-forced
+            del logits
+
+            # ── Phase 5c: Phase 2 decode loop (code tokens) ──
+            # Budget: remaining context after prompt + phase1 + prefill
+            phase2_budget = (
+                context_window - prompt_len
+                - max(phase1_gen_counts)  # conservative: use max phase1 count
+                - len(prefill_tokens)
+                - context_buffer
+            )
+
+            for step in range(max(0, phase2_budget)):
+                if all(finished):
+                    break
+
+                batch_tokens = []
+                for i in range(N):
+                    if finished[i]:
+                        batch_tokens.append([eos_token_id])
+                    else:
+                        batch_tokens.append([all_tokens[i][-1]])
+
+                mlora_data = self._make_gen_data_multi_adapter(
+                    token_ids_batch=batch_tokens,
+                    adapter_configs=adapter_configs,
+                    kv_cache=kv_cache_batch,
+                    cache_position=cur_pos,
+                    kv_quantize=kv_quantize,
+                )
+                logits = self.model.forward(mlora_data.model_data())
+                cur_pos += 1
+
+                for i in range(N):
+                    if finished[i]:
+                        continue
+                    seq_logits = logits[i, -1, :]
+                    log_probs_i = F.log_softmax(seq_logits, dim=-1)
+                    if temperature > 0:
+                        probs_i = F.softmax(seq_logits / temperature, dim=-1)
+                        next_tok = torch.multinomial(probs_i, num_samples=1).item()
+                    else:
+                        next_tok = seq_logits.argmax().item()
+                    all_tokens[i].append(next_tok)
+                    all_logprobs[i].append(log_probs_i[next_tok].item())
+                    if next_tok == eos_token_id or next_tok in all_stop_ids:
+                        finished[i] = True
+
+        # ── Phase 6: Build masks, MI metadata, and reorder results ──
+        prefill_len = len(prefill_tokens)
+        results_batch_order: List[Tuple[List[int], List[float], Optional[List[float]], Optional[Dict[str, Any]]]] = []
+        for i in range(N):
+            # Build MI metadata for all sequences (even if MI was disabled)
+            mi_meta: Optional[Dict[str, Any]] = None
+            if streaming_mi_enabled:
+                mi_meta = {
+                    "mi_stopped": mi_stopped[i],
+                    "mi_stop_step": mi_stop_step[i],
+                    "mi_values": mi_values_all[i],
+                    "mi_check_steps": mi_check_steps_all[i],
+                }
+
+            if mi_stopped[i]:
+                # MI early stopped: prompt(0) | thinking(1) | prefill(0) | wrap(1)
+                p1_count = mi_stop_step[i]  # thinking tokens before MI stop
+                p_len = mi_prefill_cursor[i]  # should == len(prefill_tokens)
+                wrap_count = len(all_logprobs[i]) - p1_count - p_len
+                mask = [0.0] * (prompt_len - 1)
+                mask += [1.0] * p1_count
+                mask += [0.0] * p_len
+                mask += [1.0] * max(0, wrap_count)
+                expected = len(all_tokens[i]) - 1
+                if len(mask) < expected:
+                    mask += [1.0] * (expected - len(mask))
+                elif len(mask) > expected:
+                    mask = mask[:expected]
+                results_batch_order.append((all_tokens[i], all_logprobs[i], mask, mi_meta))
+            elif needs_phase2[i]:
+                # Budget-stopped: prompt(0) | phase1(1) | prefill(0) | phase2(1)
+                p1_count = phase1_gen_counts[i]
+                p2_count = len(all_logprobs[i]) - p1_count - prefill_len
+                mask = [0.0] * (prompt_len - 1)
+                mask += [1.0] * p1_count
+                mask += [0.0] * prefill_len
+                mask += [1.0] * max(0, p2_count)
+                expected = len(all_tokens[i]) - 1
+                if len(mask) < expected:
+                    mask += [1.0] * (expected - len(mask))
+                elif len(mask) > expected:
+                    mask = mask[:expected]
+                results_batch_order.append((all_tokens[i], all_logprobs[i], mask, mi_meta))
+            else:
+                # Single-phase completed (hit stop/EOS): no custom mask
+                results_batch_order.append((all_tokens[i], all_logprobs[i], None, mi_meta))
+
+        results: List[Optional[Tuple[List[int], List[float], Optional[List[float]], Optional[Dict[str, Any]]]]] = [None] * N
+        for batch_pos_idx, orig_pos in enumerate(batch_to_orig):
+            results[orig_pos] = results_batch_order[batch_pos_idx]
+        return results
+
     # ── Batched ensemble scoring ─────────────────────────────────────────
 
     def compute_ensemble_logprobs_batch(
         self,
         token_ids_list: List[List[int]],
         chunk_size: int = 256,
-    ) -> List[torch.Tensor]:
+    ) -> List[Tuple[torch.Tensor, torch.Tensor]]:
         """
         Score multiple sequences through all K adapters, batching sequences
         that share the same length for efficient GPU utilization.
@@ -776,7 +1420,8 @@ class LoRAEnsemble:
             chunk_size: Tokens per chunk for LM head.
 
         Returns:
-            List of (K, T_i-1) tensors, one per input sequence.
+            List of (logprobs, per_token_mi) tuples, one per input sequence.
+            logprobs: (K, T_i-1), per_token_mi: (T_i-1,).
         """
         if len(token_ids_list) == 1:
             return [self.compute_ensemble_logprobs(token_ids_list[0], chunk_size)]
@@ -786,64 +1431,135 @@ class LoRAEnsemble:
         for idx, tids in enumerate(token_ids_list):
             length_groups.setdefault(len(tids), []).append(idx)
 
-        results: List[Optional[torch.Tensor]] = [None] * len(token_ids_list)
+        results: List[Optional[Tuple[torch.Tensor, torch.Tensor]]] = [None] * len(token_ids_list)
 
-        for length, indices in length_groups.items():
-            # Build a combined batch: len(indices) sequences × K adapters
-            # = len(indices)*K batch elements, all same length
-            batch_tokens = []
-            batch_masks = []
-            data_configs = []
+        self.model.seq_module_.eval()
+        try:
+            for length, indices in length_groups.items():
+                # Build a combined batch: len(indices) sequences × K adapters
+                # = len(indices)*K batch elements, all same length
+                batch_tokens = []
+                batch_masks = []
+                data_configs = []
 
-            for seq_pos, orig_idx in enumerate(indices):
-                tids = token_ids_list[orig_idx]
-                for k in range(self.K):
-                    batch_idx = seq_pos * self.K + k
-                    batch_tokens.append(list(tids))
-                    batch_masks.append([True] * length)
-                    data_configs.append(MLoRADataConfig(
-                        adapter_name=f"ensemble_{k}",
-                        adapter_type="lora",
-                        start_idx=batch_idx,
-                        end_idx=batch_idx + 1,
-                        expand_fn=self._expand_fn,
-                        loss_fn=self._noop_loss,
-                        task_name=f"batch_score_{orig_idx}_{k}",
-                    ))
+                for seq_pos, orig_idx in enumerate(indices):
+                    tids = token_ids_list[orig_idx]
+                    for k in range(self.K):
+                        batch_idx = seq_pos * self.K + k
+                        batch_tokens.append(list(tids))
+                        batch_masks.append([True] * length)
+                        data_configs.append(MLoRADataConfig(
+                            adapter_name=f"ensemble_{k}",
+                            adapter_type="lora",
+                            start_idx=batch_idx,
+                            end_idx=batch_idx + 1,
+                            expand_fn=self._expand_fn,
+                            loss_fn=self._noop_loss,
+                            task_name=f"batch_score_{orig_idx}_{k}",
+                        ))
 
-            mlora_data = MLoRAData(
-                batch_tokens=batch_tokens,
-                batch_mask=batch_masks,
-                data_config=data_configs,
-            )
-            mlora_data.use_flash_causal_ = True
-            mlora_data.return_hidden_states_ = True
+                mlora_data = MLoRAData(
+                    batch_tokens=batch_tokens,
+                    batch_mask=batch_masks,
+                    data_config=data_configs,
+                )
+                mlora_data.use_flash_causal_ = True
+                mlora_data.return_hidden_states_ = True
 
-            with torch.no_grad():
-                hidden = self.model.forward(mlora_data.model_data())
-                # hidden: (len(indices)*K, T, D)
+                with torch.no_grad():
+                    hidden = self.model.forward(mlora_data.model_data())
+                    # hidden: (len(indices)*K, T, D)
 
-            # Extract per-sequence, per-adapter logprobs
-            lm_head = self._get_lm_head()
-            for seq_pos, orig_idx in enumerate(indices):
-                tids = token_ids_list[orig_idx]
-                T = len(tids)
-                target = torch.tensor(tids[1:], dtype=torch.long, device=hidden.device)
+                # Extract per-sequence, per-adapter logprobs + true MI
+                lm_head = self._get_lm_head()
+                for seq_pos, orig_idx in enumerate(indices):
+                    tids = token_ids_list[orig_idx]
+                    T = len(tids)
+                    target = torch.tensor(tids[1:], dtype=torch.long, device=hidden.device)
 
-                # Gather hidden states for this sequence's K adapters
-                adapter_hidden = hidden[seq_pos * self.K:(seq_pos + 1) * self.K]  # (K, T, D)
+                    # Gather hidden states for this sequence's K adapters
+                    adapter_hidden = hidden[seq_pos * self.K:(seq_pos + 1) * self.K]  # (K, T, D)
 
-                # Chunked logprob extraction (same as _chunked_logprobs)
-                chunks = []
-                for start in range(0, T - 1, chunk_size):
-                    end = min(start + chunk_size, T - 1)
-                    chunk_logits = lm_head(adapter_hidden[:, start:end, :]).float()
-                    chunk_lp = F.log_softmax(chunk_logits, dim=-1)
-                    chunk_target = target[start:end].unsqueeze(0).unsqueeze(-1).expand(self.K, -1, 1)
-                    chunks.append(chunk_lp.gather(2, chunk_target).squeeze(-1))
-                    del chunk_logits, chunk_lp
+                    # Chunked logprob + MI extraction
+                    logprob_chunks = []
+                    mi_chunks = []
+                    for start in range(0, T - 1, chunk_size):
+                        end = min(start + chunk_size, T - 1)
+                        chunk_logits = lm_head(adapter_hidden[:, start:end, :]).float()
+                        chunk_lp = F.log_softmax(chunk_logits, dim=-1)
 
-                results[orig_idx] = torch.cat(chunks, dim=1)  # (K, T-1)
+                        # Gather logprobs at generated tokens
+                        chunk_target = target[start:end].unsqueeze(0).unsqueeze(-1).expand(self.K, -1, 1)
+                        logprob_chunks.append(chunk_lp.gather(2, chunk_target).squeeze(-1))
+
+                        # True MI from full distribution
+                        chunk_probs = chunk_lp.exp()
+                        H_members = -(chunk_probs * chunk_lp).sum(dim=-1)  # (K, chunk)
+                        log_mix = torch.logsumexp(chunk_lp, dim=0) - math.log(self.K)
+                        mix_probs = log_mix.exp()
+                        H_mixture = -(mix_probs * log_mix).sum(dim=-1)  # (chunk,)
+                        mi_chunks.append(H_mixture - H_members.mean(dim=0))
+
+                        del chunk_logits, chunk_lp, chunk_probs, H_members, log_mix, mix_probs, H_mixture
+
+                    results[orig_idx] = (
+                        torch.cat(logprob_chunks, dim=1),  # (K, T-1)
+                        torch.cat(mi_chunks, dim=0),        # (T-1,)
+                    )
+        finally:
+            self.model.seq_module_.train()
+
+        return results
+
+    # ── Windowed MI scoring (for streaming early stop) ──────────────────
+
+    @torch.no_grad()
+    def compute_window_mi_batch(
+        self,
+        token_windows: List[List[int]],
+        chunk_size: int = 256,
+    ) -> List[float]:
+        """
+        Compute mean true MI for each token window.
+
+        Used during streaming early-stop: at periodic checkpoints in the
+        decode loop, the last W tokens of each active sequence are scored
+        through all K adapters. Low MI = in-distribution → early stop.
+
+        Processes one window at a time to keep VRAM predictable:
+          Hidden: K × W × D × 2B ≈ 160MB
+          Chunked LM head peak: K × 256 × V × 4B ≈ 780MB
+          Total temporary: ~1GB
+
+        Args:
+            token_windows: List of token sequences (one per active sequence).
+                Each is the last W tokens of the sequence generated so far.
+            chunk_size: Tokens per chunk for LM head (lower = less memory).
+
+        Returns:
+            List of scalar mean MI values, one per input window.
+        """
+        results: List[float] = []
+
+        self.model.seq_module_.eval()
+        try:
+            for window_tokens in token_windows:
+                if len(window_tokens) < 2:
+                    results.append(0.0)
+                    continue
+
+                mlora_data = self._build_mlora_data(window_tokens, "mi_window")
+                mlora_data.return_hidden_states_ = True
+
+                with torch.no_grad():
+                    hidden = self.model.forward(mlora_data.model_data())  # (K, W, D)
+                _, per_token_mi = self._chunked_logprobs(
+                    hidden, window_tokens, chunk_size, compute_mi=True
+                )
+                results.append(float(per_token_mi.mean().item()))
+                del hidden, per_token_mi
+        finally:
+            self.model.seq_module_.train()
 
         return results
 

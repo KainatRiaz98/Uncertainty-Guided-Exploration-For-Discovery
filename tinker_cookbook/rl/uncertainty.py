@@ -1,55 +1,83 @@
 """
 Uncertainty metrics for epistemic exploration in TTT-Discover.
 
-Computes Reverse Mutual Information (RMI) and ablation alternatives
-from ensemble logprobs. Pure math — no framework dependencies.
+Primary metric: True MI computed from full vocabulary distributions during
+ensemble scoring (H[mixture] - E_k[H[member]]). This captures distributional
+disagreement across the entire vocabulary, not just at generated tokens.
 
-Given K LoRA ensemble members and a generated token sequence of length T,
-each function takes a (K, T) tensor of per-token log-probabilities and
-returns a scalar uncertainty score.
+Ablation baselines: Jensen-gap MI, variance, and token-level predictive entropy
+computed from per-token logprobs at generated tokens only.
 
-Reference: Malinin & Gales, "Reverse KL-Divergence Training of Prior Networks"
+Reference: He et al., "Survey of uncertainty estimation in LLMs" (2026), Eq. 6
+           Malinin & Gales, "Uncertainty estimation in autoregressive structured
+           prediction" (ICLR 2020)
 """
+
+import math
 
 import torch
 
 
+# ── Primary metric ───────────────────────────────────────────────────────────
+
+
+def compute_true_mi(per_token_mi: torch.Tensor) -> torch.Tensor:
+    """
+    Aggregate pre-computed per-token true mutual information.
+
+    True MI is the Bayesian decomposition of predictive uncertainty:
+
+        MI(y; Θ|x) = H[p̄(·|x)] - E_k[H[p_k(·|x)]]
+
+    where H is entropy over the full vocabulary V at each position,
+    p̄(v) = (1/K) Σ_k p_k(v) is the arithmetic mixture, and the
+    expectation is over K ensemble members.
+
+    Per-position true MI is computed during the chunked LM head pass in
+    LoRAEnsemble._chunked_logprobs(compute_mi=True), which has access to
+    the full (K, chunk, V) logit tensor before it is discarded. This
+    function simply averages the per-position values.
+
+    Args:
+        per_token_mi: (T,) tensor of per-position true MI values,
+            pre-computed from full vocabulary distributions.
+
+    Returns:
+        Scalar: mean true MI across positions (non-negative by construction).
+    """
+    return per_token_mi.mean()
+
+
+# ── Ablation baselines (computed from per-token logprobs at generated tokens) ─
+
+
 def compute_rmi(ensemble_logprobs: torch.Tensor) -> torch.Tensor:
     """
-    Compute Reverse Mutual Information from ensemble logprobs.
+    Jensen-gap MI estimate from ensemble logprobs (ablation baseline).
 
-    RMI measures ensemble disagreement by evaluating the likelihood of model
-    parameters given the average predictive distribution. High RMI indicates
-    OOD territory where ensemble members structurally disagree.
+    Approximation that only considers the probability of the generated token
+    at each position, NOT the full vocabulary distribution:
 
-    For token-level logprobs of the actual generated sequence:
+        JG(t) = log p̄(y_t) - E_k[log p_k(y_t)]
 
-        MI(y; Θ|x) = log p̄(y) - E_k[log p_k(y)]
+    where p̄(y_t) = (1/K) Σ_k p_k(y_t) is the arithmetic mean probability.
+    Non-negative by Jensen's inequality (log is concave).
 
-    where p̄(y_t) = (1/K) Σ_k p_k(y_t) is the geometric-mean approximation
-    to the mixture predictive. MI >= 0 by Jensen's inequality. Higher MI
-    means more ensemble disagreement → more epistemic uncertainty.
+    This misses distributional disagreement at non-generated tokens. Use
+    compute_true_mi for full-distribution epistemic uncertainty.
 
     Args:
         ensemble_logprobs: (K, T) tensor. Entry [k, t] is
             log p_k(y_t | y_{<t}, x) for ensemble member k.
 
     Returns:
-        Scalar tensor: mean per-token mutual information (non-negative).
+        Scalar tensor: mean per-token Jensen-gap MI (non-negative).
     """
-    # p_k(y_t) for each member and token
-    ensemble_probs = ensemble_logprobs.exp()  # (K, T)
-
-    # Average probability: p̄(y_t) = (1/K) Σ_k p_k(y_t)
-    log_avg_probs = ensemble_probs.mean(dim=0).log()  # (T,)
-
-    # E_k[log p_k(y_t)]
-    mean_member_logprobs = ensemble_logprobs.mean(dim=0)  # (T,)
-
-    # MI per token = log p̄(y_t) - E_k[log p_k(y_t)]
-    # This is >= 0 by Jensen's inequality
-    mi_per_token = log_avg_probs - mean_member_logprobs  # (T,)
-
+    K = ensemble_logprobs.shape[0]
+    # Numerically stable: log((1/K) Σ_k p_k) = logsumexp(log_p_k, dim=0) - log(K)
+    log_avg_probs = torch.logsumexp(ensemble_logprobs, dim=0) - math.log(K)
+    mean_member_logprobs = ensemble_logprobs.mean(dim=0)
+    mi_per_token = log_avg_probs - mean_member_logprobs
     return mi_per_token.mean()
 
 
@@ -69,24 +97,28 @@ def compute_variance(ensemble_logprobs: torch.Tensor) -> torch.Tensor:
 
 def compute_predictive_entropy(ensemble_logprobs: torch.Tensor) -> torch.Tensor:
     """
-    Entropy of the average predictive distribution.
-    Ablation baseline: captures total uncertainty (epistemic + aleatoric).
+    Entropy of the mixture predictive at the generated token (approximate).
+    Ablation baseline: captures total uncertainty (epistemic + aleatoric)
+    but only at the generated token, not the full vocabulary.
 
-    Note: This is an approximation — we only have logprobs for the generated
-    token at each position, not the full distribution. We compute the entropy
-    of the mixture probability for the selected token.
+    H_approx(t) = -p̄(y_t) log p̄(y_t)
 
     Args:
         ensemble_logprobs: (K, T) tensor.
 
     Returns:
-        Scalar: mean predictive entropy across tokens.
+        Scalar: mean token-level predictive entropy across positions.
     """
-    avg_probs = ensemble_logprobs.exp().mean(dim=0)  # (T,)
-    entropy = -(avg_probs * avg_probs.log())
+    K = ensemble_logprobs.shape[0]
+    log_avg_probs = torch.logsumexp(ensemble_logprobs, dim=0) - math.log(K)
+    avg_probs = log_avg_probs.exp()
+    entropy = -(avg_probs * log_avg_probs)
     return entropy.mean()
 
 
+# Logprob-based metrics (take (K, T) ensemble_logprobs).
+# compute_true_mi has a different signature (takes pre-computed (T,) MI)
+# and is handled separately by callers.
 UNCERTAINTY_FNS = {
     "rmi": compute_rmi,
     "variance": compute_variance,

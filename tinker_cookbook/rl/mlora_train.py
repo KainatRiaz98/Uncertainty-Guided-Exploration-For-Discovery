@@ -44,6 +44,7 @@ from tinker_cookbook.rl.ensemble import LoRAEnsemble
 from tinker_cookbook.rl.uncertainty import (
     UNCERTAINTY_FNS,
     compute_rmi,
+    compute_true_mi,
     compute_variance,
     compute_predictive_entropy,
 )
@@ -54,6 +55,31 @@ from tinker_cookbook.recipes.ttt.sampler import StateSampler
 from tinker_cookbook.utils.ml_log import setup_logging, Logger as MLLogger
 
 logger = logging.getLogger(__name__)
+
+# ── Two-phase generation constants (Qwen3) ────────────────────────────────────
+# When Phase 1 (thinking) exhausts its token budget, this teacher-forced prefill
+# transitions the model from <think> mode to code output — matching the original
+# TwoPhaseTokenCompleter in completers.py.
+QWEN3_PHASE2_PREFILL = "\n\n... okay, I am out of thinking tokens. I need to send my final message now."
+QWEN3_THINK_CLOSE = "</think>\n\n"
+
+
+def wrap_qwen3_chat_template(prompt_text: str) -> str:
+    """Wrap raw prompt text in Qwen3 chat format with thinking enabled.
+
+    Produces:
+        <|im_start|>user
+        {prompt_text}<|im_end|>
+        <|im_start|>assistant
+        <think>
+
+    The model then generates thinking tokens after <think>, and eventually
+    produces </think> followed by the actual response (code).
+    """
+    return (
+        f"<|im_start|>user\n{prompt_text}<|im_end|>\n"
+        f"<|im_start|>assistant\n<think>\n"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -102,6 +128,8 @@ class Config:
     dynamic_max_tokens: bool = True
     two_phase_sampling: bool = False
     phase1_max_tokens: int = 26000
+    context_window: int = 32768     # Total context window (Qwen3-8B default)
+    context_buffer: int = 50        # Safety margin to stay under context limit
     eval_timeout: int = 1000
     dataset_timeout: int = 1000
     num_cpus_per_task: int = 1
@@ -113,13 +141,23 @@ class Config:
     lora_alpha: int = 64
     lora_dropout: float = 0.05
     target_modules: Dict[str, bool] = field(default_factory=lambda: {
-        "q_proj": True, "o_proj": True,
+        "q_proj": True, "k_proj": True,
+        "v_proj": True, "o_proj": True,
     })
 
     # ── Uncertainty (NEW) ─────────────────────────────────────────────────
     rmi_coef: float = 0.1           # α: base exploration strength (γ_eff adapts via β-coupling)
-    uncertainty_metric: str = "rmi"  # "rmi", "variance", "predictive_entropy"
+    uncertainty_metric: str = "true_mi"  # "true_mi", "rmi", "variance", "predictive_entropy"
     gamma_max_ratio: float = 10.0   # clip γ_eff/rmi_coef to prevent explosion
+
+    # ── Streaming MI early stop (Contribution 2) ─────────────────────────
+    streaming_mi_enabled: bool = False
+    streaming_mi_window_size: int = 4096     # W: tokens in MI scoring window
+    streaming_mi_check_interval: int = 2048  # C: decode steps between checks
+    streaming_mi_min_gen: int = 4096         # Minimum tokens before first check
+    streaming_mi_warmup_epochs: int = 3      # Epochs with full T_max (build MI history)
+    streaming_mi_wrap_budget: int = 1024     # Tokens for code output after early stop
+    streaming_mi_threshold_percentile: float = 25.0  # Percentile of post-gen MI
 
     # ── Performance ──────────────────────────────────────────────────────
     kv_quantize: bool = True  # int8 KV cache: halves bandwidth, ~2× faster batched decode
@@ -252,6 +290,96 @@ def compute_rl_loss(
         masked = -(ratio * adv * action_mask)
 
     return masked.sum() / action_mask.sum().clamp(min=1)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Streaming MI — adaptive early stop during generation (Contribution 2)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@dataclass
+class StreamingMIConfig:
+    """Configuration for streaming MI-based early stop during Phase 1 generation."""
+    enabled: bool = False
+    window_size: int = 4096        # W: tokens in MI scoring window
+    check_interval: int = 2048     # C: decode steps between checks
+    min_gen: int = 4096            # Minimum tokens before first check
+    warmup_epochs: int = 3         # Epochs using full T_max (no early stop)
+    wrap_budget: int = 1024        # Tokens for code output after early stop
+    threshold_percentile: float = 25.0  # Percentile of post-gen MI for threshold
+
+
+class StreamingMITracker:
+    """
+    Manages adaptive MI threshold across epochs for streaming early stop.
+
+    During warmup_epochs, streaming MI is disabled but post-generation MI
+    values are collected. After warmup, the threshold is set to percentile_25
+    of all historical post-generation MI values — auto-adapting to task scale,
+    model capacity, and training stage.
+    """
+
+    def __init__(self, config: StreamingMIConfig):
+        self.config = config
+        self.mi_history: List[float] = []
+        self.current_threshold: float = float('inf')  # No stopping during warmup
+        self.total_sequences: int = 0
+        self.mi_stopped_count: int = 0
+
+    def is_active(self, epoch: int) -> bool:
+        """Whether streaming MI early stop is active for this epoch."""
+        return self.config.enabled and epoch >= self.config.warmup_epochs
+
+    def get_threshold(self) -> float:
+        return self.current_threshold
+
+    def record_post_generation_mi(self, mi_values: List[float]):
+        """Record post-generation MI values from ensemble scoring.
+
+        Called after every group's rollouts are scored (including warmup),
+        building the distribution used for threshold computation.
+        """
+        self.mi_history.extend(mi_values)
+
+    def record_streaming_result(self, mi_stopped: bool):
+        """Record whether a sequence was MI-stopped."""
+        self.total_sequences += 1
+        if mi_stopped:
+            self.mi_stopped_count += 1
+
+    def update_threshold(self, epoch: int):
+        """Recompute threshold at end of epoch from all historical MI values."""
+        if not self.mi_history:
+            return
+        self.current_threshold = float(np.percentile(
+            self.mi_history, self.config.threshold_percentile
+        ))
+        logger.info(
+            f"StreamingMI: epoch {epoch}, threshold={self.current_threshold:.6f} "
+            f"(p{self.config.threshold_percentile:.0f} of {len(self.mi_history)} samples), "
+            f"stopped {self.mi_stopped_count}/{self.total_sequences} sequences"
+        )
+
+    def get_metrics(self) -> Dict[str, float]:
+        """Return metrics for wandb logging."""
+        metrics: Dict[str, float] = {
+            "streaming_mi/threshold": self.current_threshold
+                if self.current_threshold != float('inf') else 0.0,
+            "streaming_mi/history_size": float(len(self.mi_history)),
+        }
+        if self.total_sequences > 0:
+            metrics["streaming_mi/stop_rate"] = (
+                self.mi_stopped_count / self.total_sequences
+            )
+        if self.mi_history:
+            recent = self.mi_history[-1000:]
+            metrics["streaming_mi/mi_mean"] = float(np.mean(recent))
+            metrics["streaming_mi/mi_std"] = float(np.std(recent))
+        return metrics
+
+    def reset_epoch_counters(self):
+        """Reset per-epoch sequence counters (not MI history)."""
+        self.total_sequences = 0
+        self.mi_stopped_count = 0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -464,6 +592,10 @@ class Rollout:
     state: Optional[Any] = None      # parent state
     child_state: Optional[Any] = None  # child state for sampler update
     metrics: Dict[str, Any] = field(default_factory=dict)
+    # Two-phase masking: when set, overrides default action_mask.
+    # Entries: 0.0 for prompt and teacher-forced prefill, 1.0 for trained tokens.
+    _custom_mask: Optional[List[float]] = None
+    prefill_info: Optional[Dict[str, int]] = None  # {"start": idx, "len": n}
 
     @property
     def prompt_len(self) -> int:
@@ -471,7 +603,13 @@ class Rollout:
 
     @property
     def action_mask(self) -> torch.Tensor:
-        """1 for generated tokens, 0 for prompt. Length = len(full_tokens) - 1."""
+        """Per-token mask. Length = len(full_tokens) - 1.
+
+        Default: 0 for prompt, 1 for generated.
+        Two-phase: 0 for prompt + teacher-forced prefill, 1 for thinking + code.
+        """
+        if self._custom_mask is not None:
+            return torch.tensor(self._custom_mask)
         total = len(self.full_tokens) - 1
         mask = torch.zeros(total)
         mask[self.prompt_len - 1:] = 1.0
@@ -504,10 +642,17 @@ def do_rollout(
     parent_state: Optional[Any],
     step: int,
     process_fn: Callable[[str, Any, int], Dict[str, Any]],
-    uncertainty_fn: Callable,
+    uncertainty_fn: Optional[Callable],
     rmi_coef: float,
     max_tokens: int,
     temperature: float,
+    two_phase_sampling: bool = False,
+    phase1_max_tokens: int = 26000,
+    context_window: int = 32768,
+    context_buffer: int = 50,
+    prefill_tokens: Optional[List[int]] = None,
+    stop_token_ids: Optional[List[int]] = None,
+    kv_quantize: bool = False,
 ) -> Rollout:
     """
     Generate a single rollout, compute R_exec and RMI.
@@ -515,15 +660,36 @@ def do_rollout(
     Args:
         process_fn: (generated_text, parent_state, step) → dict with keys:
             reward (float), child_state (Optional[State]), correctness (float), metrics (dict)
+        two_phase_sampling: If True, use two-phase generation (thinking + code).
+        prefill_tokens: Teacher-forced transition tokens (required if two_phase_sampling).
+        stop_token_ids: Additional stop tokens for Phase 1 (e.g. [im_end_id]).
     """
+    custom_mask = None
+    prefill_info = None
+
     # ── 1. Generate (one adapter) ─────────────────────────────────────────
-    full_tokens, sampling_logprobs = ensemble.generate(
-        prompt_tokens=prompt_tokens,
-        max_tokens=max_tokens,
-        temperature=temperature,
-        eos_token_id=tokenizer.eos_id_,
-        adapter_idx=adapter_idx,
-    )
+    if two_phase_sampling and prefill_tokens is not None:
+        full_tokens, sampling_logprobs, custom_mask = ensemble.generate_two_phase(
+            prompt_tokens=prompt_tokens,
+            phase1_max_tokens=phase1_max_tokens,
+            context_window=context_window,
+            context_buffer=context_buffer,
+            prefill_tokens=prefill_tokens,
+            temperature=temperature,
+            eos_token_id=tokenizer.eos_id_ or 2,
+            stop_token_ids=stop_token_ids,
+            adapter_idx=adapter_idx,
+            kv_quantize=kv_quantize,
+        )
+    else:
+        full_tokens, sampling_logprobs = ensemble.generate(
+            prompt_tokens=prompt_tokens,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            eos_token_id=tokenizer.eos_id_,
+            adapter_idx=adapter_idx,
+            kv_quantize=kv_quantize,
+        )
 
     # ── 2. Execute → R_exec (via task verifier) ──────────────────────────
     generated_text = tokenizer.decode(full_tokens)
@@ -532,11 +698,18 @@ def do_rollout(
     child_state = result.get("child_state")
 
     # ── 3. Ensemble scoring → uncertainty (all K adapters, single forward pass) ──
-    ensemble_logprobs = ensemble.compute_ensemble_logprobs(full_tokens)  # (K, T-1)
-    reward_rmi = float(uncertainty_fn(ensemble_logprobs))
+    ensemble_logprobs, per_token_true_mi = ensemble.compute_ensemble_logprobs(full_tokens)
+
+    # Primary uncertainty metric for reward_rmi
+    if uncertainty_fn is None:
+        # true_mi mode: use full-distribution MI computed during scoring
+        reward_rmi = float(per_token_true_mi.mean())
+    else:
+        # logprob-based mode (ablation): compute from point estimates
+        reward_rmi = float(uncertainty_fn(ensemble_logprobs))
 
     # Compute ALL uncertainty metrics for ablation comparison logging
-    # (The selected one is used for reward; all three are logged)
+    true_mi_val = float(per_token_true_mi.mean())
     rmi_val = float(compute_rmi(ensemble_logprobs))
     variance_val = float(compute_variance(ensemble_logprobs))
     pred_entropy_val = float(compute_predictive_entropy(ensemble_logprobs))
@@ -561,6 +734,31 @@ def do_rollout(
     prompt_pad = [0.0] * (len(prompt_tokens) - 1)
     full_sampling_logprobs = prompt_pad + list(sampling_logprobs)
 
+    # Two-phase metrics
+    prefill_injected = custom_mask is not None
+    gen_total = len(full_tokens) - len(prompt_tokens)
+    if prefill_injected and prefill_tokens is not None:
+        prefill_len = len(prefill_tokens)
+        # Count Phase 1 tokens: from custom_mask, they are 1.0 entries after prompt pad
+        phase1_count = sum(1 for v in custom_mask[len(prompt_tokens)-1:] if v == 1.0)
+        # Subtract phase2 tokens to get phase1 only
+        phase2_count = gen_total - phase1_count - prefill_len  # approximate
+        # More precise: phase1 is gen_total - prefill - phase2
+        # Phase 1 = tokens before prefill, Phase 2 = tokens after prefill
+        # From mask structure: prompt_pad(0) | phase1(1) | prefill(0) | phase2(1)
+        p1_ones = 0
+        for v in custom_mask[len(prompt_tokens)-1:]:
+            if v == 1.0:
+                p1_ones += 1
+            else:
+                break
+        phase1_tokens_count = p1_ones
+        phase2_tokens_count = gen_total - phase1_tokens_count - prefill_len
+        prefill_info = {"start": len(prompt_tokens) + phase1_tokens_count, "len": prefill_len}
+    else:
+        phase1_tokens_count = gen_total
+        phase2_tokens_count = 0
+
     return Rollout(
         prompt_tokens=prompt_tokens,
         full_tokens=full_tokens,
@@ -574,10 +772,14 @@ def do_rollout(
             "reward/exec": reward_exec,
             "reward/rmi": reward_rmi,
             "reward/total": reward_total,
-            "gen/num_tokens": len(full_tokens) - len(prompt_tokens),
+            "gen/num_tokens": gen_total,
             "gen/adapter_idx": adapter_idx,
+            "gen/prefill_injected": 1.0 if prefill_injected else 0.0,
+            "gen/phase1_tokens": phase1_tokens_count,
+            "gen/phase2_tokens": phase2_tokens_count,
             "correctness": result.get("correctness", 0.0),
             # ── Uncertainty decomposition (ablation study) ──
+            "uncertainty/true_mi": true_mi_val,
             "uncertainty/rmi": rmi_val,
             "uncertainty/variance": variance_val,
             "uncertainty/predictive_entropy": pred_entropy_val,
@@ -587,6 +789,8 @@ def do_rollout(
             "ensemble/max_token_disagreement": max_token_disagreement,
             "ensemble/frac_high_disagreement": frac_high_disagreement,
         },
+        _custom_mask=custom_mask,
+        prefill_info=prefill_info if prefill_injected else None,
     )
 
 
@@ -595,17 +799,25 @@ def _build_rollout_from_scored(
     full_tokens: List[int],
     sampling_logprobs: List[float],
     ensemble_logprobs: torch.Tensor,
+    per_token_true_mi: torch.Tensor,
     result: Dict[str, Any],
     adapter_idx: int,
-    uncertainty_fn: Callable,
+    uncertainty_fn: Optional[Callable],
     rmi_coef: float,
+    custom_mask: Optional[List[float]] = None,
+    prefill_token_count: int = 0,
+    mi_meta: Optional[Dict[str, Any]] = None,
 ) -> Rollout:
     """Build a Rollout from pre-generated tokens and pre-scored ensemble logprobs."""
     reward_exec = result["reward"]
     child_state = result.get("child_state")
 
-    reward_rmi = float(uncertainty_fn(ensemble_logprobs))
+    if uncertainty_fn is not None:
+        reward_rmi = float(uncertainty_fn(ensemble_logprobs))
+    else:
+        reward_rmi = float(per_token_true_mi.mean())
 
+    true_mi_val = float(per_token_true_mi.mean())
     rmi_val = float(compute_rmi(ensemble_logprobs))
     variance_val = float(compute_variance(ensemble_logprobs))
     pred_entropy_val = float(compute_predictive_entropy(ensemble_logprobs))
@@ -623,6 +835,25 @@ def _build_rollout_from_scored(
     prompt_pad = [0.0] * (len(prompt_tokens) - 1)
     full_sampling_logprobs = prompt_pad + list(sampling_logprobs)
 
+    # Two-phase metrics
+    prefill_injected = custom_mask is not None
+    gen_total = len(full_tokens) - len(prompt_tokens)
+    if prefill_injected and prefill_token_count > 0:
+        # Count Phase 1 tokens from mask: 1.0 entries after prompt pad, before first 0.0 block
+        p1_ones = 0
+        for v in custom_mask[len(prompt_tokens)-1:]:
+            if v == 1.0:
+                p1_ones += 1
+            else:
+                break
+        phase1_tokens_count = p1_ones
+        phase2_tokens_count = gen_total - phase1_tokens_count - prefill_token_count
+        prefill_info = {"start": len(prompt_tokens) + phase1_tokens_count, "len": prefill_token_count}
+    else:
+        phase1_tokens_count = gen_total
+        phase2_tokens_count = 0
+        prefill_info = None
+
     return Rollout(
         prompt_tokens=prompt_tokens,
         full_tokens=full_tokens,
@@ -636,9 +867,13 @@ def _build_rollout_from_scored(
             "reward/exec": reward_exec,
             "reward/rmi": reward_rmi,
             "reward/total": reward_total,
-            "gen/num_tokens": len(full_tokens) - len(prompt_tokens),
+            "gen/num_tokens": gen_total,
             "gen/adapter_idx": adapter_idx,
+            "gen/prefill_injected": 1.0 if prefill_injected else 0.0,
+            "gen/phase1_tokens": phase1_tokens_count,
+            "gen/phase2_tokens": phase2_tokens_count,
             "correctness": result.get("correctness", 0.0),
+            "uncertainty/true_mi": true_mi_val,
             "uncertainty/rmi": rmi_val,
             "uncertainty/variance": variance_val,
             "uncertainty/predictive_entropy": pred_entropy_val,
@@ -646,7 +881,16 @@ def _build_rollout_from_scored(
             "ensemble/member_logprob_range": member_logprob_range,
             "ensemble/max_token_disagreement": max_token_disagreement,
             "ensemble/frac_high_disagreement": frac_high_disagreement,
+            # ── Streaming MI early stop metrics ──
+            "streaming_mi/stopped": 1.0 if (mi_meta and mi_meta.get("mi_stopped")) else 0.0,
+            "streaming_mi/stop_step": mi_meta["mi_stop_step"] if mi_meta else -1,
+            "streaming_mi/num_checks": len(mi_meta.get("mi_values", [])) if mi_meta else 0,
+            "streaming_mi/tokens_saved": (
+                max(0, gen_total - (mi_meta["mi_stop_step"] if mi_meta and mi_meta.get("mi_stopped") else gen_total))
+            ),
         },
+        _custom_mask=custom_mask,
+        prefill_info=prefill_info,
     )
 
 
@@ -659,12 +903,20 @@ def do_group_rollout_batched(
     epoch: int,
     group_idx: int,
     process_fn: Callable[[str, Any, int], Dict[str, Any]],
-    uncertainty_fn: Callable,
+    uncertainty_fn: Optional[Callable],
     rmi_coef: float,
     max_tokens: int,
     temperature: float,
     reward_workers: concurrent.futures.ThreadPoolExecutor,
     kv_quantize: bool = True,
+    two_phase_sampling: bool = False,
+    phase1_max_tokens: int = 26000,
+    context_window: int = 32768,
+    context_buffer: int = 50,
+    prefill_tokens: Optional[List[int]] = None,
+    stop_token_ids: Optional[List[int]] = None,
+    mi_tracker: Optional[StreamingMITracker] = None,
+    streaming_mi_cfg: Optional[Config] = None,
 ) -> List[Rollout]:
     """
     Generate all rollouts for a group using batched generation + parallel
@@ -677,6 +929,9 @@ def do_group_rollout_batched(
 
     Args:
         reward_workers: Thread pool for parallel CPU reward computation.
+        two_phase_sampling: If True, use two-phase generation (thinking + code).
+        prefill_tokens: Teacher-forced transition tokens (required if two_phase_sampling).
+        stop_token_ids: Additional stop tokens for Phase 1.
 
     Returns:
         List of Rollout objects for this group.
@@ -684,22 +939,53 @@ def do_group_rollout_batched(
     K = ensemble.K
 
     # ── 1. Multi-adapter batched generation (GPU) ────────────────────────
-    # Rotate adapters across rollouts for diversity (matches original do_rollout loop):
-    #   adapter_idx_for_rollout_i = (epoch * group_size + i) % K
-    # All sequences generated in a SINGLE batched forward pass per decode step,
-    # with mLoRA routing each batch element to its assigned adapter.
     adapter_assignments = [(epoch * group_size + i) % K for i in range(group_size)]
     t_gen_start = time.time()
-    gen_results = ensemble.generate_batch_multi_adapter(
-        prompt_tokens=prompt_tokens,
-        adapter_assignments=adapter_assignments,
-        max_tokens=max_tokens,
-        temperature=temperature,
-        eos_token_id=tokenizer.eos_id_,
-        kv_quantize=kv_quantize,
-    )
+
+    # Determine if streaming MI is active for this epoch.
+    # Gated only by mi_tracker (non-None iff streaming_mi_enabled=True in cfg).
+    # Intentionally NOT gated on rmi_coef — Condition C of the ablation uses
+    # rmi_coef=0 with streaming MI enabled (dynamic tokens, no exploration bonus).
+    mi_active = (mi_tracker is not None
+                 and mi_tracker.is_active(epoch))
+
+    if two_phase_sampling and prefill_tokens is not None:
+        gen_results_4 = ensemble.generate_batch_multi_adapter_two_phase(
+            prompt_tokens=prompt_tokens,
+            adapter_assignments=adapter_assignments,
+            phase1_max_tokens=phase1_max_tokens,
+            context_window=context_window,
+            context_buffer=context_buffer,
+            prefill_tokens=prefill_tokens,
+            temperature=temperature,
+            eos_token_id=tokenizer.eos_id_ or 2,
+            stop_token_ids=stop_token_ids,
+            kv_quantize=kv_quantize,
+            streaming_mi_enabled=mi_active,
+            mi_window_size=streaming_mi_cfg.streaming_mi_window_size if streaming_mi_cfg else 4096,
+            mi_check_interval=streaming_mi_cfg.streaming_mi_check_interval if streaming_mi_cfg else 2048,
+            mi_min_gen=streaming_mi_cfg.streaming_mi_min_gen if streaming_mi_cfg else 4096,
+            mi_threshold=mi_tracker.get_threshold() if mi_tracker else 0.0,
+            mi_wrap_budget=streaming_mi_cfg.streaming_mi_wrap_budget if streaming_mi_cfg else 1024,
+        )
+        # Unpack 4-tuples into gen_results (tokens, logprobs) + per-seq masks + MI metadata
+        gen_results = [(ft, lp) for ft, lp, _, _ in gen_results_4]
+        custom_masks = [mask for _, _, mask, _ in gen_results_4]
+        mi_metas = [meta for _, _, _, meta in gen_results_4]
+    else:
+        gen_results = ensemble.generate_batch_multi_adapter(
+            prompt_tokens=prompt_tokens,
+            adapter_assignments=adapter_assignments,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            eos_token_id=tokenizer.eos_id_,
+            kv_quantize=kv_quantize,
+        )
+        custom_masks = [None] * len(gen_results)
+        mi_metas = [None] * len(gen_results)
+
     t_gen = time.time() - t_gen_start
-    logger.debug(f"  Group {group_idx}: multi-adapter generation {group_size} seqs in {t_gen:.1f}s")
+    logger.info(f"  Group {group_idx}: multi-adapter generation {group_size} seqs in {t_gen:.1f}s")
 
     # ── 2. Parallel reward computation (CPU) ─────────────────────────────
     t_reward_start = time.time()
@@ -713,29 +999,60 @@ def do_group_rollout_batched(
     # ── 3. Batched ensemble scoring (GPU, overlaps with CPU rewards) ─────
     t_score_start = time.time()
     all_full_tokens = [ft for ft, _ in gen_results]
-    all_ensemble_logprobs = ensemble.compute_ensemble_logprobs_batch(all_full_tokens)
+    all_scored = ensemble.compute_ensemble_logprobs_batch(all_full_tokens)
     t_score = time.time() - t_score_start
-    logger.debug(f"  Group {group_idx}: batched ensemble scoring in {t_score:.1f}s")
+    logger.info(f"  Group {group_idx}: batched ensemble scoring in {t_score:.1f}s")
 
     # ── 4. Collect rewards and build Rollout objects ─────────────────────
     reward_results = [f.result() for f in reward_futures]
     t_reward = time.time() - t_reward_start
-    logger.debug(f"  Group {group_idx}: rewards computed in {t_reward:.1f}s")
+    logger.info(f"  Group {group_idx}: rewards computed in {t_reward:.1f}s")
 
+    # Feed post-generation MI to tracker for threshold adaptation (every epoch)
+    if mi_tracker is not None:
+        post_gen_mis = [float(mi.mean()) for _, mi in all_scored]
+        mi_tracker.record_post_generation_mi(post_gen_mis)
+
+    prefill_len = len(prefill_tokens) if prefill_tokens else 0
     rollouts = []
     for i, (full_tokens, sampling_logprobs) in enumerate(gen_results):
+        ensemble_logprobs_i, per_token_mi_i = all_scored[i]
         rollout = _build_rollout_from_scored(
             prompt_tokens=prompt_tokens,
             full_tokens=full_tokens,
             sampling_logprobs=sampling_logprobs,
-            ensemble_logprobs=all_ensemble_logprobs[i],
+            ensemble_logprobs=ensemble_logprobs_i,
+            per_token_true_mi=per_token_mi_i,
             result=reward_results[i],
             adapter_idx=adapter_assignments[i],
             uncertainty_fn=uncertainty_fn,
             rmi_coef=rmi_coef,
+            custom_mask=custom_masks[i],
+            prefill_token_count=prefill_len,
+            mi_meta=mi_metas[i],
         )
         rollout.state = parent_state
         rollouts.append(rollout)
+
+        # Record streaming MI result in tracker
+        if mi_tracker is not None and mi_metas[i] is not None:
+            mi_tracker.record_streaming_result(mi_metas[i].get("mi_stopped", False))
+
+        # Per-rollout logging
+        n_gen = len(full_tokens) - len(prompt_tokens)
+        correct = rollout.metrics.get("correctness", 0.0)
+        phase_info = ""
+        if rollout.prefill_info:
+            phase_info = (
+                f" p1={rollout.metrics.get('gen/phase1_tokens', 0)}"
+                f" p2={rollout.metrics.get('gen/phase2_tokens', 0)}"
+            )
+        logger.info(
+            f"    [g{group_idx}][r{i+1}/{group_size}] adapter={rollout.adapter_idx} "
+            f"R_exec={rollout.reward_exec:.4f} RMI={rollout.reward_rmi:.4f} "
+            f"R_total={rollout.reward_total:.4f} correct={correct:.0f} "
+            f"tokens={n_gen}{phase_info}"
+        )
 
     return rollouts
 
@@ -755,7 +1072,12 @@ def _collect_rollout_metrics(rollout: "Rollout", accum: Dict[str, List[float]]):
     accum["reward/total"].append(rollout.reward_total)
     accum["gen/num_tokens"].append(rollout.metrics.get("gen/num_tokens", 0))
     accum["correctness"].append(rollout.metrics.get("correctness", 0.0))
-    # Uncertainty decomposition — all 3 for ablation comparison
+    # Two-phase metrics
+    accum["gen/prefill_injected"].append(rollout.metrics.get("gen/prefill_injected", 0.0))
+    accum["gen/phase1_tokens"].append(rollout.metrics.get("gen/phase1_tokens", 0))
+    accum["gen/phase2_tokens"].append(rollout.metrics.get("gen/phase2_tokens", 0))
+    # Uncertainty decomposition — all 4 for ablation comparison
+    accum["uncertainty/true_mi"].append(rollout.metrics.get("uncertainty/true_mi", 0.0))
     accum["uncertainty/rmi"].append(rollout.metrics.get("uncertainty/rmi", 0.0))
     accum["uncertainty/variance"].append(rollout.metrics.get("uncertainty/variance", 0.0))
     accum["uncertainty/predictive_entropy"].append(
@@ -774,6 +1096,9 @@ def _collect_rollout_metrics(rollout: "Rollout", accum: Dict[str, List[float]]):
     accum["ensemble/frac_high_disagreement"].append(
         rollout.metrics.get("ensemble/frac_high_disagreement", 0.0)
     )
+    # Streaming MI early stop
+    accum["streaming_mi/stopped"].append(rollout.metrics.get("streaming_mi/stopped", 0.0))
+    accum["streaming_mi/tokens_saved"].append(rollout.metrics.get("streaming_mi/tokens_saved", 0))
 
 
 def train_step(
@@ -802,8 +1127,10 @@ def train_step(
         "advantage/min": [], "advantage/max": [],
         "beta": [], "gamma_eff": [],
         "gen/num_tokens": [], "correctness": [],
-        # Uncertainty decomposition (all 3 metrics — critical for ablation)
-        "uncertainty/rmi": [], "uncertainty/variance": [],
+        # Two-phase generation tracking
+        "gen/prefill_injected": [], "gen/phase1_tokens": [], "gen/phase2_tokens": [],
+        # Uncertainty decomposition (all 4 metrics — critical for ablation)
+        "uncertainty/true_mi": [], "uncertainty/rmi": [], "uncertainty/variance": [],
         "uncertainty/predictive_entropy": [],
         # Ensemble disagreement (proves K members actually diverge)
         "ensemble/member_logprob_spread": [],
@@ -812,6 +1139,8 @@ def train_step(
         "ensemble/frac_high_disagreement": [],
         # Per-group: RMI-reward correlation (proves RMI isn't just noise)
         "group/rmi_exec_corr": [],
+        # Streaming MI early stop
+        "streaming_mi/stopped": [], "streaming_mi/tokens_saved": [],
     }
 
     # ── Phase 1: Compute advantages for all groups, collect trainable rollouts ──
@@ -841,6 +1170,7 @@ def train_step(
             rmi_std = rmi_centered.std()
             if rmi_std > 1e-8:
                 rmi_centered = rmi_centered / rmi_std
+            rmi_centered = rmi_centered.clamp(-3, 3)
             gamma_eff = cfg.rmi_coef * min(beta / cfg.adv_estimator_beta, cfg.gamma_max_ratio)
             # Scale RMI bonus proportional to advantage magnitude
             adv_scale = scalar_advantages.abs().mean().clamp(min=1e-8)
@@ -984,6 +1314,14 @@ def train_step(
         metrics["train/gen/num_tokens/std"] = float(np.std(metrics_accum["gen/num_tokens"]))
         metrics["train/gen/num_tokens/max"] = float(np.max(metrics_accum["gen/num_tokens"]))
 
+    # Two-phase generation stats
+    if metrics_accum["gen/prefill_injected"]:
+        metrics["train/two_phase/prefill_rate"] = float(np.mean(metrics_accum["gen/prefill_injected"]))
+    if metrics_accum["gen/phase1_tokens"]:
+        metrics["train/two_phase/phase1_tokens/mean"] = float(np.mean(metrics_accum["gen/phase1_tokens"]))
+    if metrics_accum["gen/phase2_tokens"]:
+        metrics["train/two_phase/phase2_tokens/mean"] = float(np.mean(metrics_accum["gen/phase2_tokens"]))
+
     # Correctness (fraction of rollouts that got reward > 0)
     if metrics_accum["correctness"]:
         metrics["train/correctness/mean"] = float(np.mean(metrics_accum["correctness"]))
@@ -992,7 +1330,7 @@ def train_step(
         )
 
     # ── Uncertainty decomposition (ablation: RMI vs variance vs predictive_entropy) ──
-    for key in ["uncertainty/rmi", "uncertainty/variance", "uncertainty/predictive_entropy"]:
+    for key in ["uncertainty/true_mi", "uncertainty/rmi", "uncertainty/variance", "uncertainty/predictive_entropy"]:
         vals = metrics_accum[key]
         if vals:
             metrics[f"train/{key}/mean"] = float(np.mean(vals))
@@ -1012,6 +1350,14 @@ def train_step(
         corrs = metrics_accum["group/rmi_exec_corr"]
         metrics["train/group/rmi_exec_corr/mean"] = float(np.mean(corrs))
         metrics["train/group/rmi_exec_corr/std"] = float(np.std(corrs))
+
+    # ── Streaming MI early stop stats ──
+    if metrics_accum["streaming_mi/stopped"]:
+        stopped_vals = metrics_accum["streaming_mi/stopped"]
+        saved_vals = metrics_accum["streaming_mi/tokens_saved"]
+        metrics["train/streaming_mi/stop_rate"] = float(np.mean(stopped_vals))
+        metrics["train/streaming_mi/tokens_saved/mean"] = float(np.mean(saved_vals))
+        metrics["train/streaming_mi/tokens_saved/total"] = float(np.sum(saved_vals))
 
     # Core training stats
     metrics["train/loss"] = total_loss_val
@@ -1056,6 +1402,41 @@ def main(
         wandb_name=cfg.wandb_name,
     )
 
+    # Log which loggers are active so user knows immediately if wandb was skipped
+    if hasattr(ml_logger, 'loggers'):
+        active = [type(l).__name__ for l in ml_logger.loggers]
+        logger.info(f"Active loggers: {active}")
+    else:
+        logger.info(f"Active logger: {type(ml_logger).__name__}")
+
+    # ── Configure wandb custom x-axes ────────────────────────────────────
+    # Each metric family gets its own step_metric so per-rollout, per-group,
+    # and per-epoch logs don't collide (wandb requires monotonic global step).
+    try:
+        import wandb as _wandb
+        if _wandb.run is not None:
+            _wandb.define_metric("rollout/*", step_metric="rollout/_global_step")
+            _wandb.define_metric("rollout_group/*", step_metric="rollout_group/_global_step")
+            _wandb.define_metric("train/*", step_metric="progress/epoch")
+            _wandb.define_metric("progress/*", step_metric="progress/epoch")
+            _wandb.define_metric("time/*", step_metric="progress/epoch")
+            _wandb.define_metric("gpu/*", step_metric="progress/epoch")
+            _wandb.define_metric("optim/*", step_metric="progress/epoch")
+            _wandb.define_metric("kl_policy_base", step_metric="progress/epoch")
+    except ImportError:
+        pass
+
+    # Helper: log metrics to wandb/json only (skip PrettyPrint Rich tables)
+    # Used for per-group rollout metrics to avoid flooding console with tables
+    def _log_metrics_quiet(metrics: Dict[str, Any], step: int | None = None):
+        """Log to wandb + json but skip PrettyPrint (no Rich table spam)."""
+        if hasattr(ml_logger, 'loggers'):
+            for l in ml_logger.loggers:
+                if type(l).__name__ != 'PrettyPrintLogger':
+                    l.log_metrics(metrics, step=step)
+        else:
+            ml_logger.log_metrics(metrics, step=step)
+
     # ── 2. Load model + ensemble ──────────────────────────────────────────
     logger.info(f"Loading base model: {cfg.base_model} ({cfg.precision})")
     args = argparse.Namespace(
@@ -1080,7 +1461,31 @@ def main(
         optimizer="adamw",
     )
 
-    uncertainty_fn = UNCERTAINTY_FNS[cfg.uncertainty_metric]
+    if cfg.uncertainty_metric == "true_mi":
+        # True MI is computed from full vocab distributions during scoring;
+        # None signals callers to use pre-computed per_token_true_mi
+        uncertainty_fn = None
+    else:
+        uncertainty_fn = UNCERTAINTY_FNS[cfg.uncertainty_metric]
+
+    # ── Streaming MI tracker (Contribution 2) ────────────────────────────
+    mi_tracker: Optional[StreamingMITracker] = None
+    if cfg.streaming_mi_enabled:
+        mi_config = StreamingMIConfig(
+            enabled=True,
+            window_size=cfg.streaming_mi_window_size,
+            check_interval=cfg.streaming_mi_check_interval,
+            min_gen=cfg.streaming_mi_min_gen,
+            warmup_epochs=cfg.streaming_mi_warmup_epochs,
+            wrap_budget=cfg.streaming_mi_wrap_budget,
+            threshold_percentile=cfg.streaming_mi_threshold_percentile,
+        )
+        mi_tracker = StreamingMITracker(mi_config)
+        logger.info(
+            f"Streaming MI early stop enabled: W={mi_config.window_size}, "
+            f"C={mi_config.check_interval}, min_gen={mi_config.min_gen}, "
+            f"warmup={mi_config.warmup_epochs} epochs, wrap={mi_config.wrap_budget}"
+        )
 
     # ── 3. Resume ─────────────────────────────────────────────────────────
     start_epoch = 0
@@ -1114,6 +1519,22 @@ def main(
         max_workers=max(cfg.group_size, 8)
     )
 
+    # ── Two-phase setup (compute once before training loop) ──────────────
+    prefill_tokens_list: Optional[List[int]] = None
+    stop_token_ids: Optional[List[int]] = None
+    if cfg.two_phase_sampling:
+        prefill_text = QWEN3_PHASE2_PREFILL + QWEN3_THINK_CLOSE
+        prefill_tokens_list = tokenizer.encode(prefill_text, bos=False, eos=False)
+        # <|im_end|> is the stop token for Qwen3 chat format
+        im_end_tokens = tokenizer.tokenizer_.encode("<|im_end|>", add_special_tokens=False)
+        if im_end_tokens:
+            stop_token_ids = [im_end_tokens[0]]
+        logger.info(
+            f"Two-phase sampling enabled: phase1_max={cfg.phase1_max_tokens}, "
+            f"context_window={cfg.context_window}, prefill_len={len(prefill_tokens_list)}, "
+            f"stop_ids={stop_token_ids}"
+        )
+
     for epoch in range(start_epoch, cfg.num_epochs):
         t_start = time.time()
         metrics: Dict[str, Any] = {
@@ -1121,12 +1542,21 @@ def main(
             "progress/done_frac": (epoch + 1) / cfg.num_epochs,
         }
 
+        logger.info(
+            f"[Epoch {epoch}/{cfg.num_epochs}] Starting rollout phase: "
+            f"{cfg.groups_per_batch} groups × {cfg.group_size} rollouts"
+        )
+
         # ── Rollout phase (batched) ──────────────────────────────────
         rollout_groups: List[RolloutGroup] = []
         parent_states = sampler.sample_states(cfg.groups_per_batch)
+        num_groups_total = len(parent_states)
 
         for g, parent_state in enumerate(parent_states):
+            t_group = time.time()
             prompt_text = prompt_fn(parent_state)
+            if cfg.two_phase_sampling:
+                prompt_text = wrap_qwen3_chat_template(prompt_text)
             prompt_tokens = tokenizer.encode(prompt_text, bos=True, eos=False)
 
             group_rollouts = do_group_rollout_batched(
@@ -1144,24 +1574,119 @@ def main(
                 temperature=cfg.temperature,
                 reward_workers=reward_workers,
                 kv_quantize=cfg.kv_quantize,
+                two_phase_sampling=cfg.two_phase_sampling,
+                phase1_max_tokens=cfg.phase1_max_tokens,
+                context_window=cfg.context_window,
+                context_buffer=cfg.context_buffer,
+                prefill_tokens=prefill_tokens_list,
+                stop_token_ids=stop_token_ids,
+                mi_tracker=mi_tracker,
+                streaming_mi_cfg=cfg if cfg.streaming_mi_enabled else None,
             )
+
+            # Per-rollout wandb logging
+            for i, rollout in enumerate(group_rollouts):
+                rollout_step = (epoch * num_groups_total + g) * cfg.group_size + i
+                _log_metrics_quiet({
+                    "rollout/_global_step": rollout_step,
+                    "rollout/epoch": epoch,
+                    "rollout/group_idx": g,
+                    "rollout/idx": i,
+                    "rollout/adapter_idx": rollout.adapter_idx,
+                    "rollout/reward_exec": rollout.reward_exec,
+                    "rollout/reward_rmi": rollout.reward_rmi,
+                    "rollout/reward_total": rollout.reward_total,
+                    "rollout/correctness": rollout.metrics.get("correctness", 0.0),
+                    "rollout/num_tokens": len(rollout.full_tokens) - len(rollout.prompt_tokens),
+                    "rollout/prefill_injected": rollout.metrics.get("gen/prefill_injected", 0.0),
+                    "rollout/phase1_tokens": rollout.metrics.get("gen/phase1_tokens", 0),
+                    "rollout/phase2_tokens": rollout.metrics.get("gen/phase2_tokens", 0),
+                    "rollout/uncertainty_true_mi": rollout.metrics.get("uncertainty/true_mi", 0.0),
+                    "rollout/uncertainty_rmi": rollout.metrics.get("uncertainty/rmi", 0.0),
+                    "rollout/uncertainty_variance": rollout.metrics.get("uncertainty/variance", 0.0),
+                    "rollout/uncertainty_predictive_entropy": rollout.metrics.get("uncertainty/predictive_entropy", 0.0),
+                    "rollout/ensemble_member_logprob_spread": rollout.metrics.get("ensemble/member_logprob_spread", 0.0),
+                    "rollout/ensemble_member_logprob_range": rollout.metrics.get("ensemble/member_logprob_range", 0.0),
+                    "rollout/ensemble_max_token_disagreement": rollout.metrics.get("ensemble/max_token_disagreement", 0.0),
+                    "rollout/ensemble_frac_high_disagreement": rollout.metrics.get("ensemble/frac_high_disagreement", 0.0),
+                    "rollout/streaming_mi_stopped": rollout.metrics.get("streaming_mi/stopped", 0.0),
+                    "rollout/streaming_mi_tokens_saved": rollout.metrics.get("streaming_mi/tokens_saved", 0),
+                })
+
+            # Per-group metrics
+            group_rewards_exec = [r.reward_exec for r in group_rollouts]
+            group_rewards_total = [r.reward_total for r in group_rollouts]
+            group_rmi = [r.reward_rmi for r in group_rollouts]
+            t_group_elapsed = time.time() - t_group
 
             # Filter constant-reward groups (same as original)
             rewards = [r.reward_total for r in group_rollouts]
-            if cfg.remove_constant_reward_groups and len(set(rewards)) <= 1:
-                continue
+            kept = not (cfg.remove_constant_reward_groups and len(set(rewards)) <= 1)
 
-            rollout_groups.append(
-                RolloutGroup(rollouts=group_rollouts, state=parent_state)
+            if kept:
+                rollout_groups.append(
+                    RolloutGroup(rollouts=group_rollouts, state=parent_state)
+                )
+
+            # ── Per-group console log ────────────────────────────────
+            status = "KEPT" if kept else "FILTERED"
+            gpu_msg = ""
+            if torch.cuda.is_available():
+                mem_alloc = torch.cuda.memory_allocated() / 1e9
+                mem_reserved = torch.cuda.memory_reserved() / 1e9
+                gpu_msg = f" | GPU: {mem_alloc:.1f}/{mem_reserved:.1f}GB"
+            logger.info(
+                f"  [{epoch}][{g+1}/{num_groups_total}] {status} | "
+                f"R_exec={np.mean(group_rewards_exec):.4f} (max={np.max(group_rewards_exec):.4f}) "
+                f"RMI={np.mean(group_rmi):.4f} "
+                f"R_total={np.mean(group_rewards_total):.4f} | "
+                f"{t_group_elapsed:.1f}s{gpu_msg}"
             )
+
+            # ── Per-group wandb + json logging (skip Rich table) ─────
+            global_group_step = epoch * num_groups_total + g
+            group_metrics: Dict[str, Any] = {
+                "rollout_group/_global_step": global_group_step,
+                "rollout_group/epoch": epoch,
+                "rollout_group/group_idx": g,
+                "rollout_group/reward_exec_mean": float(np.mean(group_rewards_exec)),
+                "rollout_group/reward_exec_max": float(np.max(group_rewards_exec)),
+                "rollout_group/reward_exec_min": float(np.min(group_rewards_exec)),
+                "rollout_group/reward_total_mean": float(np.mean(group_rewards_total)),
+                "rollout_group/rmi_mean": float(np.mean(group_rmi)),
+                "rollout_group/kept": float(kept),
+                "rollout_group/time_s": t_group_elapsed,
+                "rollout_group/streaming_mi_stop_rate": float(np.mean([
+                    r.metrics.get("streaming_mi/stopped", 0.0) for r in group_rollouts
+                ])),
+                "rollout_group/streaming_mi_tokens_saved_mean": float(np.mean([
+                    r.metrics.get("streaming_mi/tokens_saved", 0) for r in group_rollouts
+                ])),
+            }
+            if torch.cuda.is_available():
+                group_metrics["gpu/memory_allocated_gb"] = torch.cuda.memory_allocated() / 1e9
+                group_metrics["gpu/memory_reserved_gb"] = torch.cuda.memory_reserved() / 1e9
+            _log_metrics_quiet(group_metrics)
 
         metrics["time/rollout"] = time.time() - t_start
 
         # ── Train step ────────────────────────────────────────────────
+        logger.info(
+            f"[Epoch {epoch}] Rollout phase done in {metrics['time/rollout']:.1f}s. "
+            f"Training on {len(rollout_groups)}/{num_groups_total} groups..."
+        )
         t_train = time.time()
         train_metrics = train_step(ensemble, rollout_groups, cfg)
         metrics.update(train_metrics)
         metrics["time/train"] = time.time() - t_train
+
+        # ── Streaming MI threshold update ────────────────────────────
+        if mi_tracker is not None:
+            mi_tracker.update_threshold(epoch)
+            mi_metrics = mi_tracker.get_metrics()
+            for k, v in mi_metrics.items():
+                metrics[f"train/{k}"] = v
+            mi_tracker.reset_epoch_counters()
 
         # ── Epoch-level metrics ──────────────────────────────────────
         # Track best rewards seen so far (running max)
@@ -1203,7 +1728,11 @@ def main(
 
         # ── Logging ───────────────────────────────────────────────────
         metrics["time/total"] = time.time() - t_start
-        ml_logger.log_metrics(metrics, step=epoch)
+        if torch.cuda.is_available():
+            metrics["gpu/memory_allocated_gb"] = torch.cuda.memory_allocated() / 1e9
+            metrics["gpu/memory_reserved_gb"] = torch.cuda.memory_reserved() / 1e9
+            metrics["gpu/memory_peak_gb"] = torch.cuda.max_memory_allocated() / 1e9
+        ml_logger.log_metrics(metrics)
 
         r_exec = metrics.get("train/reward/exec/mean", 0)
         r_max = metrics.get("train/reward/exec/max", 0)
@@ -1281,8 +1810,18 @@ def cli_main():
 
     # Uncertainty
     parser.add_argument("--rmi_coef", type=float, default=0.1)
-    parser.add_argument("--uncertainty_metric", default="rmi",
-                        choices=["rmi", "variance", "predictive_entropy"])
+    parser.add_argument("--uncertainty_metric", default="true_mi",
+                        choices=["true_mi", "rmi", "variance", "predictive_entropy"])
+
+    # Streaming MI early stop
+    parser.add_argument("--streaming_mi", action="store_true", default=False,
+                        help="Enable streaming MI-based early stop during Phase 1")
+    parser.add_argument("--streaming_mi_window_size", type=int, default=4096)
+    parser.add_argument("--streaming_mi_check_interval", type=int, default=2048)
+    parser.add_argument("--streaming_mi_min_gen", type=int, default=4096)
+    parser.add_argument("--streaming_mi_warmup_epochs", type=int, default=3)
+    parser.add_argument("--streaming_mi_wrap_budget", type=int, default=1024)
+    parser.add_argument("--streaming_mi_threshold_percentile", type=float, default=25.0)
 
     # Sampler
     # KL penalty
@@ -1295,6 +1834,8 @@ def cli_main():
     parser.add_argument("--dynamic_max_tokens", action="store_true", default=True)
     parser.add_argument("--two_phase_sampling", action="store_true", default=False)
     parser.add_argument("--phase1_max_tokens", type=int, default=26000)
+    parser.add_argument("--context_window", type=int, default=32768)
+    parser.add_argument("--context_buffer", type=int, default=50)
     parser.add_argument("--eval_timeout", type=int, default=1000)
     parser.add_argument("--dataset_timeout", type=int, default=1000)
     parser.add_argument("--num_cpus_per_task", type=int, default=1)
@@ -1335,6 +1876,8 @@ def cli_main():
         dynamic_max_tokens=args.dynamic_max_tokens,
         two_phase_sampling=args.two_phase_sampling,
         phase1_max_tokens=args.phase1_max_tokens,
+        context_window=args.context_window,
+        context_buffer=args.context_buffer,
         eval_timeout=args.eval_timeout,
         dataset_timeout=args.dataset_timeout,
         num_cpus_per_task=args.num_cpus_per_task,
@@ -1345,6 +1888,13 @@ def cli_main():
         learning_rate=args.learning_rate,
         rmi_coef=args.rmi_coef,
         uncertainty_metric=args.uncertainty_metric,
+        streaming_mi_enabled=args.streaming_mi,
+        streaming_mi_window_size=args.streaming_mi_window_size,
+        streaming_mi_check_interval=args.streaming_mi_check_interval,
+        streaming_mi_min_gen=args.streaming_mi_min_gen,
+        streaming_mi_warmup_epochs=args.streaming_mi_warmup_epochs,
+        streaming_mi_wrap_budget=args.streaming_mi_wrap_budget,
+        streaming_mi_threshold_percentile=args.streaming_mi_threshold_percentile,
         sampler_type=args.sampler_type,
         initial_exp_type=args.initial_exp_type,
         log_path=args.log_path,
