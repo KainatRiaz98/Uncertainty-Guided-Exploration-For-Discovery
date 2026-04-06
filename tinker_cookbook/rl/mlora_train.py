@@ -22,6 +22,7 @@ New additions over original:
 import argparse
 import asyncio
 import concurrent.futures
+import json
 import logging
 import math
 import os
@@ -1065,6 +1066,64 @@ def _split_list(lst: list, n: int) -> List[list]:
     return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n)]
 
 
+def _write_rollout_logs(
+    log_path: str,
+    rollouts: List["Rollout"],
+    tokenizer,
+    epoch: int,
+    group_idx: int,
+    prompt_text: str,
+) -> None:
+    """Append per-rollout data to trajectories.jsonl for offline analysis.
+
+    Mirrors train.py's _write_trajectory_logs() but for Rollout objects,
+    extended with all mlora-specific uncertainty/ensemble metrics.
+    """
+    os.makedirs(log_path, exist_ok=True)
+    out_path = os.path.join(log_path, "trajectories.jsonl")
+    with open(out_path, "a") as f:
+        for i, rollout in enumerate(rollouts):
+            gen_tokens = rollout.full_tokens[rollout.prompt_len:]
+            generated_text = tokenizer.decode(gen_tokens)
+            payload = {
+                # Identification
+                "epoch": epoch,
+                "group_idx": group_idx,
+                "rollout_idx": i,
+                "adapter_idx": rollout.adapter_idx,
+                # Text
+                "prompt_text": prompt_text,
+                "generated_text": generated_text,
+                "num_tokens": len(gen_tokens),
+                # Rewards
+                "reward_exec": rollout.reward_exec,
+                "reward_rmi": rollout.reward_rmi,
+                "reward_total": rollout.reward_total,
+                # Task
+                "correctness": rollout.metrics.get("correctness", 0.0),
+                # Generation (two-phase)
+                "prefill_injected": rollout.metrics.get("gen/prefill_injected", 0.0),
+                "phase1_tokens": rollout.metrics.get("gen/phase1_tokens", 0),
+                "phase2_tokens": rollout.metrics.get("gen/phase2_tokens", 0),
+                # Uncertainty decomposition — all 4 for ablation
+                "uncertainty_true_mi": rollout.metrics.get("uncertainty/true_mi", 0.0),
+                "uncertainty_rmi": rollout.metrics.get("uncertainty/rmi", 0.0),
+                "uncertainty_variance": rollout.metrics.get("uncertainty/variance", 0.0),
+                "uncertainty_predictive_entropy": rollout.metrics.get("uncertainty/predictive_entropy", 0.0),
+                # Ensemble disagreement
+                "ensemble_member_logprob_spread": rollout.metrics.get("ensemble/member_logprob_spread", 0.0),
+                "ensemble_member_logprob_range": rollout.metrics.get("ensemble/member_logprob_range", 0.0),
+                "ensemble_max_token_disagreement": rollout.metrics.get("ensemble/max_token_disagreement", 0.0),
+                "ensemble_frac_high_disagreement": rollout.metrics.get("ensemble/frac_high_disagreement", 0.0),
+                # Streaming MI early stop
+                "streaming_mi_stopped": rollout.metrics.get("streaming_mi/stopped", 0.0),
+                "streaming_mi_stop_step": rollout.metrics.get("streaming_mi/stop_step", -1),
+                "streaming_mi_num_checks": rollout.metrics.get("streaming_mi/num_checks", 0),
+                "streaming_mi_tokens_saved": rollout.metrics.get("streaming_mi/tokens_saved", 0),
+            }
+            f.write(json.dumps(payload) + "\n")
+
+
 def _collect_rollout_metrics(rollout: "Rollout", accum: Dict[str, List[float]]):
     """Collect per-rollout metrics into the accumulator dict."""
     accum["reward/exec"].append(rollout.reward_exec)
@@ -1612,6 +1671,16 @@ def main(
                     "rollout/streaming_mi_stopped": rollout.metrics.get("streaming_mi/stopped", 0.0),
                     "rollout/streaming_mi_tokens_saved": rollout.metrics.get("streaming_mi/tokens_saved", 0),
                 })
+
+            # ── Local JSONL rollout log ───────────────────────────────
+            _write_rollout_logs(
+                log_path=cfg.log_path,
+                rollouts=group_rollouts,
+                tokenizer=tokenizer,
+                epoch=epoch,
+                group_idx=g,
+                prompt_text=prompt_text,
+            )
 
             # Per-group metrics
             group_rewards_exec = [r.reward_exec for r in group_rollouts]

@@ -103,6 +103,12 @@ class LoRAEnsemble:
             })
 
             context = TrainLoRAContext(lora_config, linears_info)
+            # lora_B=0 by convention, but that kills ensemble diversity — add small noise.
+            # The seed set above covers both lora_A (via kaiming inside the context)
+            # and lora_B (via this normal_ call immediately after).
+            with torch.no_grad():
+                for module in context.adapter_model_.values():
+                    torch.nn.init.normal_(module.lora_b_, std=0.01)
             context.switch_device(self.model.device_)
             self.contexts.append(context)
             self.model.load_adapter(context.adapter_model())
