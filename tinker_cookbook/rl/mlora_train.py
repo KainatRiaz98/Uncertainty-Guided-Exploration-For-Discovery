@@ -157,7 +157,7 @@ class Config:
     streaming_mi_check_interval: int = 2048  # C: decode steps between checks
     streaming_mi_min_gen: int = 4096         # Minimum tokens before first check
     streaming_mi_warmup_epochs: int = 3      # Epochs with full T_max (build MI history)
-    streaming_mi_wrap_budget: int = 1024     # Tokens for code output after early stop
+    streaming_mi_wrap_budget: int = 6000     # Tokens for code output after early stop
     streaming_mi_threshold_percentile: float = 25.0  # Percentile of post-gen MI
 
     # ── Performance ──────────────────────────────────────────────────────
@@ -305,7 +305,7 @@ class StreamingMIConfig:
     check_interval: int = 2048     # C: decode steps between checks
     min_gen: int = 4096            # Minimum tokens before first check
     warmup_epochs: int = 3         # Epochs using full T_max (no early stop)
-    wrap_budget: int = 1024        # Tokens for code output after early stop
+    wrap_budget: int = 6000        # Tokens for code output after early stop
     threshold_percentile: float = 25.0  # Percentile of post-gen MI for threshold
 
 
@@ -967,7 +967,7 @@ def do_group_rollout_batched(
             mi_check_interval=streaming_mi_cfg.streaming_mi_check_interval if streaming_mi_cfg else 2048,
             mi_min_gen=streaming_mi_cfg.streaming_mi_min_gen if streaming_mi_cfg else 4096,
             mi_threshold=mi_tracker.get_threshold() if mi_tracker else 0.0,
-            mi_wrap_budget=streaming_mi_cfg.streaming_mi_wrap_budget if streaming_mi_cfg else 1024,
+            mi_wrap_budget=streaming_mi_cfg.streaming_mi_wrap_budget if streaming_mi_cfg else 6000,
         )
         # Unpack 4-tuples into gen_results (tokens, logprobs) + per-seq masks + MI metadata
         gen_results = [(ft, lp) for ft, lp, _, _ in gen_results_4]
@@ -1890,7 +1890,7 @@ def cli_main():
     parser.add_argument("--streaming_mi_check_interval", type=int, default=2048)
     parser.add_argument("--streaming_mi_min_gen", type=int, default=4096)
     parser.add_argument("--streaming_mi_warmup_epochs", type=int, default=3)
-    parser.add_argument("--streaming_mi_wrap_budget", type=int, default=1024)
+    parser.add_argument("--streaming_mi_wrap_budget", type=int, default=6000)
     parser.add_argument("--streaming_mi_threshold_percentile", type=float, default=25.0)
 
     # Sampler

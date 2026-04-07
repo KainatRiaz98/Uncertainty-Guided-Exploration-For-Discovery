@@ -1011,7 +1011,7 @@ class LoRAEnsemble:
         mi_check_interval: int = 2048,
         mi_min_gen: int = 4096,
         mi_threshold: float = 0.0,
-        mi_wrap_budget: int = 1024,
+        mi_wrap_budget: int = 6000,
     ) -> List[Tuple[List[int], List[float], Optional[List[float]], Optional[Dict[str, Any]]]]:
         """
         Batched multi-adapter two-phase generation with optional streaming MI early stop.
