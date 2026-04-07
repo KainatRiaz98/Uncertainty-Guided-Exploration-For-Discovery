@@ -136,36 +136,63 @@ class Attention(torch.nn.Module):
         set_backward_tracepoint(xq.grad_fn, "b_q_rope")
         set_backward_tracepoint(xk.grad_fn, "b_k_rope")
 
-        # KV cache: concat cached K/V (stored before repeat_kv to save memory)
-        # Supports optional int8 quantization (kv_cache_quantize_=True) to halve
-        # memory bandwidth → faster batched decode for long sequences.
+        # KV cache: supports two modes:
+        #   1. Pre-allocated (kv_cache_preallocated_=True): O(1) per step via index-copy
+        #   2. Legacy concat (default): O(n) per step via torch.cat
+        # Both support optional int8 quantization (kv_cache_quantize_=True).
         kv_cache = getattr(input_args, 'kv_cache_', None)
         if kv_cache is not None:
             kv_quantize = getattr(input_args, 'kv_cache_quantize_', False)
-            cached = kv_cache[self.layer_id_]
-            if cached is not None:
+            kv_preallocated = getattr(input_args, 'kv_cache_preallocated_', False)
+
+            if kv_preallocated:
+                # ── Pre-allocated path: write new K/V into slot, read filled portion ──
+                cached = kv_cache[self.layer_id_]
+                end_pos = pos + max_seq_len
                 if kv_quantize:
-                    # Dequantize int8 → fp16 before concat
-                    cached_k_q, cached_v_q, k_scale, v_scale = cached
-                    cached_k = cached_k_q.to(xk.dtype) * k_scale
-                    cached_v = cached_v_q.to(xv.dtype) * v_scale
+                    k_buf, v_buf, ks_buf, vs_buf = cached
+                    # Quantize new token(s) and write into pre-allocated slot
+                    k_abs = xk.abs().amax(dim=-1, keepdim=True).clamp(min=1e-8)
+                    v_abs = xv.abs().amax(dim=-1, keepdim=True).clamp(min=1e-8)
+                    k_sc = k_abs / 127.0
+                    v_sc = v_abs / 127.0
+                    k_buf[:, :, pos:end_pos, :] = (xk / k_sc).round().to(torch.int8)
+                    v_buf[:, :, pos:end_pos, :] = (xv / v_sc).round().to(torch.int8)
+                    ks_buf[:, :, pos:end_pos, :] = k_sc
+                    vs_buf[:, :, pos:end_pos, :] = v_sc
+                    # Dequantize filled portion for attention
+                    xk = k_buf[:, :, :end_pos, :].to(xk.dtype) * ks_buf[:, :, :end_pos, :]
+                    xv = v_buf[:, :, :end_pos, :].to(xv.dtype) * vs_buf[:, :, :end_pos, :]
                 else:
-                    cached_k, cached_v = cached
-                xk = torch.cat([cached_k, xk], dim=2)
-                xv = torch.cat([cached_v, xv], dim=2)
-            if kv_quantize:
-                # Per-channel int8 quantization: scale = absmax / 127
-                k_absmax = xk.abs().amax(dim=-1, keepdim=True).clamp(min=1e-8)
-                v_absmax = xv.abs().amax(dim=-1, keepdim=True).clamp(min=1e-8)
-                k_scale = k_absmax / 127.0
-                v_scale = v_absmax / 127.0
-                kv_cache[self.layer_id_] = (
-                    (xk / k_scale).round().to(torch.int8),
-                    (xv / v_scale).round().to(torch.int8),
-                    k_scale, v_scale,
-                )
+                    k_buf, v_buf = cached
+                    k_buf[:, :, pos:end_pos, :] = xk
+                    v_buf[:, :, pos:end_pos, :] = xv
+                    xk = k_buf[:, :, :end_pos, :]
+                    xv = v_buf[:, :, :end_pos, :]
             else:
-                kv_cache[self.layer_id_] = (xk, xv)
+                # ── Legacy concat path: grow cache via torch.cat each step ──
+                cached = kv_cache[self.layer_id_]
+                if cached is not None:
+                    if kv_quantize:
+                        cached_k_q, cached_v_q, k_scale, v_scale = cached
+                        cached_k = cached_k_q.to(xk.dtype) * k_scale
+                        cached_v = cached_v_q.to(xv.dtype) * v_scale
+                    else:
+                        cached_k, cached_v = cached
+                    xk = torch.cat([cached_k, xk], dim=2)
+                    xv = torch.cat([cached_v, xv], dim=2)
+                if kv_quantize:
+                    k_absmax = xk.abs().amax(dim=-1, keepdim=True).clamp(min=1e-8)
+                    v_absmax = xv.abs().amax(dim=-1, keepdim=True).clamp(min=1e-8)
+                    k_scale = k_absmax / 127.0
+                    v_scale = v_absmax / 127.0
+                    kv_cache[self.layer_id_] = (
+                        (xk / k_scale).round().to(torch.int8),
+                        (xv / v_scale).round().to(torch.int8),
+                        k_scale, v_scale,
+                    )
+                else:
+                    kv_cache[self.layer_id_] = (xk, xv)
 
         # for llama2 need to repeat the heads
         # before dim: batch_size, n_kv_head, seq_len, head_dim

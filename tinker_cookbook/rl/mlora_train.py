@@ -999,6 +999,7 @@ def do_group_rollout_batched(
 
     # ── 3. Batched ensemble scoring (GPU, overlaps with CPU rewards) ─────
     t_score_start = time.time()
+    torch.cuda.empty_cache()  # free generation KV cache memory before scoring
     all_full_tokens = [ft for ft, _ in gen_results]
     all_scored = ensemble.compute_ensemble_logprobs_batch(all_full_tokens)
     t_score = time.time() - t_score_start

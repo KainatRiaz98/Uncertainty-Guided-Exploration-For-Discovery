@@ -106,6 +106,8 @@ class ModelData:
     cache_position_: int = 0
     # Int8 KV cache quantization: halves memory bandwidth for faster batched decode
     kv_cache_quantize_: bool = False
+    # Pre-allocated KV cache: use index-copy instead of torch.cat (O(1) vs O(n) per step)
+    kv_cache_preallocated_: bool = False
 
 
 class MLoRADataConfig:
@@ -186,6 +188,7 @@ class MLoRAData:
             kv_cache_=getattr(self, 'kv_cache_', None),
             cache_position_=getattr(self, 'cache_position_', 0),
             kv_cache_quantize_=getattr(self, 'kv_cache_quantize_', False),
+            kv_cache_preallocated_=getattr(self, 'kv_cache_preallocated_', False),
         )
 
     def batch_size(self) -> int:

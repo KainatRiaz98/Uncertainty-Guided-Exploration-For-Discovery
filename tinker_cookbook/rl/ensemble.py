@@ -347,6 +347,7 @@ class LoRAEnsemble:
         kv_cache: Optional[List] = None,
         cache_position: int = 0,
         kv_quantize: bool = False,
+        kv_cache_preallocated: bool = False,
     ) -> MLoRAData:
         """Build MLoRAData for multi-adapter generation (N sequences, multiple adapters).
 
@@ -374,6 +375,7 @@ class LoRAEnsemble:
         mlora_data.kv_cache_ = kv_cache
         mlora_data.cache_position_ = cache_position
         mlora_data.kv_cache_quantize_ = kv_quantize
+        mlora_data.kv_cache_preallocated_ = kv_cache_preallocated
         return mlora_data
 
     @torch.no_grad()
@@ -1139,6 +1141,39 @@ class LoRAEnsemble:
                 ))
         del prefill_kv_cache
 
+        # ── Phase 3b: Convert to pre-allocated KV cache for O(1) decode steps ──
+        # Instead of torch.cat each step (O(n) copy → O(n²) total), pre-allocate
+        # the full buffer and use index-copy (O(1) per step → O(n) total).
+        max_cache_len = context_window
+        for layer_idx in range(len(kv_cache_batch)):
+            entry = kv_cache_batch[layer_idx]
+            if entry is None:
+                continue
+            if kv_quantize:
+                k_q, v_q, k_s, v_s = entry
+                dev = k_q.device
+                _, n_h, _, h_d = k_q.shape
+                k_buf = torch.zeros(N, n_h, max_cache_len, h_d, dtype=torch.int8, device=dev)
+                v_buf = torch.zeros(N, n_h, max_cache_len, h_d, dtype=torch.int8, device=dev)
+                ks_buf = torch.zeros(N, n_h, max_cache_len, 1, dtype=k_s.dtype, device=dev)
+                vs_buf = torch.zeros(N, n_h, max_cache_len, 1, dtype=v_s.dtype, device=dev)
+                k_buf[:, :, :prompt_len, :] = k_q
+                v_buf[:, :, :prompt_len, :] = v_q
+                ks_buf[:, :, :prompt_len, :] = k_s
+                vs_buf[:, :, :prompt_len, :] = v_s
+                kv_cache_batch[layer_idx] = (k_buf, v_buf, ks_buf, vs_buf)
+                del k_q, v_q, k_s, v_s
+            else:
+                k, v = entry
+                dev = k.device
+                _, n_h, _, h_d = k.shape
+                k_buf = torch.zeros(N, n_h, max_cache_len, h_d, dtype=k.dtype, device=dev)
+                v_buf = torch.zeros(N, n_h, max_cache_len, h_d, dtype=v.dtype, device=dev)
+                k_buf[:, :, :prompt_len, :] = k
+                v_buf[:, :, :prompt_len, :] = v
+                kv_cache_batch[layer_idx] = (k_buf, v_buf)
+                del k, v
+
         # ── Phase 4: Sample first token for all N sequences ──
         all_tokens: List[List[int]] = [list(prompt_tokens) for _ in range(N)]
         all_logprobs: List[List[float]] = [[] for _ in range(N)]
@@ -1230,6 +1265,7 @@ class LoRAEnsemble:
                 kv_cache=kv_cache_batch,
                 cache_position=cur_pos,
                 kv_quantize=kv_quantize,
+                kv_cache_preallocated=True,
             )
             logits = self.model.forward(mlora_data.model_data())
             cur_pos += 1
@@ -1303,6 +1339,7 @@ class LoRAEnsemble:
                     kv_cache=kv_cache_batch,
                     cache_position=cur_pos,
                     kv_quantize=kv_quantize,
+                    kv_cache_preallocated=True,
                 )
                 logits = self.model.forward(mlora_data.model_data())
                 cur_pos += 1
@@ -1339,6 +1376,7 @@ class LoRAEnsemble:
                     kv_cache=kv_cache_batch,
                     cache_position=cur_pos,
                     kv_quantize=kv_quantize,
+                    kv_cache_preallocated=True,
                 )
                 logits = self.model.forward(mlora_data.model_data())
                 cur_pos += 1
@@ -1416,14 +1454,17 @@ class LoRAEnsemble:
         self,
         token_ids_list: List[List[int]],
         chunk_size: int = 256,
+        max_score_batch: int = 2,
     ) -> List[Tuple[torch.Tensor, torch.Tensor]]:
         """
-        Score multiple sequences through all K adapters, batching sequences
-        that share the same length for efficient GPU utilization.
+        Score multiple sequences through all K adapters, sub-batching to
+        avoid OOM on long sequences.
 
         Args:
             token_ids_list: List of token sequences to score.
             chunk_size: Tokens per chunk for LM head.
+            max_score_batch: Max sequences per forward pass (each becomes K
+                batch elements). Prevents OOM for long sequences.
 
         Returns:
             List of (logprobs, per_token_mi) tuples, one per input sequence.
@@ -1442,76 +1483,82 @@ class LoRAEnsemble:
         self.model.seq_module_.eval()
         try:
             for length, indices in length_groups.items():
-                # Build a combined batch: len(indices) sequences × K adapters
-                # = len(indices)*K batch elements, all same length
-                batch_tokens = []
-                batch_masks = []
-                data_configs = []
+                # Sub-batch to avoid OOM: process max_score_batch sequences per forward pass
+                for sub_start in range(0, len(indices), max_score_batch):
+                    sub_indices = indices[sub_start:sub_start + max_score_batch]
+                    n_sub = len(sub_indices)
 
-                for seq_pos, orig_idx in enumerate(indices):
-                    tids = token_ids_list[orig_idx]
-                    for k in range(self.K):
-                        batch_idx = seq_pos * self.K + k
-                        batch_tokens.append(list(tids))
-                        batch_masks.append([True] * length)
-                        data_configs.append(MLoRADataConfig(
-                            adapter_name=f"ensemble_{k}",
-                            adapter_type="lora",
-                            start_idx=batch_idx,
-                            end_idx=batch_idx + 1,
-                            expand_fn=self._expand_fn,
-                            loss_fn=self._noop_loss,
-                            task_name=f"batch_score_{orig_idx}_{k}",
-                        ))
+                    batch_tokens = []
+                    batch_masks = []
+                    data_configs = []
 
-                mlora_data = MLoRAData(
-                    batch_tokens=batch_tokens,
-                    batch_mask=batch_masks,
-                    data_config=data_configs,
-                )
-                mlora_data.use_flash_causal_ = True
-                mlora_data.return_hidden_states_ = True
+                    for seq_pos, orig_idx in enumerate(sub_indices):
+                        tids = token_ids_list[orig_idx]
+                        for k in range(self.K):
+                            batch_idx = seq_pos * self.K + k
+                            batch_tokens.append(list(tids))
+                            batch_masks.append([True] * length)
+                            data_configs.append(MLoRADataConfig(
+                                adapter_name=f"ensemble_{k}",
+                                adapter_type="lora",
+                                start_idx=batch_idx,
+                                end_idx=batch_idx + 1,
+                                expand_fn=self._expand_fn,
+                                loss_fn=self._noop_loss,
+                                task_name=f"batch_score_{orig_idx}_{k}",
+                            ))
 
-                with torch.no_grad():
-                    hidden = self.model.forward(mlora_data.model_data())
-                    # hidden: (len(indices)*K, T, D)
-
-                # Extract per-sequence, per-adapter logprobs + true MI
-                lm_head = self._get_lm_head()
-                for seq_pos, orig_idx in enumerate(indices):
-                    tids = token_ids_list[orig_idx]
-                    T = len(tids)
-                    target = torch.tensor(tids[1:], dtype=torch.long, device=hidden.device)
-
-                    # Gather hidden states for this sequence's K adapters
-                    adapter_hidden = hidden[seq_pos * self.K:(seq_pos + 1) * self.K]  # (K, T, D)
-
-                    # Chunked logprob + MI extraction
-                    logprob_chunks = []
-                    mi_chunks = []
-                    for start in range(0, T - 1, chunk_size):
-                        end = min(start + chunk_size, T - 1)
-                        chunk_logits = lm_head(adapter_hidden[:, start:end, :]).float()
-                        chunk_lp = F.log_softmax(chunk_logits, dim=-1)
-
-                        # Gather logprobs at generated tokens
-                        chunk_target = target[start:end].unsqueeze(0).unsqueeze(-1).expand(self.K, -1, 1)
-                        logprob_chunks.append(chunk_lp.gather(2, chunk_target).squeeze(-1))
-
-                        # True MI from full distribution
-                        chunk_probs = chunk_lp.exp()
-                        H_members = -(chunk_probs * chunk_lp).sum(dim=-1)  # (K, chunk)
-                        log_mix = torch.logsumexp(chunk_lp, dim=0) - math.log(self.K)
-                        mix_probs = log_mix.exp()
-                        H_mixture = -(mix_probs * log_mix).sum(dim=-1)  # (chunk,)
-                        mi_chunks.append(H_mixture - H_members.mean(dim=0))
-
-                        del chunk_logits, chunk_lp, chunk_probs, H_members, log_mix, mix_probs, H_mixture
-
-                    results[orig_idx] = (
-                        torch.cat(logprob_chunks, dim=1),  # (K, T-1)
-                        torch.cat(mi_chunks, dim=0),        # (T-1,)
+                    mlora_data = MLoRAData(
+                        batch_tokens=batch_tokens,
+                        batch_mask=batch_masks,
+                        data_config=data_configs,
                     )
+                    mlora_data.use_flash_causal_ = True
+                    mlora_data.return_hidden_states_ = True
+
+                    with torch.no_grad():
+                        hidden = self.model.forward(mlora_data.model_data())
+                        # hidden: (n_sub*K, T, D)
+
+                    # Extract per-sequence, per-adapter logprobs + true MI
+                    lm_head = self._get_lm_head()
+                    for seq_pos, orig_idx in enumerate(sub_indices):
+                        tids = token_ids_list[orig_idx]
+                        T = len(tids)
+                        target = torch.tensor(tids[1:], dtype=torch.long, device=hidden.device)
+
+                        # Gather hidden states for this sequence's K adapters
+                        adapter_hidden = hidden[seq_pos * self.K:(seq_pos + 1) * self.K]  # (K, T, D)
+
+                        # Chunked logprob + MI extraction
+                        logprob_chunks = []
+                        mi_chunks = []
+                        for start in range(0, T - 1, chunk_size):
+                            end = min(start + chunk_size, T - 1)
+                            chunk_logits = lm_head(adapter_hidden[:, start:end, :]).float()
+                            chunk_lp = F.log_softmax(chunk_logits, dim=-1)
+
+                            # Gather logprobs at generated tokens
+                            chunk_target = target[start:end].unsqueeze(0).unsqueeze(-1).expand(self.K, -1, 1)
+                            logprob_chunks.append(chunk_lp.gather(2, chunk_target).squeeze(-1))
+
+                            # True MI from full distribution
+                            chunk_probs = chunk_lp.exp()
+                            H_members = -(chunk_probs * chunk_lp).sum(dim=-1)  # (K, chunk)
+                            log_mix = torch.logsumexp(chunk_lp, dim=0) - math.log(self.K)
+                            mix_probs = log_mix.exp()
+                            H_mixture = -(mix_probs * log_mix).sum(dim=-1)  # (chunk,)
+                            mi_chunks.append(H_mixture - H_members.mean(dim=0))
+
+                            del chunk_logits, chunk_lp, chunk_probs, H_members, log_mix, mix_probs, H_mixture
+
+                        results[orig_idx] = (
+                            torch.cat(logprob_chunks, dim=1),  # (K, T-1)
+                            torch.cat(mi_chunks, dim=0),        # (T-1,)
+                        )
+
+                    del hidden
+                    torch.cuda.empty_cache()
         finally:
             self.model.seq_module_.train()
 
