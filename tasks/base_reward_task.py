@@ -460,15 +460,20 @@ class BaseRewardTask(ABC):
             scheduler = ray.get_actor("cpu_scheduler")
             print("[BaseRewardTask] Found existing cpu_scheduler actor.")
         except ValueError:
-            # If not found, create a new one
+            # If not found, try to create a new one (another thread may race us)
             print("[BaseRewardTask] Creating new cpu_scheduler actor.")
-            scheduler = CpuScheduler.options(
-                name="cpu_scheduler",
-                lifetime="detached"
-            ).remote(
-                num_cpus_per_task=self.num_cpus_per_task,
-                num_persistent_workers=0
-            )
+            try:
+                scheduler = CpuScheduler.options(
+                    name="cpu_scheduler",
+                    lifetime="detached"
+                ).remote(
+                    num_cpus_per_task=self.num_cpus_per_task,
+                    num_persistent_workers=0
+                )
+            except ValueError:
+                # Another thread already created it; just fetch it
+                print("[BaseRewardTask] Race detected, fetching existing cpu_scheduler actor.")
+                scheduler = ray.get_actor("cpu_scheduler")
 
         if self.reward_type == RewardType.NEG_LINEAR:
             # Must make bad score very negative for linear
