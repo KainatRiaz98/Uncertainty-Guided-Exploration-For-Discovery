@@ -3,6 +3,7 @@ export RAY_DEDUP_LOGS=0
 export RAY_LOG_TO_STDERR=1
 export RAY_ADDRESS=auto
 export TOKENIZERS_PARALLELISM=false
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 PYTHONPATH=mLoRA:$PYTHONPATH discovery/bin/python3 -m tinker_cookbook.rl.mlora_train \
     --env cp \

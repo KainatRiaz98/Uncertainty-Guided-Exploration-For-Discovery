@@ -441,7 +441,7 @@ def incorporate_kl_penalty(
     for rollout in rollouts:
         base_logprobs = _compute_base_logprobs(ensemble, rollout.full_tokens, device)
 
-        sampling_lp = torch.tensor(rollout.sampling_logprobs, device=device)
+        sampling_lp = torch.tensor(rollout.padded_sampling_logprobs, device=device)
         mask = rollout.action_mask.to(device)
 
         # kl_diff = sampling_logprobs - base_logprobs, masked
@@ -511,12 +511,21 @@ def _compute_base_logprobs(
 
     logits = ensemble.model.forward(mlora_data.model_data())  # (1, T, V)
 
-    # Extract per-token logprobs for actual tokens
-    log_probs = F.log_softmax(logits[0, :-1, :], dim=-1)  # (T-1, V)
-    target = torch.tensor(token_ids[1:], dtype=torch.long, device=logits.device)
-    per_token = log_probs.gather(1, target.unsqueeze(1)).squeeze(1)  # (T-1,)
-
-    return per_token
+    # Chunk over the sequence dim to avoid materialising the full (T-1, V) log-prob tensor.
+    # For Qwen3-8B: V=152064, T=26K → ~8 GB for log_softmax output if done at once.
+    # Chunking keeps peak at (1, T, V) logits + (chunk, V) log_softmax ≈ 8.1 GB instead of ~16 GB.
+    # logits[0, start:end, :] is a view (no copy), so only the chunk_lp allocation is new each step.
+    dev = logits.device
+    target = torch.tensor(token_ids[1:], dtype=torch.long, device=dev)
+    chunk_size = 256
+    per_token_chunks = []
+    for start in range(0, T - 1, chunk_size):
+        end = min(start + chunk_size, T - 1)
+        chunk_lp = F.log_softmax(logits[0, start:end, :], dim=-1)  # (chunk, V)
+        per_token_chunks.append(chunk_lp.gather(1, target[start:end].unsqueeze(1)).squeeze(1))
+        del chunk_lp
+    del logits
+    return torch.cat(per_token_chunks)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -548,7 +557,7 @@ def compute_kl_sample_train(
     all_sampling_logprobs: List[torch.Tensor] = []
 
     for rollout, train_lp in zip(rollouts, training_logprobs):
-        sampling_lp = torch.tensor(rollout.sampling_logprobs, device=device)
+        sampling_lp = torch.tensor(rollout.padded_sampling_logprobs, device=device)
         mask = rollout.action_mask.to(device) > 0
 
         sampling_actions = sampling_lp[mask]
@@ -615,6 +624,16 @@ class Rollout:
         mask = torch.zeros(total)
         mask[self.prompt_len - 1:] = 1.0
         return mask
+
+    @property
+    def padded_sampling_logprobs(self) -> List[float]:
+        """Sampling logprobs zero-padded at prompt positions. Length = T-1.
+
+        Matches data_processing.py:trajectory_to_data():
+            sampled_logprobs = [0.0]*ob_len + ac_logprobs  → right-shifted by 1
+            → [0.0]*(prompt_len-1) + ac_logprobs, length T-1
+        """
+        return [0.0] * (self.prompt_len - 1) + list(self.sampling_logprobs)
 
 
 @dataclass
@@ -693,7 +712,7 @@ def do_rollout(
         )
 
     # ── 2. Execute → R_exec (via task verifier) ──────────────────────────
-    generated_text = tokenizer.decode(full_tokens)
+    generated_text = tokenizer.decode(full_tokens[len(prompt_tokens):])
     result = process_fn(generated_text, parent_state, step)
     reward_exec = result["reward"]
     child_state = result.get("child_state")
@@ -993,7 +1012,7 @@ def do_group_rollout_batched(
     reward_futures = []
     for i, (full_tokens, sampling_logprobs) in enumerate(gen_results):
         step_idx = epoch * 1000 + group_idx * group_size + i
-        generated_text = tokenizer.decode(full_tokens)
+        generated_text = tokenizer.decode(full_tokens[len(prompt_tokens):])
         future = reward_workers.submit(process_fn, generated_text, parent_state, step_idx)
         reward_futures.append(future)
 
@@ -1298,20 +1317,25 @@ def train_step(
     all_trained_rollouts: List[Rollout] = []
 
     for substep_batch in substep_batches:
-        substep_loss = torch.tensor(0.0, device=cfg.device, requires_grad=True)
+        n_batch = max(len(substep_batch), 1)
 
         for rollout, adv in substep_batch:
             # Forward through all K adapters WITH gradients
             _hidden, current_logprobs = ensemble.compute_training_logprobs(
                 rollout.full_tokens
             )  # current_logprobs: (K, T-1)
+            # _hidden: (K, T, D) — not needed after logprobs are extracted.
+            # Delete the Python reference now; the tensor stays alive in GPU memory
+            # through current_logprobs's grad_fn until backward() frees the graph.
+            del _hidden
 
             action_mask = rollout.action_mask.to(cfg.device)
             old_logprobs = torch.tensor(
-                rollout.sampling_logprobs, device=cfg.device
+                rollout.padded_sampling_logprobs, device=cfg.device
             )
 
             # RL loss per adapter, averaged over K
+            rollout_loss = torch.tensor(0.0, device=cfg.device)
             for k in range(ensemble.K):
                 loss_k = compute_rl_loss(
                     current_logprobs=current_logprobs[k],
@@ -1321,17 +1345,22 @@ def train_step(
                     loss_fn=cfg.loss_fn,
                     ppo_clip=cfg.ppo_clip,
                 )
-                substep_loss = substep_loss + loss_k / ensemble.K
+                rollout_loss = rollout_loss + loss_k / ensemble.K
 
             # Store first adapter's training logprobs for KL tracking
             all_training_logprobs.append(current_logprobs[0].detach())
             all_trained_rollouts.append(rollout)
+            # Drop the computation graph reference before the next rollout's forward.
+            # Per-rollout backward is mathematically identical to one big backward:
+            #   step_all_optimizers() calls optimizer.step() then zero_grad(),
+            #   so gradients accumulate in .grad across calls here, then step() uses the sum.
+            del current_logprobs
+            scaled = rollout_loss / n_batch
+            scaled.backward()
+            total_loss_val += scaled.item()
 
         if len(substep_batch) > 0:
-            avg_loss = substep_loss / len(substep_batch)
-            avg_loss.backward()
             ensemble.step_all_optimizers()
-            total_loss_val += avg_loss.item()
 
     # ── Phase 3: KL tracking metrics ──
     kl_track_metrics = {}
@@ -1644,6 +1673,16 @@ def main(
                 streaming_mi_cfg=cfg if cfg.streaming_mi_enabled else None,
             )
 
+            # ── Local JSONL rollout log (written FIRST so it survives any downstream crash) ──
+            _write_rollout_logs(
+                log_path=cfg.log_path,
+                rollouts=group_rollouts,
+                tokenizer=tokenizer,
+                epoch=epoch,
+                group_idx=g,
+                prompt_text=prompt_text,
+            )
+
             # Per-rollout wandb logging
             for i, rollout in enumerate(group_rollouts):
                 rollout_step = (epoch * num_groups_total + g) * cfg.group_size + i
@@ -1672,16 +1711,6 @@ def main(
                     "rollout/streaming_mi_stopped": rollout.metrics.get("streaming_mi/stopped", 0.0),
                     "rollout/streaming_mi_tokens_saved": rollout.metrics.get("streaming_mi/tokens_saved", 0),
                 })
-
-            # ── Local JSONL rollout log ───────────────────────────────
-            _write_rollout_logs(
-                log_path=cfg.log_path,
-                rollouts=group_rollouts,
-                tokenizer=tokenizer,
-                epoch=epoch,
-                group_idx=g,
-                prompt_text=prompt_text,
-            )
 
             # Per-group metrics
             group_rewards_exec = [r.reward_exec for r in group_rollouts]
@@ -1738,6 +1767,9 @@ def main(
                 group_metrics["gpu/memory_reserved_gb"] = torch.cuda.memory_reserved() / 1e9
             _log_metrics_quiet(group_metrics)
 
+            # Free any residual KV cache / scoring tensors before the next group
+            torch.cuda.empty_cache()
+
         metrics["time/rollout"] = time.time() - t_start
 
         # ── Train step ────────────────────────────────────────────────
@@ -1746,9 +1778,11 @@ def main(
             f"Training on {len(rollout_groups)}/{num_groups_total} groups..."
         )
         t_train = time.time()
+        torch.cuda.empty_cache()  # release fragmented reserved-but-unallocated pool before backward
         train_metrics = train_step(ensemble, rollout_groups, cfg)
         metrics.update(train_metrics)
         metrics["time/train"] = time.time() - t_train
+        torch.cuda.empty_cache()  # release post-backward gradient/activation pool before next epoch's rollout
 
         # ── Streaming MI threshold update ────────────────────────────
         if mi_tracker is not None:
