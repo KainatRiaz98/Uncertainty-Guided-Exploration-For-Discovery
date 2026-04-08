@@ -441,7 +441,7 @@ def incorporate_kl_penalty(
     for rollout in rollouts:
         base_logprobs = _compute_base_logprobs(ensemble, rollout.full_tokens, device)
 
-        sampling_lp = torch.tensor(rollout.padded_sampling_logprobs, device=device)
+        sampling_lp = torch.tensor(rollout.sampling_logprobs, device=device)
         mask = rollout.action_mask.to(device)
 
         # kl_diff = sampling_logprobs - base_logprobs, masked
@@ -557,7 +557,7 @@ def compute_kl_sample_train(
     all_sampling_logprobs: List[torch.Tensor] = []
 
     for rollout, train_lp in zip(rollouts, training_logprobs):
-        sampling_lp = torch.tensor(rollout.padded_sampling_logprobs, device=device)
+        sampling_lp = torch.tensor(rollout.sampling_logprobs, device=device)
         mask = rollout.action_mask.to(device) > 0
 
         sampling_actions = sampling_lp[mask]
@@ -625,15 +625,6 @@ class Rollout:
         mask[self.prompt_len - 1:] = 1.0
         return mask
 
-    @property
-    def padded_sampling_logprobs(self) -> List[float]:
-        """Sampling logprobs zero-padded at prompt positions. Length = T-1.
-
-        Matches data_processing.py:trajectory_to_data():
-            sampled_logprobs = [0.0]*ob_len + ac_logprobs  → right-shifted by 1
-            → [0.0]*(prompt_len-1) + ac_logprobs, length T-1
-        """
-        return [0.0] * (self.prompt_len - 1) + list(self.sampling_logprobs)
 
 
 @dataclass
@@ -1243,6 +1234,8 @@ def train_step(
             rmi_values = torch.tensor(
                 [r.reward_rmi for r in group.rollouts], dtype=torch.float32
             )
+            # Replace NaN RMI values with 0 (neutral) to prevent contamination
+            rmi_values = torch.where(torch.isnan(rmi_values), torch.zeros_like(rmi_values), rmi_values)
             rmi_centered = rmi_values - rmi_values.mean()
             # Normalize RMI to unit scale so γ_eff directly controls strength
             # relative to A_exec, regardless of raw RMI magnitude
@@ -1331,7 +1324,7 @@ def train_step(
 
             action_mask = rollout.action_mask.to(cfg.device)
             old_logprobs = torch.tensor(
-                rollout.padded_sampling_logprobs, device=cfg.device
+                rollout.sampling_logprobs, device=cfg.device
             )
 
             # RL loss per adapter, averaged over K

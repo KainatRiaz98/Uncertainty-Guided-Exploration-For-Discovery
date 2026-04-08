@@ -103,12 +103,11 @@ class LoRAEnsemble:
             })
 
             context = TrainLoRAContext(lora_config, linears_info)
-            # lora_B=0 by convention, but that kills ensemble diversity — add small noise.
-            # The seed set above covers both lora_A (via kaiming inside the context)
-            # and lora_B (via this normal_ call immediately after).
-            with torch.no_grad():
-                for module in context.adapter_model_.values():
-                    torch.nn.init.normal_(module.lora_b_, std=0.01)
+            # lora_B stays at zero (standard LoRA convention).
+            # At init, adapters have zero effect → model generates as base model.
+            # Diversity emerges after the first training step because each adapter's
+            # lora_A has a different Kaiming init (via the seed above), producing
+            # different gradients from the same RL loss.
             context.switch_device(self.model.device_)
             self.contexts.append(context)
             self.model.load_adapter(context.adapter_model())
