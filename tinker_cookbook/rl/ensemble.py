@@ -274,6 +274,46 @@ class LoRAEnsemble:
 
         return hidden, per_token_logprobs
 
+    def compute_training_logprobs_single(
+        self,
+        k: int,
+        token_ids: List[int],
+        chunk_size: int = 256,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward pass with gradients for a SINGLE adapter k.
+
+        Memory cost is 1/K of compute_training_logprobs — only one adapter's
+        computation graph is live at a time. Call backward() before the next
+        adapter to keep peak memory at O(T × L × D) instead of O(K × T × L × D).
+
+        Returns:
+            hidden: (1, T, dim) hidden states with grad attached
+            per_token_logprobs: (T-1,) log-probs for adapter k
+        """
+        T = len(token_ids)
+        data_config = MLoRADataConfig(
+            adapter_name=f"ensemble_{k}",
+            adapter_type="lora",
+            start_idx=0,
+            end_idx=1,
+            expand_fn=self._expand_fn,
+            loss_fn=self._noop_loss,
+            task_name=f"train_single_{k}",
+        )
+        mlora_data = MLoRAData(
+            batch_tokens=[list(token_ids)],
+            batch_mask=[[True] * T],
+            data_config=[data_config],
+        )
+        mlora_data.use_flash_causal_ = True
+        mlora_data.return_hidden_states_ = True
+
+        hidden = self.model.forward(mlora_data.model_data())  # (1, T, D)
+        per_token_logprobs = self._chunked_logprobs(hidden, token_ids, chunk_size)  # (1, T-1)
+
+        return hidden, per_token_logprobs[0]  # (T-1,)
+
     # ── Text generation ───────────────────────────────────────────────────
 
     def _get_n_layers(self) -> int:

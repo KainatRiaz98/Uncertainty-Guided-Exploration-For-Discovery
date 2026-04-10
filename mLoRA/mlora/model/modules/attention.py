@@ -59,10 +59,14 @@ def scaled_dot_product_attention(
     attention_mask: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     if attention_mask is None:
-        # Flash Attention with hardware-level causal masking — O(n) memory
-        output = F.scaled_dot_product_attention(
-            query, key, value, is_causal=True
-        )
+        # PyTorch ≥2.0 uses upper-left causal masking for is_causal=True.
+        # With T_q=1 (KV-cached decode) and T_k>1, upper-left masking restricts
+        # the single query to K[0] only — completely wrong for decode.
+        # Fix: use is_causal=True only for square attention (full-sequence prefill/
+        # training where T_q == T_k). For decode (T_q=1, T_k>1), the KV cache
+        # already contains only valid past context, so no mask is needed.
+        is_causal = query.shape[2] == key.shape[2]
+        output = F.scaled_dot_product_attention(query, key, value, is_causal=is_causal)
     else:
         # Legacy path: explicit additive mask (for padded or non-causal sequences)
         output = F.scaled_dot_product_attention(

@@ -161,7 +161,7 @@ class Config:
     streaming_mi_threshold_percentile: float = 25.0  # Percentile of post-gen MI
 
     # ── Performance ──────────────────────────────────────────────────────
-    kv_quantize: bool = True  # int8 KV cache: halves bandwidth, ~2× faster batched decode
+    kv_quantize: bool = False  # int8 KV cache: halves bandwidth, ~2× faster batched decode
 
     # ── Sampler ───────────────────────────────────────────────────────────
     sampler_type: str = "puct_backprop"
@@ -919,7 +919,7 @@ def do_group_rollout_batched(
     max_tokens: int,
     temperature: float,
     reward_workers: concurrent.futures.ThreadPoolExecutor,
-    kv_quantize: bool = True,
+    kv_quantize: bool = False,
     two_phase_sampling: bool = False,
     phase1_max_tokens: int = 26000,
     context_window: int = 32768,
@@ -1313,44 +1313,46 @@ def train_step(
         n_batch = max(len(substep_batch), 1)
 
         for rollout, adv in substep_batch:
-            # Forward through all K adapters WITH gradients
-            _hidden, current_logprobs = ensemble.compute_training_logprobs(
-                rollout.full_tokens
-            )  # current_logprobs: (K, T-1)
-            # _hidden: (K, T, D) — not needed after logprobs are extracted.
-            # Delete the Python reference now; the tensor stays alive in GPU memory
-            # through current_logprobs's grad_fn until backward() frees the graph.
-            del _hidden
-
             action_mask = rollout.action_mask.to(cfg.device)
             old_logprobs = torch.tensor(
                 rollout.sampling_logprobs, device=cfg.device
             )
 
-            # RL loss per adapter, averaged over K
-            rollout_loss = torch.tensor(0.0, device=cfg.device)
+            # Sequential per-adapter forward+backward: peak activation memory is
+            # O(T × L × D) instead of O(K × T × L × D) from the joint K-adapter pass.
+            # Each adapter's computation graph is freed by backward() before the next
+            # forward, keeping only 1/K of the joint approach's activation memory.
+            rollout_loss_val = 0.0
+            first_adapter_logprobs = None
+
             for k in range(ensemble.K):
+                _hidden_k, logprobs_k = ensemble.compute_training_logprobs_single(
+                    k, rollout.full_tokens
+                )  # logprobs_k: (T-1,)
+                del _hidden_k
+
+                if k == 0:
+                    first_adapter_logprobs = logprobs_k.detach()
+
                 loss_k = compute_rl_loss(
-                    current_logprobs=current_logprobs[k],
+                    current_logprobs=logprobs_k,
                     old_logprobs=old_logprobs,
                     advantage=adv,
                     action_mask=action_mask,
                     loss_fn=cfg.loss_fn,
                     ppo_clip=cfg.ppo_clip,
                 )
-                rollout_loss = rollout_loss + loss_k / ensemble.K
+                # Divide by K (adapters) and n_batch (rollouts) so gradient magnitude
+                # matches the original joint backward.
+                scaled_k = loss_k / (ensemble.K * n_batch)
+                scaled_k.backward()  # frees this adapter's computation graph
+                rollout_loss_val += scaled_k.item()
+                del logprobs_k, loss_k, scaled_k
 
             # Store first adapter's training logprobs for KL tracking
-            all_training_logprobs.append(current_logprobs[0].detach())
+            all_training_logprobs.append(first_adapter_logprobs)
             all_trained_rollouts.append(rollout)
-            # Drop the computation graph reference before the next rollout's forward.
-            # Per-rollout backward is mathematically identical to one big backward:
-            #   step_all_optimizers() calls optimizer.step() then zero_grad(),
-            #   so gradients accumulate in .grad across calls here, then step() uses the sum.
-            del current_logprobs
-            scaled = rollout_loss / n_batch
-            scaled.backward()
-            total_loss_val += scaled.item()
+            total_loss_val += rollout_loss_val
 
         if len(substep_batch) > 0:
             ensemble.step_all_optimizers()
@@ -1895,7 +1897,7 @@ def cli_main():
     parser.add_argument("--loss_fn", default="importance_sampling")
 
     # Performance
-    parser.add_argument("--kv_quantize", action="store_true", default=True,
+    parser.add_argument("--kv_quantize", action="store_true", default=False,
                         help="Int8 KV cache: halves memory bandwidth for faster batched decode")
     parser.add_argument("--no_kv_quantize", dest="kv_quantize", action="store_false")
 
