@@ -42,10 +42,12 @@ from mlora.model.tokenizer import Tokenizer as MLoRATokenizer
 
 # ── Our new modules ────────────────────────────────────────────────────────────
 from tinker_cookbook.rl.ensemble import LoRAEnsemble
+from tinker_cookbook.rl.nuclear_norm import compute_nuclear_norm_diversity_loss
 from tinker_cookbook.rl.uncertainty import (
     UNCERTAINTY_FNS,
     compute_rmi,
     compute_true_mi,
+    compute_top7_phase_breakdown,
     compute_variance,
     compute_predictive_entropy,
 )
@@ -150,6 +152,10 @@ class Config:
     rmi_coef: float = 0.1           # α: base exploration strength (γ_eff adapts via β-coupling)
     uncertainty_metric: str = "true_mi"  # "true_mi", "rmi", "variance", "predictive_entropy"
     gamma_max_ratio: float = 10.0   # clip γ_eff/rmi_coef to prevent explosion
+
+    # ── Nuclear norm diversity regularization ─────────────────────────────
+    nnm_coef: float = 0.0        # 0 = off; try 0.05–0.1 when MI collapses
+    nnm_use_fro_norm: bool = False  # Frobenius-normalised variant (scale-invariant)
 
     # ── Streaming MI early stop (Contribution 2) ─────────────────────────
     streaming_mi_enabled: bool = False
@@ -713,17 +719,21 @@ def do_rollout(
 
     # Primary uncertainty metric for reward_rmi
     if uncertainty_fn is None:
-        # true_mi mode: use full-distribution MI computed during scoring
-        reward_rmi = float(per_token_true_mi.mean())
+        # true_mi mode: top-7% of tokens (Wang et al. 2025 — high-entropy minority drives RL)
+        reward_rmi = float(compute_true_mi(per_token_true_mi))
     else:
         # logprob-based mode (ablation): compute from point estimates
         reward_rmi = float(uncertainty_fn(ensemble_logprobs))
 
     # Compute ALL uncertainty metrics for ablation comparison logging
-    true_mi_val = float(per_token_true_mi.mean())
+    true_mi_val = float(compute_true_mi(per_token_true_mi))
     rmi_val = float(compute_rmi(ensemble_logprobs))
     variance_val = float(compute_variance(ensemble_logprobs))
     pred_entropy_val = float(compute_predictive_entropy(ensemble_logprobs))
+    # Top-7% versions: same aggregation as true_mi → isolates metric quality from aggregation
+    rmi_top7_val = float(compute_rmi(ensemble_logprobs, top_frac=0.07))
+    variance_top7_val = float(compute_variance(ensemble_logprobs, top_frac=0.07))
+    pred_entropy_top7_val = float(compute_predictive_entropy(ensemble_logprobs, top_frac=0.07))
 
     # Ensemble member disagreement stats — proves K adapters actually diverge
     # per_member_mean_lp[k] = mean logprob assigned by member k to the sequence
@@ -770,6 +780,15 @@ def do_rollout(
         phase1_tokens_count = gen_total
         phase2_tokens_count = 0
 
+    # ── Top-7% phase breakdown ─────────────────────────────────────────────
+    _prefill_count = len(prefill_tokens) if (prefill_injected and prefill_tokens is not None) else 0
+    phase_breakdown = compute_top7_phase_breakdown(
+        per_token_true_mi,
+        prompt_len=len(prompt_tokens),
+        phase1_count=phase1_tokens_count,
+        prefill_count=_prefill_count,
+    )
+
     return Rollout(
         prompt_tokens=prompt_tokens,
         full_tokens=full_tokens,
@@ -794,6 +813,15 @@ def do_rollout(
             "uncertainty/rmi": rmi_val,
             "uncertainty/variance": variance_val,
             "uncertainty/predictive_entropy": pred_entropy_val,
+            # Top-7% baselines — same aggregation as true_mi for fair comparison
+            "uncertainty/rmi_top7": rmi_top7_val,
+            "uncertainty/variance_top7": variance_top7_val,
+            "uncertainty/predictive_entropy_top7": pred_entropy_top7_val,
+            # ── Top-7% phase breakdown (thinking vs code) ──
+            "uncertainty/top7_pct_thinking": phase_breakdown["top7_pct_thinking"],
+            "uncertainty/top7_pct_code": phase_breakdown["top7_pct_code"],
+            "uncertainty/top7_mi_thinking": phase_breakdown["top7_mi_thinking"],
+            "uncertainty/top7_mi_code": phase_breakdown["top7_mi_code"],
             # ── Ensemble disagreement (proves members diverge) ──
             "ensemble/member_logprob_spread": member_logprob_spread,
             "ensemble/member_logprob_range": member_logprob_range,
@@ -826,12 +854,17 @@ def _build_rollout_from_scored(
     if uncertainty_fn is not None:
         reward_rmi = float(uncertainty_fn(ensemble_logprobs))
     else:
-        reward_rmi = float(per_token_true_mi.mean())
+        # top-7% of tokens (Wang et al. 2025 — high-entropy minority drives RL)
+        reward_rmi = float(compute_true_mi(per_token_true_mi))
 
-    true_mi_val = float(per_token_true_mi.mean())
+    true_mi_val = float(compute_true_mi(per_token_true_mi))
     rmi_val = float(compute_rmi(ensemble_logprobs))
     variance_val = float(compute_variance(ensemble_logprobs))
     pred_entropy_val = float(compute_predictive_entropy(ensemble_logprobs))
+    # Top-7% versions: same aggregation as true_mi → isolates metric quality from aggregation
+    rmi_top7_val = float(compute_rmi(ensemble_logprobs, top_frac=0.07))
+    variance_top7_val = float(compute_variance(ensemble_logprobs, top_frac=0.07))
+    pred_entropy_top7_val = float(compute_predictive_entropy(ensemble_logprobs, top_frac=0.07))
 
     per_member_mean_lp = ensemble_logprobs.mean(dim=1)
     member_logprob_spread = float(per_member_mean_lp.std())
@@ -865,6 +898,14 @@ def _build_rollout_from_scored(
         phase2_tokens_count = 0
         prefill_info = None
 
+    # ── Top-7% phase breakdown ─────────────────────────────────────────────
+    phase_breakdown = compute_top7_phase_breakdown(
+        per_token_true_mi,
+        prompt_len=len(prompt_tokens),
+        phase1_count=phase1_tokens_count,
+        prefill_count=prefill_token_count if prefill_injected else 0,
+    )
+
     return Rollout(
         prompt_tokens=prompt_tokens,
         full_tokens=full_tokens,
@@ -888,6 +929,15 @@ def _build_rollout_from_scored(
             "uncertainty/rmi": rmi_val,
             "uncertainty/variance": variance_val,
             "uncertainty/predictive_entropy": pred_entropy_val,
+            # Top-7% baselines — same aggregation as true_mi for fair comparison
+            "uncertainty/rmi_top7": rmi_top7_val,
+            "uncertainty/variance_top7": variance_top7_val,
+            "uncertainty/predictive_entropy_top7": pred_entropy_top7_val,
+            # ── Top-7% phase breakdown (thinking vs code) ──
+            "uncertainty/top7_pct_thinking": phase_breakdown["top7_pct_thinking"],
+            "uncertainty/top7_pct_code": phase_breakdown["top7_pct_code"],
+            "uncertainty/top7_mi_thinking": phase_breakdown["top7_mi_thinking"],
+            "uncertainty/top7_mi_code": phase_breakdown["top7_mi_code"],
             "ensemble/member_logprob_spread": member_logprob_spread,
             "ensemble/member_logprob_range": member_logprob_range,
             "ensemble/max_token_disagreement": max_token_disagreement,
@@ -1022,7 +1072,7 @@ def do_group_rollout_batched(
 
     # Feed post-generation MI to tracker for threshold adaptation (every epoch)
     if mi_tracker is not None:
-        post_gen_mis = [float(mi.mean()) for _, mi in all_scored]
+        post_gen_mis = [float(compute_true_mi(mi)) for _, mi in all_scored]
         mi_tracker.record_post_generation_mi(post_gen_mis)
 
     prefill_len = len(prefill_tokens) if prefill_tokens else 0
@@ -1059,11 +1109,27 @@ def do_group_rollout_batched(
                 f" p1={rollout.metrics.get('gen/phase1_tokens', 0)}"
                 f" p2={rollout.metrics.get('gen/phase2_tokens', 0)}"
             )
+        true_mi_log = rollout.metrics.get("uncertainty/true_mi", 0.0)
         logger.info(
             f"    [g{group_idx}][r{i+1}/{group_size}] adapter={rollout.adapter_idx} "
-            f"R_exec={rollout.reward_exec:.4f} RMI={rollout.reward_rmi:.4f} "
+            f"R_exec={rollout.reward_exec:.4f} true_MI={true_mi_log:.5f} RMI={rollout.reward_rmi:.4f} "
             f"R_total={rollout.reward_total:.4f} correct={correct:.0f} "
             f"tokens={n_gen}{phase_info}"
+        )
+
+    # Group-level normalized MI summary (mean and std across all rollouts in this group)
+    group_true_mis = [r.metrics.get("uncertainty/true_mi", 0.0) for r in rollouts]
+    if group_true_mis:
+        import statistics
+        g_mean = sum(group_true_mis) / len(group_true_mis)
+        g_std = statistics.stdev(group_true_mis) if len(group_true_mis) > 1 else 0.0
+        g_max = max(group_true_mis)
+        # Normalized: each rollout's MI relative to group mean (avoids scale dependence)
+        norm_mis = [v / g_mean if g_mean > 1e-9 else 0.0 for v in group_true_mis]
+        norm_str = " ".join(f"{v:.2f}" for v in norm_mis)
+        logger.info(
+            f"  [g{group_idx}] group true_MI: mean={g_mean:.5f} std={g_std:.5f} max={g_max:.5f} "
+            f"normalized=[{norm_str}]"
         )
 
     return rollouts
@@ -1116,11 +1182,19 @@ def _write_rollout_logs(
                 "prefill_injected": rollout.metrics.get("gen/prefill_injected", 0.0),
                 "phase1_tokens": rollout.metrics.get("gen/phase1_tokens", 0),
                 "phase2_tokens": rollout.metrics.get("gen/phase2_tokens", 0),
-                # Uncertainty decomposition — all 4 for ablation
+                # Uncertainty decomposition — all 4 for ablation (mean and top-7%)
                 "uncertainty_true_mi": rollout.metrics.get("uncertainty/true_mi", 0.0),
                 "uncertainty_rmi": rollout.metrics.get("uncertainty/rmi", 0.0),
                 "uncertainty_variance": rollout.metrics.get("uncertainty/variance", 0.0),
                 "uncertainty_predictive_entropy": rollout.metrics.get("uncertainty/predictive_entropy", 0.0),
+                "uncertainty_rmi_top7": rollout.metrics.get("uncertainty/rmi_top7", 0.0),
+                "uncertainty_variance_top7": rollout.metrics.get("uncertainty/variance_top7", 0.0),
+                "uncertainty_predictive_entropy_top7": rollout.metrics.get("uncertainty/predictive_entropy_top7", 0.0),
+                # Top-7% phase breakdown (thinking vs code)
+                "top7_pct_thinking": rollout.metrics.get("uncertainty/top7_pct_thinking", 0.0),
+                "top7_pct_code": rollout.metrics.get("uncertainty/top7_pct_code", 0.0),
+                "top7_mi_thinking": rollout.metrics.get("uncertainty/top7_mi_thinking", 0.0),
+                "top7_mi_code": rollout.metrics.get("uncertainty/top7_mi_code", 0.0),
                 # Ensemble disagreement
                 "ensemble_member_logprob_spread": rollout.metrics.get("ensemble/member_logprob_spread", 0.0),
                 "ensemble_member_logprob_range": rollout.metrics.get("ensemble/member_logprob_range", 0.0),
@@ -1146,12 +1220,30 @@ def _collect_rollout_metrics(rollout: "Rollout", accum: Dict[str, List[float]]):
     accum["gen/prefill_injected"].append(rollout.metrics.get("gen/prefill_injected", 0.0))
     accum["gen/phase1_tokens"].append(rollout.metrics.get("gen/phase1_tokens", 0))
     accum["gen/phase2_tokens"].append(rollout.metrics.get("gen/phase2_tokens", 0))
-    # Uncertainty decomposition — all 4 for ablation comparison
+    # Uncertainty decomposition — all 4 for ablation comparison (mean and top-7%)
     accum["uncertainty/true_mi"].append(rollout.metrics.get("uncertainty/true_mi", 0.0))
     accum["uncertainty/rmi"].append(rollout.metrics.get("uncertainty/rmi", 0.0))
     accum["uncertainty/variance"].append(rollout.metrics.get("uncertainty/variance", 0.0))
     accum["uncertainty/predictive_entropy"].append(
         rollout.metrics.get("uncertainty/predictive_entropy", 0.0)
+    )
+    accum["uncertainty/rmi_top7"].append(rollout.metrics.get("uncertainty/rmi_top7", 0.0))
+    accum["uncertainty/variance_top7"].append(rollout.metrics.get("uncertainty/variance_top7", 0.0))
+    accum["uncertainty/predictive_entropy_top7"].append(
+        rollout.metrics.get("uncertainty/predictive_entropy_top7", 0.0)
+    )
+    # Top-7% phase breakdown (thinking vs code)
+    accum["uncertainty/top7_pct_thinking"].append(
+        rollout.metrics.get("uncertainty/top7_pct_thinking", 0.0)
+    )
+    accum["uncertainty/top7_pct_code"].append(
+        rollout.metrics.get("uncertainty/top7_pct_code", 0.0)
+    )
+    accum["uncertainty/top7_mi_thinking"].append(
+        rollout.metrics.get("uncertainty/top7_mi_thinking", 0.0)
+    )
+    accum["uncertainty/top7_mi_code"].append(
+        rollout.metrics.get("uncertainty/top7_mi_code", 0.0)
     )
     # Ensemble disagreement — proves members actually diverge
     accum["ensemble/member_logprob_spread"].append(
@@ -1202,6 +1294,12 @@ def train_step(
         # Uncertainty decomposition (all 4 metrics — critical for ablation)
         "uncertainty/true_mi": [], "uncertainty/rmi": [], "uncertainty/variance": [],
         "uncertainty/predictive_entropy": [],
+        # Top-7% baselines — same aggregation as true_mi for fair ablation comparison
+        "uncertainty/rmi_top7": [], "uncertainty/variance_top7": [],
+        "uncertainty/predictive_entropy_top7": [],
+        # Top-7% phase breakdown (thinking vs code)
+        "uncertainty/top7_pct_thinking": [], "uncertainty/top7_pct_code": [],
+        "uncertainty/top7_mi_thinking": [], "uncertainty/top7_mi_code": [],
         # Ensemble disagreement (proves K members actually diverge)
         "ensemble/member_logprob_spread": [],
         "ensemble/member_logprob_range": [],
@@ -1306,6 +1404,8 @@ def train_step(
     substep_batches = _split_list(trainable_rollouts, num_substeps) if num_substeps > 0 else []
 
     total_loss_val = 0.0
+    nnm_loss_val = 0.0
+    nnm_nuc_val = 0.0
     all_training_logprobs: List[torch.Tensor] = []
     all_trained_rollouts: List[Rollout] = []
 
@@ -1355,6 +1455,18 @@ def train_step(
             total_loss_val += rollout_loss_val
 
         if len(substep_batch) > 0:
+            # Nuclear norm diversity regularization — touches all K lora_A tensors
+            # simultaneously after RL gradients have accumulated. Controlled by
+            # --nnm_coef (0 = disabled, no overhead). Gradient magnitude normalised
+            # by n_batch to match the RL loss scaling above.
+            if cfg.nnm_coef > 0.0:
+                _nnm_loss, nnm_nuc_val, _ = compute_nuclear_norm_diversity_loss(
+                    ensemble, cfg.nnm_use_fro_norm
+                )
+                _weighted = cfg.nnm_coef * _nnm_loss / n_batch
+                _weighted.backward()
+                nnm_loss_val = _weighted.item()
+
             ensemble.step_all_optimizers()
 
     # ── Phase 3: KL tracking metrics ──
@@ -1413,14 +1525,28 @@ def train_step(
             np.mean([1.0 if c > 0 else 0.0 for c in metrics_accum["correctness"]])
         )
 
-    # ── Uncertainty decomposition (ablation: RMI vs variance vs predictive_entropy) ──
-    for key in ["uncertainty/true_mi", "uncertainty/rmi", "uncertainty/variance", "uncertainty/predictive_entropy"]:
+    # ── Uncertainty decomposition (ablation: all metrics, mean and top-7%) ──
+    for key in [
+        "uncertainty/true_mi",
+        "uncertainty/rmi", "uncertainty/variance", "uncertainty/predictive_entropy",
+        "uncertainty/rmi_top7", "uncertainty/variance_top7", "uncertainty/predictive_entropy_top7",
+    ]:
         vals = metrics_accum[key]
         if vals:
             metrics[f"train/{key}/mean"] = float(np.mean(vals))
             metrics[f"train/{key}/std"] = float(np.std(vals))
             metrics[f"train/{key}/min"] = float(np.min(vals))
             metrics[f"train/{key}/max"] = float(np.max(vals))
+
+    # ── Top-7% phase breakdown (thinking vs code generation) ──
+    for key in [
+        "uncertainty/top7_pct_thinking", "uncertainty/top7_pct_code",
+        "uncertainty/top7_mi_thinking", "uncertainty/top7_mi_code",
+    ]:
+        vals = metrics_accum[key]
+        if vals:
+            metrics[f"train/{key}/mean"] = float(np.mean(vals))
+            metrics[f"train/{key}/std"] = float(np.std(vals))
 
     # ── Ensemble disagreement (proves K members actually diverge) ──
     for key in ["ensemble/member_logprob_spread", "ensemble/member_logprob_range",
@@ -1445,6 +1571,8 @@ def train_step(
 
     # Core training stats
     metrics["train/loss"] = total_loss_val
+    metrics["train/nnm_loss"] = nnm_loss_val        # 0.0 when --nnm_coef is not set
+    metrics["train/nnm_nuclear_norm"] = nnm_nuc_val
     metrics["train/num_rollouts"] = float(len(trainable_rollouts))
     metrics["train/num_rollouts_total"] = float(
         sum(len(g.rollouts) for g in rollout_groups)
@@ -1699,6 +1827,14 @@ def main(
                     "rollout/uncertainty_rmi": rollout.metrics.get("uncertainty/rmi", 0.0),
                     "rollout/uncertainty_variance": rollout.metrics.get("uncertainty/variance", 0.0),
                     "rollout/uncertainty_predictive_entropy": rollout.metrics.get("uncertainty/predictive_entropy", 0.0),
+                    "rollout/uncertainty_rmi_top7": rollout.metrics.get("uncertainty/rmi_top7", 0.0),
+                    "rollout/uncertainty_variance_top7": rollout.metrics.get("uncertainty/variance_top7", 0.0),
+                    "rollout/uncertainty_predictive_entropy_top7": rollout.metrics.get("uncertainty/predictive_entropy_top7", 0.0),
+                    # Top-7% phase breakdown (thinking vs code generation)
+                    "rollout/top7_pct_thinking": rollout.metrics.get("uncertainty/top7_pct_thinking", 0.0),
+                    "rollout/top7_pct_code": rollout.metrics.get("uncertainty/top7_pct_code", 0.0),
+                    "rollout/top7_mi_thinking": rollout.metrics.get("uncertainty/top7_mi_thinking", 0.0),
+                    "rollout/top7_mi_code": rollout.metrics.get("uncertainty/top7_mi_code", 0.0),
                     "rollout/ensemble_member_logprob_spread": rollout.metrics.get("ensemble/member_logprob_spread", 0.0),
                     "rollout/ensemble_member_logprob_range": rollout.metrics.get("ensemble/member_logprob_range", 0.0),
                     "rollout/ensemble_max_token_disagreement": rollout.metrics.get("ensemble/max_token_disagreement", 0.0),
@@ -1840,10 +1976,12 @@ def main(
         loss = metrics.get("train/loss", 0)
         beta = metrics.get("train/beta/mean", 0)
         corr = metrics.get("train/correctness/rate", 0)
+        nuc_norm = metrics.get("train/nnm_nuclear_norm", 0)
+        nnm_info = f" nuc={nuc_norm:.3f}" if cfg.nnm_coef > 0.0 else ""
         logger.info(
             f"[Epoch {epoch}] R_exec={r_exec:.4f} (max={r_max:.4f} best={r_best:.4f}) "
-            f"RMI={r_rmi:.4f} beta={beta:.2f} corr={corr:.1%} loss={loss:.4f} "
-            f"groups={num_groups_kept}/{num_groups_attempted} time={metrics['time/total']:.1f}s"
+            f"RMI={r_rmi:.4f} beta={beta:.2f} corr={corr:.1%} loss={loss:.4f}"
+            f"{nnm_info} groups={num_groups_kept}/{num_groups_attempted} time={metrics['time/total']:.1f}s"
         )
 
         # ── Checkpointing ─────────────────────────────────────────────
@@ -1911,6 +2049,12 @@ def cli_main():
     parser.add_argument("--rmi_coef", type=float, default=0.1)
     parser.add_argument("--uncertainty_metric", default="true_mi",
                         choices=["true_mi", "rmi", "variance", "predictive_entropy"])
+
+    # Nuclear norm diversity regularization
+    parser.add_argument("--nnm_coef", type=float, default=0.0,
+                        help="Nuclear norm diversity regularisation weight (0=off, try 0.05-0.1)")
+    parser.add_argument("--nnm_use_fro_norm", action="store_true", default=False,
+                        help="Use Frobenius-normalised nuclear norm (scale-invariant)")
 
     # Streaming MI early stop
     parser.add_argument("--streaming_mi", action="store_true", default=False,
@@ -1987,6 +2131,8 @@ def cli_main():
         learning_rate=args.learning_rate,
         rmi_coef=args.rmi_coef,
         uncertainty_metric=args.uncertainty_metric,
+        nnm_coef=args.nnm_coef,
+        nnm_use_fro_norm=args.nnm_use_fro_norm,
         streaming_mi_enabled=args.streaming_mi,
         streaming_mi_window_size=args.streaming_mi_window_size,
         streaming_mi_check_interval=args.streaming_mi_check_interval,

@@ -21,6 +21,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 import torch
 import torch.nn.functional as F
 
+from tinker_cookbook.rl.uncertainty import compute_true_mi
 from mlora.model.llm import LLMModel
 from mlora.model.args import (
     LinearInfo,
@@ -103,11 +104,14 @@ class LoRAEnsemble:
             })
 
             context = TrainLoRAContext(lora_config, linears_info)
-            # lora_B stays at zero (standard LoRA convention).
-            # At init, adapters have zero effect → model generates as base model.
-            # Diversity emerges after the first training step because each adapter's
-            # lora_A has a different Kaiming init (via the seed above), producing
-            # different gradients from the same RL loss.
+            # Randomize lora_B instead of leaving it at zero.
+            # Standard LoRA uses B=0 so all adapters start identical, diverging only
+            # via gradient noise. Small random init forces initial diversity so
+            # epoch-0 MI is non-zero. std=0.01 is small enough not to destabilise
+            # early training (Wang et al. 2023).
+            with torch.no_grad():
+                for module in context.adapter_model_.values():
+                    torch.nn.init.normal_(module.lora_b_, mean=0.0, std=0.01)
             context.switch_device(self.model.device_)
             self.contexts.append(context)
             self.model.load_adapter(context.adapter_model())
@@ -1648,7 +1652,7 @@ class LoRAEnsemble:
                 _, per_token_mi = self._chunked_logprobs(
                     hidden, window_tokens, chunk_size, compute_mi=True
                 )
-                results.append(float(per_token_mi.mean().item()))
+                results.append(float(compute_true_mi(per_token_mi).item()))
                 del hidden, per_token_mi
         finally:
             self.model.seq_module_.train()

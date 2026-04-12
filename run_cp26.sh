@@ -13,6 +13,7 @@ PYTHONPATH=mLoRA:$PYTHONPATH discovery/bin/python3 -m tinker_cookbook.rl.mlora_t
     --num_ensemble_members 5 \
     --adv_estimator entropic_adaptive_beta \
     --rmi_coef 0.1 \
+    --nnm_coef 0.075 \
     --uncertainty_metric true_mi \
     --kl_penalty_coef 0.01 \
     --lora_rank 16 \
@@ -31,6 +32,6 @@ PYTHONPATH=mLoRA:$PYTHONPATH discovery/bin/python3 -m tinker_cookbook.rl.mlora_t
     --streaming_mi_wrap_budget 6000 \
     --streaming_mi_warmup_epochs 3 \
     --wandb_project "ttt-discover-uncertainty" \
-    --wandb_name "cp26-real-run-truemi-r16" \
-    --log_path ./logs/cp26_rmi \
+    --wandb_name "cp26-real-run-truemi-r16-nnm" \
+    --log_path ./logs/cp26_rmi_nnm \
     --save_every 5
