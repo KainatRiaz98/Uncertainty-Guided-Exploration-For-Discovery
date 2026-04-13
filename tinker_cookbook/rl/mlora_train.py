@@ -1708,6 +1708,31 @@ def main(
         ensemble.load(cfg.log_path, start_epoch - 1)
         logger.info(f"Resumed from epoch {start_epoch}")
 
+        # Rebuild MI history from metrics.jsonl so threshold is correct on resume
+        if mi_tracker is not None:
+            metrics_path = os.path.join(cfg.log_path, "metrics.jsonl")
+            if os.path.exists(metrics_path):
+                mi_values_from_log = []
+                with open(metrics_path) as mf:
+                    for line in mf:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            rec = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        mi_val = rec.get("rollout/uncertainty_true_mi")
+                        if mi_val is not None:
+                            mi_values_from_log.append(float(mi_val))
+                if mi_values_from_log:
+                    mi_tracker.record_post_generation_mi(mi_values_from_log)
+                    mi_tracker.update_threshold(start_epoch - 1)
+                    logger.info(
+                        f"Rebuilt MI history from {len(mi_values_from_log)} rollouts, "
+                        f"threshold={mi_tracker.current_threshold:.6f}"
+                    )
+
     os.makedirs(cfg.log_path, exist_ok=True)
 
     # ── 4. Training loop ─────────────────────────────────────────────────
@@ -2273,13 +2298,19 @@ def cli_main():
     else:
         raise ValueError(f"Unsupported env: {cfg.env}. Supported: ac1, ac2, cp")
 
-    # ── Create sampler ────────────────────────────────────────────────────
+    # ── Create sampler (with resume support) ─────────────────────────────
+    resume_step = None
+    checkpoint_file = os.path.join(cfg.log_path, "last_epoch.txt")
+    if os.path.exists(checkpoint_file):
+        with open(checkpoint_file) as f:
+            resume_step = int(f.read().strip())
     sampler = create_sampler(
         sampler_type=cfg.sampler_type,
         log_path=cfg.log_path,
         env_type=cfg.env,
         initial_exp_type=cfg.initial_exp_type,
         batch_size=cfg.groups_per_batch,
+        resume_step=resume_step,
     )
 
     main(

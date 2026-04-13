@@ -31,6 +31,7 @@ PYTHONPATH=mLoRA:$PYTHONPATH discovery/bin/python3 -m tinker_cookbook.rl.mlora_t
     --streaming_mi \
     --streaming_mi_wrap_budget 6000 \
     --streaming_mi_warmup_epochs 3 \
+    --streaming_mi_threshold_percentile 5.0 \
     --wandb_project "ttt-discover-uncertainty" \
     --wandb_name "cp26-real-run-truemi-r16-nnm" \
     --log_path ./logs/cp26_rmi_nnm \
