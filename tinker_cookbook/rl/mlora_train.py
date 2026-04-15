@@ -2180,7 +2180,7 @@ def cli_main():
 
     from tinker_cookbook.recipes.ttt.sampler import create_sampler
     from tinker_cookbook.recipes.ttt.env_ttt import last_codeblock_postprocess
-    from tinker_cookbook.recipes.ttt.state import InequalitiesState, CirclePackingState
+    from tinker_cookbook.recipes.ttt.state import InequalitiesState, CirclePackingState, ErdosState
 
     os.makedirs(cfg.log_path, exist_ok=True)
 
@@ -2295,8 +2295,68 @@ def cli_main():
                 },
             }
 
+    elif cfg.env == "erdos":
+        from tinker_cookbook.recipes.ttt.env_erdos import build_erdos_prompt, verify_erdos
+
+        def prompt_fn(state: ErdosState) -> str:
+            return build_erdos_prompt(
+                state,
+                budget_s=cfg.budget_s,
+                num_cpus_per_task=cfg.num_cpus_per_task,
+                problem_idx=cfg.problem_idx,
+            )
+
+        def process_fn(generated_text: str, parent_state: ErdosState, step: int) -> Dict[str, Any]:
+            parsed_code = last_codeblock_postprocess(generated_text, ["python"], keep_separators=True)
+            if not parsed_code or not parsed_code.strip():
+                return {"reward": 0.0, "child_state": None, "correctness": 0.0, "metrics": {}}
+
+            outs = verify_erdos(
+                parsed_code, step,
+                num_cpus_per_task=cfg.num_cpus_per_task,
+                eval_timeout=cfg.eval_timeout,
+                log_path=cfg.log_path,
+                state=parent_state,
+            )
+            correctness = outs.get("correctness", 0.0)
+            performance = outs.get("performance")
+
+            # Reward — same as ErdosMinOverlapEnv._compute_reward()
+            if cfg.adv_estimator in ("entropic", "entropic_adaptive_beta"):
+                current_bound = -performance if performance is not None else float('inf')
+                reward = 1/current_bound if (correctness > 0 and current_bound > 0) else 0.0
+            else:
+                reward = outs["score"]
+
+            # Child state — same as ErdosMinOverlapEnv._create_next_state()
+            child_state = None
+            if correctness > 0 and performance is not None:
+                parent_values = ([parent_state.value] + parent_state.parent_values
+                                 if parent_state.value is not None else [])
+                child_state = ErdosState(
+                    timestep=step,
+                    code=parsed_code,
+                    value=performance,
+                    c5_bound=outs.get("c5_bound"),
+                    construction=outs.get("construction"),
+                    parent_values=parent_values,
+                    observation=outs.get("stdout", ""),
+                )
+
+            return {
+                "reward": reward,
+                "child_state": child_state,
+                "correctness": correctness,
+                "metrics": {
+                    "score": outs.get("score", 0.0),
+                    "correctness": correctness,
+                    "c5_bound": outs.get("c5_bound"),
+                    "performance": performance,
+                },
+            }
+
     else:
-        raise ValueError(f"Unsupported env: {cfg.env}. Supported: ac1, ac2, cp")
+        raise ValueError(f"Unsupported env: {cfg.env}. Supported: ac1, ac2, cp, erdos")
 
     # ── Create sampler (with resume support) ─────────────────────────────
     resume_step = None

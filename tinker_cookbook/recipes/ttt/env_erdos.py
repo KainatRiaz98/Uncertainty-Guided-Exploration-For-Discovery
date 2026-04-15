@@ -70,6 +70,78 @@ def _is_entropic_adv(adv_estimator: str | None) -> bool:
     return adv_estimator in ("entropic", "entropic_adaptive_beta")
 
 
+def build_erdos_prompt(
+    state: ErdosState,
+    budget_s: int = 1000,
+    num_cpus_per_task: int = 2,
+    problem_idx: str = "200",
+) -> str:
+    """Build improvement prompt for Erdos tasks. Standalone version of ErdosMinOverlapEnv._get_improvement_prompt()."""
+    hide_code = "state_only" in str(problem_idx)
+    has_code = state.code and state.code.strip() and not hide_code
+
+    if state.parent_values and state.value is not None:
+        before_bound = -state.parent_values[0]
+        after_bound = -state.value
+        value_ctx = f"\nHere are the C₅ bounds before and after running the code above (lower is better): {before_bound:.6f} -> {after_bound:.6f}"
+        value_ctx += f"\nOur target is to make the C₅ bound tighter, just as a reference, lower it to at least 0.3808."
+    elif state.value is not None:
+        value_ctx = f"\nCurrent C₅ bound (lower is better): {-state.value:.6f}"
+        value_ctx += f"\nOur target is to make the C₅ bound tighter, just as a reference, lower it to at least 0.3808."
+    elif state.c5_bound is not None:
+        value_ctx = f"\nCurrent C₅ bound (lower is better): {state.c5_bound:.6f}"
+        value_ctx += f"\nOur target is to make the C₅ bound tighter, just as a reference, lower it to at least 0.3808."
+    else:
+        value_ctx = "\nOur target is to make the C₅ bound tighter, just as a reference, lower it to at least 0.3808."
+
+    if state.observation and state.observation.strip():
+        stdout = state.observation.strip()
+        if len(stdout) > 500:
+            stdout = "...(truncated)\n" + stdout[-500:]
+        value_ctx += f"\n\n--- Previous Program Output ---\n{stdout}\n--- End Output ---"
+
+    prompt = SYSTEM_PROMPT
+    prompt = prompt.replace("<<<BUDGET_S>>>", str(budget_s))
+    prompt = prompt.replace("<<<CPUS>>>", str(num_cpus_per_task))
+
+    h_values_section = ""
+    if hasattr(state, 'construction') and state.construction is not None and len(state.construction) > 0:
+        h_values_section = f"""
+You may want to start your search from the current construction, which you can access through the `initial_h_values` global variable (n={len(state.construction)} samples).
+You are encouraged to explore solutions that use other starting points to prevent getting stuck in a local optimum.
+"""
+
+    if has_code:
+        clean_code = state.code.strip()
+        if clean_code.startswith("```python"):
+            clean_code = clean_code[len("```python"):].strip()
+        if clean_code.startswith("```"):
+            clean_code = clean_code[3:].strip()
+        if clean_code.endswith("```"):
+            clean_code = clean_code[:-3].strip()
+        code_section = f"""
+Here is the last code we ran:
+```python
+{clean_code}
+```
+
+You are iteratively optimizing constructions.{value_ctx}
+
+Reason about how you could further improve this construction.
+Ideally, try to do something different than the above algorithm. Could be using different algorithmic ideas, adjusting your heuristics, adjusting / sweeping your hyperparemeters, etc.
+Unless you make a meaningful improvement, you will not be rewarded.
+"""
+    else:
+        code_section = f"""
+{value_ctx}
+
+Write code to optimize this construction.
+"""
+
+    return f"""{prompt}
+{h_values_section}{code_section}"""
+
+
 class ErdosMinOverlapEnv(BaseTTTEnv):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
