@@ -1058,12 +1058,20 @@ def do_group_rollout_batched(
         reward_futures.append(future)
 
     # ── 3. Batched ensemble scoring (GPU, overlaps with CPU rewards) ─────
-    t_score_start = time.time()
-    torch.cuda.empty_cache()  # free generation KV cache memory before scoring
     all_full_tokens = [ft for ft, _ in gen_results]
-    all_scored = ensemble.compute_ensemble_logprobs_batch(all_full_tokens)
-    t_score = time.time() - t_score_start
-    logger.info(f"  Group {group_idx}: batched ensemble scoring in {t_score:.1f}s")
+    if rmi_coef > 0:
+        t_score_start = time.time()
+        torch.cuda.empty_cache()
+        all_scored = ensemble.compute_ensemble_logprobs_batch(all_full_tokens)
+        t_score = time.time() - t_score_start
+        logger.info(f"  Group {group_idx}: batched ensemble scoring in {t_score:.1f}s")
+    else:
+        # Baseline mode: skip ensemble scoring — rmi_coef=0 so uncertainty
+        # has no effect on reward or training; use zero tensors for logging.
+        all_scored = [
+            (torch.zeros(ensemble.K, len(ft) - 1), torch.zeros(len(ft) - 1))
+            for ft in all_full_tokens
+        ]
 
     # ── 4. Collect rewards and build Rollout objects ─────────────────────
     reward_results = [f.result() for f in reward_futures]

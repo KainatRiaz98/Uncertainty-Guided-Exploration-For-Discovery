@@ -11,11 +11,10 @@ PYTHONPATH=mLoRA:$PYTHONPATH discovery/bin/python3 -m tinker_cookbook.rl.mlora_t
     --budget_s 1000 \
     --base_model Qwen/Qwen3-8B \
     --precision fp16 \
-    --num_ensemble_members 5 \
+    --num_ensemble_members 1 \
     --adv_estimator entropic_adaptive_beta \
-    --rmi_coef 0.1 \
-    --nnm_coef 0.075 \
-    --uncertainty_metric true_mi \
+    --rmi_coef 0.0 \
+    --nnm_coef 0.0 \
     --kl_penalty_coef 0.01 \
     --lora_rank 16 \
     --lora_alpha 32 \
@@ -32,11 +31,7 @@ PYTHONPATH=mLoRA:$PYTHONPATH discovery/bin/python3 -m tinker_cookbook.rl.mlora_t
     --initial_exp_type random \
     --two_phase_sampling \
     --phase1_max_tokens 26000 \
-    --streaming_mi \
-    --streaming_mi_wrap_budget 6000 \
-    --streaming_mi_warmup_epochs 3 \
-    --streaming_mi_threshold_percentile 5.0 \
     --wandb_project "ttt-discover-uncertainty" \
-    --wandb_name "erdos-real-run-truemi-r16-nnm" \
-    --log_path ./logs/erdos_rmi_nnm \
-    --save_every 5
+    --wandb_name "erdos-baseline" \
+    --log_path ./logs/erdos_baseline \
+    --save_every 3
