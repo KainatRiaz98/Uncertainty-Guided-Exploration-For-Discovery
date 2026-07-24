@@ -1,0 +1,184 @@
+Meta Review of Submission17343 by Area Chair wcSz
+Meta Reviewby Area Chair wcSz23 Jul 2026, 12:02 (modified: 23 Jul 2026, 23:00)Senior Area Chairs, Area Chairs, Authors, Reviewers Submitted, Program Chairs, Area Chair wcSzRevisions
+Metareview:
+This paper studies test-time discovery and extends existing methods with an epistemic exploration bonus that can be computed from an ensemble of LoRA adaptors over a frozen base model. Experiments on four discovery benchmarks demonstrate the effectiveness of the proposed methods over baselines.
+
+Reviewers raised concerns regarding the clarity of the paper's presentation, insufficient explanation of certain design choices (see reviewer vm7q's review), limited technical contribution, and weaknesses in experimental design and evaluation. All concerns appear reasonable to the AC and should be adequately addressed during the rebuttal.
+
+Add:
+Official Review of Submission17343 by Reviewer DmAa
+Official Reviewby Reviewer DmAa16 Jul 2026, 02:53 (modified: 23 Jul 2026, 20:04)Program Chairs, Senior Area Chairs, Area Chairs, Reviewers Submitted, Authors, Reviewer DmAaRevisions
+Summary:
+UG-TTT extends TTT-DISCOVER with an epistemic exploration bonus: an ensemble of K=5 LoRA adapters over a frozen base model yields a token-level BALD-style mutual-information signal added to the policy-gradient advantage, and a nuclear-norm regularizer keeps the adapters from collapsing into a shared subspace. On four discovery benchmarks, Rmax improves slightly on three tasks, regresses slightly on Erdos, and solution-family entropy roughly doubles; a CP26 ablation shows removing the regularizer collapses the MI signal.
+
+Contribution Type: General: Most submissions will fall into this type.
+Strengths And Weaknesses:
+Strengths. The targeted failure mode is clear: diversity collapse persists even under a discovery-oriented objective. And the method is coherent, with some formal support (the nuclear-norm optimum is proven subspace-orthogonal) and unusually honest reporting. The most striking result is sample efficiency: matching the published CP26 ceiling in 384 rollouts versus a 25,600-rollout published budget (though this compares against published numbers, not a rerun).
+
+Weaknesses.
+
+The evidence is thin relative to the claims: one base model, a single seed per configuration.
+Per-problem configuration selection weakens the headline. Streaming was disabled on AC2/Erdos after paired pilots (disclosed in Appendix F) scored on the same Rmax metric Table 1 compares; on AC2 the discarded arm (0.8415) falls below the baseline (0.8532), so the +0.0031 gain there depends on a post-hoc choice while the baseline runs one fixed configuration.
+Nothing isolates the epistemic MI signal from cheaper diversity mechanisms: there is no entropy-bonus or bonus-disabled (NNM-only) arm, and the no-NNM ablation cannot serve this purpose because MI collapses.
+Quality: 2: not good
+Clarity: 3: good
+Significance: 2: not good
+Originality: 3: good
+Questions:
+Could you run some additional seeds of UG-TTT and the baseline on AC1 and CP26 and report the spread of Rmax and family entropy, so readers can judge whether the Table 1 deltas exceed run-to-run variation.
+Please add one arm with NNM kept on but the MI bonus disabled (alpha=0), and ideally a token-entropy bonus arm, on CP26 at the same budget — to show the epistemic signal contributes beyond ensemble diversity alone.
+Family entropy relies on an author-crafted ordered regex taxonomy: were the rules fixed before or after inspecting the rollouts, and what fraction of correct rollouts falls into other per condition?
+Limitations:
+yes
+
+Rating: 3: Borderline reject: Technically solid paper where reasons to reject, e.g., limited evaluation, outweigh reasons to accept, e.g., good evaluation. Please use sparingly.
+Confidence: 3: You are fairly confident in your assessment. It is possible that you did not understand some parts of the submission or that you are unfamiliar with some pieces of related work. Math/other details were not carefully checked.
+Ethical Concerns: NO or VERY MINOR ethics concerns only
+Paper Formatting Concerns:
+N/A
+
+Code Of Conduct Acknowledgement: Yes
+Responsible Reviewing Acknowledgement: Yes
+Add:
+Official Review of Submission17343 by Reviewer vm7q
+Official Reviewby Reviewer vm7q05 Jul 2026, 16:35 (modified: 23 Jul 2026, 20:04)Program Chairs, Senior Area Chairs, Area Chairs, Reviewers Submitted, Authors, Reviewer vm7qRevisions
+Summary:
+The work focuses on discovery using LLMs. They argue that discovery is an out of distribution task and requires searching through the regions that have high epistemic uncertainty. To obtain an estimate of the epistemic uncertainty the authors train multiple LoRA adaptors from a frozen base LLM. The epistemic uncertainty acts as an exploration bonus, directing the policy training to regions where discovery is possible. The experiments are with 5 adaptors for each benchmark and over 4 benchmarks: Step-function autocorrelation inequality, Autocorrelation lower-bound problem, Circle packing, and Erdos minimum-overlap integral. On three benchmarks the maximum reward improved.
+
+Contribution Type: General: Most submissions will fall into this type.
+Strengths And Weaknesses:
+The paper first talk about several factors essential for discovery. It identifies that maximizing individual reward is essential for discovery as opposed to maximizing average reward. Searching though regions with high epistemic uncertainty contribute more towards discovery. The insights about epistemic uncertainty, mode-collapse for discovery etc are well-developed. However it was not clear from the reading that why the authors chose a fixed base? To discover high epistemic uncertainty, wouldn't it be good to search over varying base models so that the epistemic uncertainty in the training data would be highlighted more? This part of the paper to was not very well explained. Next the choice of just 5 ensembles is also not well motivated. It is not clear how just 5 ensembles are a good estimate of the epistemic uncertainty. Suddenly terms like within-group were introduced. It is not clear what these terms mean. More explanation of this in the paper would improve it in my opinion. Also how the exploration coeff 
+ changes is not clear yet. I believe at some parts the intuition behind the equations is explained nicely - Eq (4), (5), (6). However it would be good to get a high-level picture of some of the propositions (1) and (2). In the experiments section, it would've been great to see what the benchmarks mean. Just few more lines discussing them. There seems to be enough details about the experiments. However I am not sure from the benchmarks what exactly is improved. I couldn't locate how the constants C1 and C2 for the AC1 and AC2 benchmarks are improved, and similarly for other benchmarks.
+
+All in all, I think the submission is sound, however there is some lack in the way experimental evaluation has happened. The submission is organized well, and clearly written. The results are impactful and would help future researchers. The work provides insights and deepens understanding. The concept of searching through high epistemic uncertainty regions is well-articulated.
+
+Quality: 2: not good
+Clarity: 3: good
+Significance: 3: good
+Originality: 3: good
+Questions:
+Why is the base-model frozen? Having different base models would be better to track something that is really out of distribution?
+The number of LoRA adapators is very small? How statistically significant is the observed result?
+Can you tell how the constants C1 and C2 for the AC1 and AC2 benchmarks are improved, and similarly for other benchmarks?
+What is the schedule for changing the temperature coefficient 
+?
+Limitations:
+Yes.
+
+Rating: 3: Borderline reject: Technically solid paper where reasons to reject, e.g., limited evaluation, outweigh reasons to accept, e.g., good evaluation. Please use sparingly.
+Confidence: 3: You are fairly confident in your assessment. It is possible that you did not understand some parts of the submission or that you are unfamiliar with some pieces of related work. Math/other details were not carefully checked.
+Ethical Concerns: NO or VERY MINOR ethics concerns only
+Paper Formatting Concerns:
+The end of page 2 has the page number clickable.
+
+Code Of Conduct Acknowledgement: Yes
+Responsible Reviewing Acknowledgement: Yes
+Add:
+Official Review of Submission17343 by Reviewer 8mjY
+Official Reviewby Reviewer 8mjY22 Jun 2026, 07:44 (modified: 23 Jul 2026, 20:04)Program Chairs, Senior Area Chairs, Area Chairs, Reviewers Submitted, Authors, Reviewer 8mjYRevisions
+Summary:
+In this work, the authors propose UG-TTT, a framework that incorporates epistemic uncertainty to direct policy evolution for scientific discovery. The architecture is a small ensemble of LoRA modules over a frozen LLM base, where a regularizer is adopted to force the adapters to be distinct from each other. Results on four scientific discovery benchmarks demonstrate the effectiveness of this framework in terms of improving maximum rewards and solution diversity.
+
+Contribution Type: General: Most submissions will fall into this type.
+Strengths And Weaknesses:
+Strengths
+
+This work proposes an interesting perspective on exploration for scientific discovery and identifies the mismatch between the standard expected-reward optimization (agreement) and discovery-oriented search (disagreement). The hypothesis is interesting and worth further exploration.
+Overall, the writing of this paper is clear and easy to understand.
+Weaknesses
+
+The claims in this manuscript might be overly strong. The paper implicitly equates ensemble disagreement with epistemic uncertainty and further interprets high epistemic uncertainty as an indicator of the frontier of scientific innovation. However, neither connection is sufficiently validated by the experiments. Preserving disagreement and improving solution diversity do not necessarily demonstrate calibrated epistemic uncertainty or genuine scientific novelty.
+
+The technical contributions relative to existing work seem limited. The framework is extended on TTT-Discover [1], and primarily augments it with a multi-LoRA ensemble, an MI-based exploration bonus, and a nuclear-norm diversity regularizer. This work is more like a modular diversity extension of TTT-Discover rather than as an independent scientific-discovery framework.
+
+The experimental results are not sufficient. The evaluation is restricted to four tasks on the mathematical subset of TTT-Discover, whereas the original work evaluated the framework on mathematics, GPU kernel engineering, algorithm design, and biology. Thus, current experimental results are not sufficient to prove the generalisation of proposed components across scientific domains or model scales. Moreover, the authors only report results on the Qwen3-8B model, while the performance on larger models, e.g., GPT-OSS-120B (used in TTT-Discover), is unclear.
+
+[1] Yuksekgonul, Mert, et al. "Learning to discover at test time." arXiv preprint arXiv:2601.16175 (2026).
+
+Quality: 2: not good
+Clarity: 3: good
+Significance: 2: not good
+Originality: 2: not good
+Questions:
+Please refer to the weaknesses part above. I would like to see a clarification of the technical contributions of this work, more evidence to support the claims (connections between uncertainty and novelty), and results on different domains and models.
+
+Limitations:
+yes
+
+Rating: 2: Reject: For instance, a paper with technical flaws, weak evaluation, inadequate reproducibility and incompletely addressed ethical considerations.
+Confidence: 4: You are confident in your assessment, but not absolutely certain. It is unlikely, but not impossible, that you did not understand some parts of the submission or that you are unfamiliar with some pieces of related work.
+Ethical Concerns: NO or VERY MINOR ethics concerns only
+Paper Formatting Concerns:
+N.A.
+
+Code Of Conduct Acknowledgement: Yes
+Responsible Reviewing Acknowledgement: Yes
+Add:
+Official Review of Submission17343 by Reviewer vGzb
+Official Reviewby Reviewer vGzb19 Jun 2026, 00:23 (modified: 23 Jul 2026, 20:04)Program Chairs, Senior Area Chairs, Area Chairs, Reviewers Submitted, Authors, Reviewer vGzbRevisions
+Summary:
+This paper proposes UG-TTT, a method to further improve LLM TTT-Discovery under verifiable rewards. The paper argues that standard RL-based discovery tends to collapse toward familiar low-risk solution families without improving the best discovered solution. To solve this, UG-TTT uses a LoRA ensemble to estimate token-level epistemic uncertainty via mutual information, incorporates this signal as an exploration bonus in the policy-gradient objective, and applies a nuclear-norm regularizer to prevent adapter collapse and preserve useful ensemble disagreement. Empirically, the evaluation uses four TTT-DISCOVER benchmarks with Qwen3-8B as the base model. Results show that UG-TTT outperforms the baseline by improving the maximum reward on three of the four tasks.
+
+Contribution Type: General: Most submissions will fall into this type.
+Strengths And Weaknesses:
+Strengths
+Clear Motivation: This paper points out the problem that in current LLM test time discovery, there is a tendency for reward-driven adaptation to collapse toward a small set of reliable solution templates. This behavior leads to inefficient discovery for a new SOTA solution.
+Weaknesses
+Inadequate Evaluation: The empirical evaluation is insufficient for an experimentally driven paper. The study uses only four benchmarks, all from the same general TTT-DISCOVER setting, and reports results for a single base model, a single adapter count, and apparently only one random seed. This makes it unclear whether UG-TTT actually improves the discovery.
+Insufficient Ablations: The paper does not fully isolate the effects of its main components, including the MI bonus, temperature coupling, multi-adapter ensemble, and nuclear-norm regularizer. More compute matched baselines and simpler exploration alternatives are needed to show that the proposed combination is necessary.
+Quality: 2: not good
+Clarity: 3: good
+Significance: 2: not good
+Originality: 3: good
+Questions:
+Can the authors provide experiments on additional base models, especially larger models such as the GPT-OSS-120B setting used in TTT-DISCOVER? Since the current evaluation uses only one 8B model, such results would help verify whether UG-TTT remains effective for larger LLMs.
+TTT-DISCOVER uses LoRA rank 32, 50 training steps, and 512 rollouts per step with a group size of 64 [1], while UG-TTT substantially reduces these settings, using rank-16 adapters, 6 epochs, and 64 rollouts per epoch with a group size of 8. Given that this is not a standard benchmark task but a SOTA discovery setting, maintaining comparable experimental settings seems important for a fair comparison. Could the authors explain why these parameters were reduced, and whether the reported gains would still hold under the original TTT-DISCOVER setup?
+Can the authors ablate the MI bonus, temperature coupling, top-7% token selection, and streaming early-stop across all tasks rather than mainly focusing on the no-NNM setting? This would clarify which components are essential and which are heuristic.
+[1] Yuksekgonul, Mert, et al. "Learning to discover at test time."
+
+Limitations:
+yes
+
+Rating: 3: Borderline reject: Technically solid paper where reasons to reject, e.g., limited evaluation, outweigh reasons to accept, e.g., good evaluation. Please use sparingly.
+Confidence: 3: You are fairly confident in your assessment. It is possible that you did not understand some parts of the submission or that you are unfamiliar with some pieces of related work. Math/other details were not carefully checked.
+Ethical Concerns: NO or VERY MINOR ethics concerns only
+Paper Formatting Concerns:
+no
+
+Code Of Conduct Acknowledgement: Yes
+Responsible Reviewing Acknowledgement: Yes
+
+
+
+instructions from email:
+Dear Authors,
+
+Reviews and initial meta-reviews for your submission have been released, and the author response / discussion phase begins now and runs through August 7, 2026.
+
+Per the NeurIPS 2026 handbook, the author response period is structured in three sub-phases:
+
+Phase 1: Author response only (Jul 23 – July 27). You can view reviews and the initial meta-review and write your initial response. ACs and reviewers will not see your responses until the end of this phase. This gives you time to draft a thoughtful response.
+Phase 2: Author / Reviewer / AC discussion (July 27 – Aug 3). Reviewers and ACs see your initial response and may ask follow-up questions. You can continue to respond. Reviewers and ACs may also message each other.
+Phase 3: Reviewer / AC discussion only (Aug 3 – Aug 10). Authors will not be able to see continued discussion in this phase, but reviewers and ACs may continue to converge.
+Important rules for author responses (from the handbook):
+
+No revisions to the paper or supplementary material during the response period. Responses go in the OpenReview discussion only, your original submission remains the basis for the reviewers' and AC's acceptance decisions. Responses serve to clarify the reviewers' and AC's questions; you do not need to rewrite the paper in a hurry.
+Per-review character limit: 10,000 characters. Plain text with markdown is supported, but no file uploads.
+No links. The only exception is if reviewers asked for code, you may send an anonymized link to the AC in an Official Comment, with all linked files anonymized.
+Anonymity. Author responses must not reveal author identities or otherwise violate double-blind reviewing.
+Use the per-review "Rebuttal" buttons in OpenReview.
+A few additional reminders:
+
+Use the initial meta-review as your guide. It tells you what would most likely change the AC's view of the paper. Focus your response on those points.
+The program committee reserves the right to solicit additional reviews after the initial response period. If we do, those reviews will be added to OpenReview as they come in, and you will have a chance to respond.
+Engage early and engage often. Reviewers may have follow-up questions in Phase 2, do not wait until the last day to post your initial response.
+Code of Conduct: please follow https://neurips.cc/public/CodeOfConduct throughout the discussion to keep it factual and productive.
+If your submission has only 2 reviews, please expect an additional review in the next few days; we made significant efforts during the emergency review period to ensure each paper has at least 3 reviews. Similarly, if your submission does not have an initial meta-review yet, please expect this to appear soon.
+
+Your AC is your first point of contact for questions about your paper. You can message them through the "Author AC Confidential Comment" feature on OpenReview.
+
+We wish you the best of luck for the discussion phase.
+
+Thank you,
+NeurIPS 2026 Program Chairs
+Marc Deisenroth, Finale Doshi-Velez, Nika Haghtalab, David Rolnick, Jenna Wiens

@@ -235,9 +235,10 @@ gpu_mode/gpu_scores.tsv
 
 tinker_log/
 
-# NeurIPS review-period material — confidential, do not publish
-reviews.txt
-rebuttal/
-.claude/
-submitted_paper.pdf
+# Run artefacts
 logs/aws/
+
+# NOTE: this repository is PRIVATE and holds NeurIPS review-period material
+# (reviews.txt, rebuttal/, .claude/ strategy skills, submitted_paper.pdf).
+# Do not make it public and do not copy these into the public
+# epistemic-uncertainty-for-test-time-discovery repo.

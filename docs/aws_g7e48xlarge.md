@@ -1,8 +1,13 @@
 # Running UG-TTT on a single AWS `g7e.48xlarge`
 
-Guide for running the full experiment matrix on one 8-GPU AWS box instead of many
-single-GPU instances. Written for the rebuttal-period runs, but applies to any
-multi-run sweep.
+Guide for running the full experiment matrix as 8 parallel runs on one 8-GPU AWS
+box instead of serialising across single-GPU instances.
+
+> **Which repo runs the experiments.** The UG-TTT implementation lives in
+> `epistemic-uncertainty-for-test-time-discovery` (module `ug_ttt.rl.mlora_train`,
+> canonical launcher `scripts/run.sh`). Clone **that** repo on the AWS box.
+> This repo is the TTT-Discover fork and does not contain the nuclear-norm
+> regulariser or the streaming-MI implementation.
 
 ## Why this instance
 
@@ -15,24 +20,22 @@ multi-run sweep.
 | Local NVMe | up to 15.2 TB |
 | On-demand price | ≈ \$33/hr (us-east-1) |
 
-The 96 GB per GPU is the **same card the published runs used**, so no memory
-retuning is required — the chunked LM head, the `(K, chunk, V)` fp32 MI tensor,
-and the sequential per-adapter backward all fit exactly as before.
+96 GB per GPU is the **same card the published runs used**, so the chunked LM
+head, the `(K, chunk, V)` fp32 MI tensor, and the sequential per-adapter backward
+all fit without retuning.
 
-Eight GPUs is the point: one training run per GPU, eight runs in parallel. For a
-sweep of N runs, wall-clock is `ceil(N/8) × run_time`, not `N × run_time`.
+Eight GPUs is the point: one run per GPU. For N runs, wall-clock is
+`ceil(N/8) × run_time`, not `N × run_time`.
 
 An H200 box (`p5e.48xlarge` / `p5en.48xlarge`, ≈\$63/hr) is roughly twice the
-price for memory this workload does not need. Prefer it only if you intend to
-raise `num_ensemble_members`, `lora_rank`, or `max_tokens` beyond the published
-configuration.
+price for memory this workload does not need. Prefer it only when raising
+`num_ensemble_members`, `lora_rank`, or the token budget beyond published values.
 
 ## Before you launch: service quota
 
 `g7e.48xlarge` consumes 192 vCPUs of the **"Running On-Demand G and VT
-instances"** quota. New accounts are typically far below this. Request the
-increase **before** you need the box — approval can take hours to a day, and it
-is the most common cause of a blocked launch.
+instances"** quota. Request the increase early — approval can take hours to a
+day and is the most common cause of a blocked launch.
 
 ```bash
 aws service-quotas request-service-quota-increase \
@@ -44,9 +47,6 @@ aws service-quotas request-service-quota-increase \
 
 ## Instance setup
 
-Launch with a Deep Learning AMI and a large root volume (checkpoints and
-trajectory logs for 8 concurrent runs add up quickly):
-
 ```bash
 aws ec2 run-instances \
   --instance-type g7e.48xlarge \
@@ -57,121 +57,111 @@ aws ec2 run-instances \
   --region us-east-1
 ```
 
-Then, on the box:
+On the box:
 
 ```bash
-git clone <this-repo> && cd Uncertainty-Guided-Exploration-For-Discovery
+git clone https://github.com/KainatRiaz98/epistemic-uncertainty-for-test-time-discovery.git
+cd epistemic-uncertainty-for-test-time-discovery
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements/requirements-math.txt
 export WANDB_API_KEY="..." WANDB_ENTITY="..."
-nvidia-smi --list-gpus          # expect 8
-nproc                           # expect 192
+nvidia-smi --list-gpus     # expect 8
+nproc                      # expect 192
 ```
+
+Copy `scripts/aws/launch_wave.sh` from this repo into that checkout, or run a
+single job first with its own `scripts/run.sh` to confirm the environment.
 
 For the denoising domain, additionally install
 `requirements/denoising/requirements-denoising.txt` and dry-run its verifier once
-before committing a GPU to a full run.
+before committing a GPU.
 
-## The CPU-oversubscription trap (read this)
+## Two things that break 8 concurrent runs
 
-Verification runs on CPU. [`utils/cpu_scheduler.py`](../utils/cpu_scheduler.py)
-sizes its worker pool from `os.sched_getaffinity(0)` — the CPUs the process is
-actually allowed to use — and partitions them into groups of
-`num_cpus_per_task`.
+**1. CPU oversubscription.** Verification runs on CPU.
+[`utils/cpu_scheduler.py`](../utils/cpu_scheduler.py) sizes its worker pool from
+`os.sched_getaffinity(0)` and partitions it into groups of `num_cpus_per_task`.
+Start 8 runs plainly and **each sees all 192 vCPUs**, building a pool as if it
+owned the machine — with `num_cpus_per_task=2` that is 96 slots per run, 768
+across the box, on 192 real cores. Every run thrashes and the box ends up slower
+than a single-GPU instance.
 
-If you start 8 runs plainly, **each one sees all 192 vCPUs** and builds a pool as
-if it owned the whole machine. With `num_cpus_per_task=2` that is 96 verification
-slots per run, 768 across the box, on 192 real cores — roughly 4× oversubscribed.
-Every run then thrashes and the box gets *slower* than a single-GPU instance.
-
-The fix is to pin each run to its own slice of cores. `sched_getaffinity`
-respects `taskset`, so the scheduler self-limits with no code change:
+`sched_getaffinity` respects `taskset`, so pinning each run to its own slice
+makes the scheduler self-limit with no code change:
 
 ```bash
 # 192 vCPUs / 8 runs = 24 vCPUs per run
-CUDA_VISIBLE_DEVICES=0 taskset -c 0-23    python -m tinker_cookbook.rl.mlora_train ...
-CUDA_VISIBLE_DEVICES=1 taskset -c 24-47   python -m tinker_cookbook.rl.mlora_train ...
+CUDA_VISIBLE_DEVICES=0 taskset -c 0-23  python3 -m ug_ttt.rl.mlora_train ...
+CUDA_VISIBLE_DEVICES=1 taskset -c 24-47 python3 -m ug_ttt.rl.mlora_train ...
 ```
 
-[`scripts/aws/launch_wave.sh`](../scripts/aws/launch_wave.sh) does this
-assignment automatically. Use it rather than launching by hand.
+**2. Shared Ray cluster.** `scripts/run.sh` sets `RAY_ADDRESS=auto`, which joins
+an existing cluster. `cpu_scheduler.py` registers a **detached actor named
+`cpu_scheduler`**, so 8 runs on one Ray cluster collide on that name and share a
+single CPU pool. Give each run its own local Ray instance by leaving
+`RAY_ADDRESS` unset.
+
+[`scripts/aws/launch_wave.sh`](../scripts/aws/launch_wave.sh) handles both. Use
+it rather than launching by hand, and smoke-test one run before filling the box.
 
 ## Launching a wave
 
 ```bash
-bash scripts/aws/launch_wave.sh wave1        # start 8 runs, one per GPU
-bash scripts/aws/launch_wave.sh --list       # show the configured runs
-tail -f logs/aws/wave1/<run-name>.log        # follow one run
-nvidia-smi                                   # confirm 8 processes, one per GPU
+bash scripts/aws/launch_wave.sh --list        # preview
+bash scripts/aws/launch_wave.sh wave2         # start 8 runs, one per GPU
+tail -f logs/aws/wave2/<run-name>.log
+nvidia-smi                                    # one process per GPU
+uptime                                        # load ≈ 192, not far above
 ```
 
-Each run is detached (`setsid`), so closing the SSH session does not kill it.
-Logs land in `logs/aws/<wave>/<run-name>.log`.
+Runs are detached with `setsid`, so closing SSH does not kill them.
 
-## Verifying the run mix is healthy
+## Configuration reference
 
-Within a few minutes of launch:
+The argparse defaults in `ug_ttt/rl/mlora_train.py` are upstream TTT-Discover
+values, **not** the published UG-TTT ones. The launcher passes these explicitly:
 
-- `nvidia-smi` — exactly one python process per GPU, memory well under 96 GB.
-- `uptime` — load average should sit near 192, not far above it. Much higher
-  means the CPU pinning did not take effect.
-- Each log should be producing rollouts; a run stuck before the first rollout is
-  usually a missing task dependency, not a GPU problem.
-
-## Hyperparameters that differ from the code defaults
-
-The `Config` defaults in
-[`tinker_cookbook/rl/mlora_train.py`](../tinker_cookbook/rl/mlora_train.py)
-are the upstream TTT-Discover values, **not** the published UG-TTT ones. The
-launch script sets these explicitly; if you launch by hand, pass them yourself:
-
-| Flag | Code default | Published UG-TTT runs |
+| Flag | Argparse default | Published UG-TTT |
 |---|---|---|
 | `--lora_rank` | 32 | **16** |
 | `--lora_alpha` | 64 | **32** |
 | `--groups_per_batch` | 64 | **8** |
 | `--num_epochs` | 50 | **6** |
+| `--nnm_coef` | 0.0 | **0.075** |
 | `--num_cpus_per_task` | 1 | **2** |
+| `--uncertainty_metric` | `true_mi` | `true_mi` |
 
 `--group_size 8`, `--learning_rate 4e-5`, `--kl_penalty_coef 0.01`,
-`--max_tokens 26000`, and `--num_ensemble_members 5` match the defaults.
+`--num_ensemble_members 5`, and `--two_phase_sampling --phase1_max_tokens 26000`
+match both the defaults and the paper.
 
-Note also that `Config.target_modules` defaults to `q_proj` and `o_proj` only,
-while the paper's hyperparameter table lists all four attention projections
-(q, k, v, o). Reconcile this before publishing the configuration.
-
-## Arm → flag mapping
+### Arm → flag mapping
 
 | Arm | Flags |
 |---|---|
-| UG-TTT (full) | `--num_ensemble_members 5 --rmi_coef 0.1 --uncertainty_metric rmi` |
-| Baseline (TTT-Discover) | `--num_ensemble_members 1 --rmi_coef 0.0` |
-| MI bonus off (α=0) | `--num_ensemble_members 5 --rmi_coef 0.0` |
-| Entropy bonus | `--num_ensemble_members 5 --rmi_coef 0.1 --uncertainty_metric predictive_entropy` |
+| UG-TTT (full) | `--num_ensemble_members 5 --rmi_coef 0.1 --nnm_coef 0.075 --uncertainty_metric true_mi` |
+| Baseline (TTT-Discover) | `--num_ensemble_members 1 --rmi_coef 0.0 --nnm_coef 0.0` |
+| MI bonus off (α=0) | `--num_ensemble_members 5 --rmi_coef 0.0 --nnm_coef 0.075` |
+| Entropy bonus | `--num_ensemble_members 5 --rmi_coef 0.1 --nnm_coef 0.075 --uncertainty_metric predictive_entropy` |
+| No NNM (paper Tab. 2) | `--num_ensemble_members 5 --rmi_coef 0.1 --nnm_coef 0.0` |
 
-`--uncertainty_metric` already supports `rmi`, `variance`, and
-`predictive_entropy` ([`tinker_cookbook/rl/uncertainty.py`](../tinker_cookbook/rl/uncertainty.py)),
-so the entropy-bonus arm needs no new code.
+`--uncertainty_metric` supports `true_mi`, `rmi`, `variance`, and
+`predictive_entropy`, so the entropy-bonus ablation needs **no new code**.
 
-Environment strings are `ac1`, `ac2`, and `cp` (circle packing takes its size
-from `--problem_idx`, e.g. `--problem_idx 26`). Confirm the string for `erdos`
-and `denoising` against `cli_main()` before launching those.
+Environment strings: `ac1`, `ac2`, `cp` (size from `--problem_idx`, e.g. `26`),
+`erdos`. Streaming MI is opt-in via `--streaming_mi` plus its sub-flags.
 
-## Two blockers that are not solved by hardware
+## Open issues to settle before the runs
 
-1. **No seed flag.** [`ensemble.py:86`](../tinker_cookbook/rl/ensemble.py)
-   hardcodes `torch.manual_seed(42 + k * 1000)`, and no `--seed` argument is
-   parsed. Every run initialises identically, so multi-seed experiments cannot be
-   produced by launching the same command twice. A `--seed` argument must be
-   added and threaded into ensemble init and rollout sampling first.
-2. **No nuclear-norm regulariser in the training loop.** The loss assembled at
-   `mlora_train.py:752-790` is the per-adapter policy-gradient term only; a
-   repository-wide search for `nuc`, `svdvals`, `linalg.svd`, `matrix_norm`, and
-   similar finds no implementation, and no `λ_NNM` argument is parsed. Any run
-   launched from this tree is an unregularised ensemble.
-
-Resolve both before spending GPU hours, or the runs will not answer the
-questions they were designed to answer.
+1. **No `--seed` argument.** `ug_ttt/rl/ensemble.py:88` hardcodes
+   `torch.manual_seed(42 + k * 1000)` and no `--seed` is parsed. Launching the
+   same command twice reproduces the same run, so multi-seed experiments are not
+   currently possible. Must be added and threaded into ensemble init and rollout
+   sampling before any seed run.
+2. **`--num_epochs`**: `scripts/run.sh` uses 10; the paper reports 6. Reruns
+   should match whichever produced the published numbers.
+3. **`--streaming_mi_threshold_percentile`**: `scripts/run.sh` uses 5.0; paper
+   Table 4 states the 25th percentile. Reconcile before rerunning streamed arms.
 
 ## Cost planning
 
@@ -182,6 +172,5 @@ At ≈\$33/hr:
 | One wave of 8 runs | ~24–32 h | ~\$800–1,050 |
 | Two waves (16 runs) | ~48–64 h | ~\$1,600–2,100 |
 
-Stop the instance the moment the last wave finishes — an idle box bills at the
-same rate. Use on-demand rather than spot for long runs; a spot reclaim mid-run
-loses the whole run.
+Stop the instance as soon as the last wave finishes — an idle box bills at the
+same rate. Use on-demand, not spot: a reclaim mid-run loses the whole run.
