@@ -26,6 +26,7 @@ import json
 import logging
 import math
 import os
+import random
 import sys
 import time
 from dataclasses import dataclass, field
@@ -88,6 +89,21 @@ def wrap_qwen3_chat_template(prompt_text: str) -> str:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Config — mirrors tinker_cookbook/rl/train.py:Config with ensemble additions
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def seed_everything(seed: int) -> None:
+    """Seed Python, NumPy and Torch RNGs for reproducible runs.
+
+    Per-adapter init (ensemble.py) and the initial-construction RNGs
+    (sampler.py) are seeded separately so they stay independent across
+    ensemble members and across runs; this covers everything else
+    (dropout, rollout sampling, shuffling).
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
 
 @dataclass
 class Config:
@@ -181,6 +197,9 @@ class Config:
     # ── Eval / checkpointing (same as original) ──────────────────────────
     eval_every: int = 3
     save_every: int = 5
+
+    # ── Reproducibility ───────────────────────────────────────────────────
+    seed: int = 42  # 42 reproduces published runs; vary for independent seeds
 
     # ── Dataset / task wiring ─────────────────────────────────────────────
     dataset_builder: Optional[Callable] = None  # set by cli_main()
@@ -1679,6 +1698,7 @@ def main(
         target_modules=cfg.target_modules,
         learning_rate=cfg.learning_rate,
         optimizer="adamw",
+        seed=cfg.seed,
     )
 
     if cfg.uncertainty_metric == "true_mi":
@@ -2127,8 +2147,16 @@ def cli_main():
     parser.add_argument("--wandb_name", default=None)
     parser.add_argument("--eval_every", type=int, default=3)
     parser.add_argument("--save_every", type=int, default=5)
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Global RNG seed. 42 reproduces the published runs; "
+                             "change it for independent multi-seed experiments.")
 
     args = parser.parse_args()
+
+    # ── Seed everything before any model / sampler construction ───────────
+    from tinker_cookbook.recipes.ttt.sampler import set_initial_state_seed
+    seed_everything(args.seed)
+    set_initial_state_seed(args.seed)
 
     cfg = Config(
         base_model=args.base_model,
@@ -2180,6 +2208,7 @@ def cli_main():
         wandb_name=args.wandb_name,
         eval_every=args.eval_every,
         save_every=args.save_every,
+        seed=args.seed,
     )
 
     # ── Wire task/prompt/sampler from existing TTT-Discover code ──────────

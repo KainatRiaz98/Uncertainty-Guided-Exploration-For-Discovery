@@ -62,33 +62,39 @@ BASELINE=( --num_ensemble_members 1 --rmi_coef 0.0 --nnm_coef 0.0 )
 ALPHA0=(   --num_ensemble_members 5 --rmi_coef 0.0 --nnm_coef 0.075 --uncertainty_metric true_mi )
 ENTROPY=(  --num_ensemble_members 5 --rmi_coef 0.1 --nnm_coef 0.075 --uncertainty_metric predictive_entropy )
 NONNM=(    --num_ensemble_members 5 --rmi_coef 0.1 --nnm_coef 0.0   --uncertainty_metric true_mi )
+VARIANCE=( --num_ensemble_members 5 --rmi_coef 0.1 --nnm_coef 0.075 --uncertainty_metric variance )
 
 # ── Wave definitions ─────────────────────────────────────────────────────────
 # Format: "<run-name>|<env>|<problem_idx>|<arm>|<extra flags>"
 #
-# NOTE: --seed does not exist yet (ensemble.py:88 hardcodes the seed). The
-# seeded runs below will fail on an unrecognised argument until it is added.
+# Seed variance runs (DmAa Q1): 2 new seeds x {AC1, CP26} x {UG-TTT, baseline}.
+# --seed is implemented (mlora_train.py; ensemble.py + sampler.py seed-derived,
+# seed 42 == published). Streaming is OFF on every seed run by design — the
+# streaming-vs-no-stream comparison lives separately in wave2.
 declare -a WAVE1=(
-  "ac1-ugttt-seed2|ac1|improvement|UGTTT|--seed 2 STREAM"
-  "ac1-ugttt-seed3|ac1|improvement|UGTTT|--seed 3 STREAM"
+  "ac1-ugttt-seed2|ac1|improvement|UGTTT|--seed 2"
+  "ac1-ugttt-seed3|ac1|improvement|UGTTT|--seed 3"
   "ac1-base-seed2|ac1|improvement|BASELINE|--seed 2"
   "ac1-base-seed3|ac1|improvement|BASELINE|--seed 3"
-  "cp26-ugttt-seed2|cp|26|UGTTT|--seed 2 STREAM"
-  "cp26-ugttt-seed3|cp|26|UGTTT|--seed 3 STREAM"
+  "cp26-ugttt-seed2|cp|26|UGTTT|--seed 2"
+  "cp26-ugttt-seed3|cp|26|UGTTT|--seed 3"
   "cp26-base-seed2|cp|26|BASELINE|--seed 2"
   "cp26-base-seed3|cp|26|BASELINE|--seed 3"
 )
 
-# Wave 2 needs no --seed and can run today.
+# Wave 2: component ablations + the streaming comparison. Streaming is OFF on
+# every run EXCEPT cp26-stream, which pairs with cp26-nostream to answer the
+# post-hoc-config critique (DmAa W2) as a controlled ablation. denoising is
+# dropped: the mlora path dispatches only ac1/ac2/cp/erdos, so it would crash.
 declare -a WAVE2=(
-  "cp26-alpha0|cp|26|ALPHA0|STREAM"
-  "cp26-entropy|cp|26|ENTROPY|STREAM"
-  "cp26-nonnm|cp|26|NONNM|STREAM"
-  "ac1-nostream|ac1|improvement|UGTTT|"
+  "cp26-alpha0|cp|26|ALPHA0|"
+  "cp26-entropy|cp|26|ENTROPY|"
+  "cp26-nonnm|cp|26|NONNM|"
+  "cp26-variance|cp|26|VARIANCE|"
   "cp26-nostream|cp|26|UGTTT|"
+  "cp26-stream|cp|26|UGTTT|STREAM"
+  "ac1-nostream|ac1|improvement|UGTTT|"
   "erdos-ugttt|erdos|improvement|UGTTT|"
-  "denoise-base|denoising|improvement|BASELINE|"
-  "denoise-ugttt|denoising|improvement|UGTTT|"
 )
 
 usage() { echo "usage: $0 [--list] <wave1|wave2>"; exit 1; }

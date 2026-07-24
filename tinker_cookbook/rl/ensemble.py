@@ -55,9 +55,11 @@ class LoRAEnsemble:
         target_modules: Optional[Dict[str, bool]] = None,
         learning_rate: float = 4e-5,
         optimizer: str = "adamw",
+        seed: int = 42,
     ):
         self.model = model
         self.K = num_members
+        self.seed_base = seed
         self.contexts: List[TrainLoRAContext] = []
 
         if target_modules is None:
@@ -84,8 +86,10 @@ class LoRAEnsemble:
         linears_info = self.model.linears_info()
 
         for k in range(self.K):
-            # Different seed → different Kaiming initialization → different hypothesis
-            torch.manual_seed(42 + k * 1000)
+            # Different seed → different Kaiming initialization → different hypothesis.
+            # seed_base defaults to 42 so a default run reproduces published behaviour;
+            # --seed varies it to make independent multi-seed runs.
+            torch.manual_seed(self.seed_base + k * 1000)
 
             lora_config = LoRAConfig({
                 "type": "lora",

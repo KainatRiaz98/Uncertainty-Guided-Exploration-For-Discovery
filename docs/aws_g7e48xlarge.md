@@ -155,11 +155,14 @@ Environment strings: `ac1`, `ac2`, `cp` (size from `--problem_idx`, e.g. `26`),
 
 ## Open issues to settle before the runs
 
-1. **No `--seed` argument.** `tinker_cookbook/rl/ensemble.py:88` hardcodes
-   `torch.manual_seed(42 + k * 1000)` and no `--seed` is parsed. Launching the
-   same command twice reproduces the same run, so multi-seed experiments are not
-   currently possible. Must be added and threaded into ensemble init and rollout
-   sampling before any seed run.
+1. **`--seed` — implemented.** `--seed N` (default 42) seeds Python/NumPy/Torch
+   via `seed_everything()`, threads a base into per-adapter init
+   (`ensemble.py`, `seed + k*1000`), and shifts the initial-construction RNGs
+   (`sampler.py::set_initial_state_seed`). Seed 42 reproduces the published
+   constants exactly; other seeds give independent adapter inits and starting
+   constructions. Residual: `sampler.py:412`'s standalone `default_rng()` is
+   still unseeded — acceptable (it adds independence, not a reproducibility
+   hazard) but note it if you need bitwise repeatability.
 2. **`--num_epochs`**: `scripts/run.sh` uses 10; the paper reports 6. Reruns
    should match whichever produced the published numbers.
 3. **`--streaming_mi_threshold_percentile`**: `scripts/run.sh` uses 5.0; paper

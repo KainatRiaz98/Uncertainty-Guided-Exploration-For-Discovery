@@ -84,6 +84,24 @@ def _sampler_file_for_step(base_path: str, step: int) -> str:
     return f"{base_name}_step_{step:06d}.json"
 
 
+# Run-wide seed for the initial-construction RNGs below. None => legacy behaviour
+# (the hardcoded constants that produced the published runs). Set via
+# set_initial_state_seed() from the training entrypoint when --seed is passed.
+_INITIAL_STATE_SEED: "int | None" = None
+
+
+def set_initial_state_seed(seed: "int | None") -> None:
+    """Make create_initial_state()'s RNGs depend on the run seed.
+
+    seed == 42 reproduces the published constructions exactly (the ac1/ac2
+    branch keeps its historical 12345); other seeds shift deterministically so
+    each seeded run starts from an independent initial construction instead of a
+    byte-identical one.
+    """
+    global _INITIAL_STATE_SEED
+    _INITIAL_STATE_SEED = seed
+
+
 def create_initial_state(env_type: str, initial_exp_type: str, budget_s: int = 1000) -> State:
     """Create an initial state for a given env type."""
     if initial_exp_type == "best_available":
@@ -99,10 +117,13 @@ def create_initial_state(env_type: str, initial_exp_type: str, budget_s: int = 1
         construction = []
     elif initial_exp_type == "random":
         if env_type in {"ac1", "ac2"}:
-            rng = np.random.default_rng(12345)
+            # seed==42 keeps the published constant (12345); other seeds shift it
+            # so each seeded run gets an independent initial construction.
+            ac_seed = 12345 if _INITIAL_STATE_SEED is None else 12345 + (_INITIAL_STATE_SEED - 42)
+            rng = np.random.default_rng(ac_seed)
             construction = [rng.random()] * rng.integers(1000, 8000)
         elif env_type == "erdos":
-            rng = np.random.default_rng()
+            rng = np.random.default_rng(_INITIAL_STATE_SEED)
             n_points = rng.integers(40, 100)
             construction = np.ones(n_points) * 0.5
             perturbation = rng.uniform(-0.4, 0.4, n_points)
