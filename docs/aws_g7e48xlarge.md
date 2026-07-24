@@ -3,11 +3,12 @@
 Guide for running the full experiment matrix as 8 parallel runs on one 8-GPU AWS
 box instead of serialising across single-GPU instances.
 
-> **Which repo runs the experiments.** The UG-TTT implementation lives in
-> `epistemic-uncertainty-for-test-time-discovery` (module `ug_ttt.rl.mlora_train`,
-> canonical launcher `scripts/run.sh`). Clone **that** repo on the AWS box.
-> This repo is the TTT-Discover fork and does not contain the nuclear-norm
-> regulariser or the streaming-MI implementation.
+> **Which repo runs the experiments.** Clone **this** repo on the AWS box and
+> run the `aws-multi-gpu-launch` branch (module `tinker_cookbook.rl.mlora_train`).
+> As of the feat/parallelism rebase this branch contains the nuclear-norm
+> regulariser (`tinker_cookbook/rl/nuclear_norm.py`) and the streaming-MI
+> implementation. The public `epistemic-uncertainty-for-test-time-discovery`
+> repo is the mirror where the same code lives under the `ug_ttt.*` package name.
 
 ## Why this instance
 
@@ -60,8 +61,9 @@ aws ec2 run-instances \
 On the box:
 
 ```bash
-git clone https://github.com/KainatRiaz98/epistemic-uncertainty-for-test-time-discovery.git
-cd epistemic-uncertainty-for-test-time-discovery
+git clone https://github.com/KainatRiaz98/Uncertainty-Guided-Exploration-For-Discovery.git
+cd Uncertainty-Guided-Exploration-For-Discovery
+git checkout aws-multi-gpu-launch
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements/requirements-math.txt
 export WANDB_API_KEY="..." WANDB_ENTITY="..."
@@ -91,8 +93,8 @@ makes the scheduler self-limit with no code change:
 
 ```bash
 # 192 vCPUs / 8 runs = 24 vCPUs per run
-CUDA_VISIBLE_DEVICES=0 taskset -c 0-23  python3 -m ug_ttt.rl.mlora_train ...
-CUDA_VISIBLE_DEVICES=1 taskset -c 24-47 python3 -m ug_ttt.rl.mlora_train ...
+CUDA_VISIBLE_DEVICES=0 taskset -c 0-23  python3 -m tinker_cookbook.rl.mlora_train ...
+CUDA_VISIBLE_DEVICES=1 taskset -c 24-47 python3 -m tinker_cookbook.rl.mlora_train ...
 ```
 
 **2. Shared Ray cluster.** `scripts/run.sh` sets `RAY_ADDRESS=auto`, which joins
@@ -118,7 +120,7 @@ Runs are detached with `setsid`, so closing SSH does not kill them.
 
 ## Configuration reference
 
-The argparse defaults in `ug_ttt/rl/mlora_train.py` are upstream TTT-Discover
+The argparse defaults in `tinker_cookbook/rl/mlora_train.py` are upstream TTT-Discover
 values, **not** the published UG-TTT ones. The launcher passes these explicitly:
 
 | Flag | Argparse default | Published UG-TTT |
@@ -153,7 +155,7 @@ Environment strings: `ac1`, `ac2`, `cp` (size from `--problem_idx`, e.g. `26`),
 
 ## Open issues to settle before the runs
 
-1. **No `--seed` argument.** `ug_ttt/rl/ensemble.py:88` hardcodes
+1. **No `--seed` argument.** `tinker_cookbook/rl/ensemble.py:88` hardcodes
    `torch.manual_seed(42 + k * 1000)` and no `--seed` is parsed. Launching the
    same command twice reproduces the same run, so multi-seed experiments are not
    currently possible. Must be added and threaded into ensemble init and rollout

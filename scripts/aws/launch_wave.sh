@@ -1,9 +1,9 @@
 #!/bin/bash
 # Launch one wave of UG-TTT runs on a single 8-GPU g7e.48xlarge.
 #
-# Targets the UG-TTT implementation in the epistemic-uncertainty-for-test-time-discovery
-# repo (module ug_ttt.rl.mlora_train). Run this from a checkout of THAT repo —
-# flags mirror its scripts/run.sh. See docs/aws_g7e48xlarge.md.
+# Targets the UG-TTT implementation on this branch (module
+# tinker_cookbook.rl.mlora_train). Run this from a checkout of THIS repo.
+# See docs/aws_g7e48xlarge.md.
 #
 #   bash scripts/aws/launch_wave.sh --list
 #   bash scripts/aws/launch_wave.sh wave1
@@ -45,7 +45,7 @@ COMMON=(
   --sampler_type puct_backprop
   --initial_exp_type random
   --num_cpus_per_task 2
-  --save_every 5
+  --save_every 2
 )
 
 # Streaming MI early-stop (paper Table 4). Append to runs that need it.
@@ -147,7 +147,7 @@ for spec in "${RUNS[@]}"; do
   CUDA_VISIBLE_DEVICES="$gpu" \
   PYTHONPATH="mLoRA:${PYTHONPATH:-}" \
   setsid taskset -c "${cpu_lo}-${cpu_hi}" \
-    python3 -m ug_ttt.rl.mlora_train \
+    python3 -m tinker_cookbook.rl.mlora_train \
       "${COMMON[@]}" \
       "${arm_flags[@]}" \
       "${extra_flags[@]}" \
