@@ -29,10 +29,13 @@ TOTAL_CPUS="${TOTAL_CPUS:-$(nproc)}"
 
 # Ensure a Ray head exists on this node, sized to the whole box so the
 # cpu_scheduler pool covers all cores. Idempotent: skip if one is already up.
-if ! ray status >/dev/null 2>&1; then
-  echo "No Ray head found — starting one (--num-cpus ${TOTAL_CPUS})."
-  ray start --head --num-cpus="${TOTAL_CPUS}" --disable-usage-stats >/dev/null
-fi
+# Defined here, invoked only on a real launch (not on --list/usage).
+ensure_ray_head() {
+  if ! ray status >/dev/null 2>&1; then
+    echo "No Ray head found — starting one (--num-cpus ${TOTAL_CPUS})."
+    ray start --head --num-cpus="${TOTAL_CPUS}" --disable-usage-stats >/dev/null
+  fi
+}
 
 # Published UG-TTT configuration (paper Tables 3-4). The argparse defaults are
 # upstream TTT-Discover values, so these are passed explicitly.
@@ -106,7 +109,26 @@ declare -a WAVE2=(
   "erdos-ugttt|erdos|improvement|UGTTT|"
 )
 
-usage() { echo "usage: $0 [--list] <wave1|wave2>"; exit 1; }
+# Wave 3 (node 3): model-scaling generality — answers "single base model"
+# (8mjY W3, vGzb Q1) and "would gains hold at scale" (vGzb Q2). Each is a
+# UG-TTT vs baseline PAIR so the reported quantity is the delta, not an absolute.
+# Combined with the 8B runs in waves 1-2 this gives an 8B -> 14B -> 32B trend
+# with matched baselines. Streaming OFF. --base_model in the extra field
+# overrides COMMON's Qwen3-8B (argparse takes the last value). All load via the
+# existing model_type="llama" path (Qwen3 is Llama-compatible), one GPU each —
+# the frozen base is shared across the ensemble, so 32B (~64GB fp16) fits in
+# 80GB. NOTE: 32B is the tight one; smoke-test a single 32B run before filling
+# the node. Cross-FAMILY (Llama-3.1-8B) is on branch exp/cross-family-llama.
+declare -a WAVE3=(
+  "cp26-qwen14b-ugttt|cp|26|UGTTT|--base_model Qwen/Qwen3-14B"
+  "cp26-qwen14b-base|cp|26|BASELINE|--base_model Qwen/Qwen3-14B"
+  "cp26-qwen32b-ugttt|cp|26|UGTTT|--base_model Qwen/Qwen3-32B"
+  "cp26-qwen32b-base|cp|26|BASELINE|--base_model Qwen/Qwen3-32B"
+  "ac1-qwen14b-ugttt|ac1|improvement|UGTTT|--base_model Qwen/Qwen3-14B"
+  "ac1-qwen14b-base|ac1|improvement|BASELINE|--base_model Qwen/Qwen3-14B"
+)
+
+usage() { echo "usage: $0 [--list] <wave1|wave2|wave3>"; exit 1; }
 
 list_runs() {
   local -n arr=$1
@@ -122,6 +144,7 @@ list_runs() {
 if [[ "$1" == "--list" ]]; then
   echo "== wave1 =="; list_runs WAVE1
   echo; echo "== wave2 =="; list_runs WAVE2
+  echo; echo "== wave3 =="; list_runs WAVE3
   exit 0
 fi
 
@@ -129,10 +152,13 @@ WAVE_NAME="$1"
 case "$WAVE_NAME" in
   wave1) RUNS=("${WAVE1[@]}") ;;
   wave2) RUNS=("${WAVE2[@]}") ;;
+  wave3) RUNS=("${WAVE3[@]}") ;;
   *) usage ;;
 esac
 
 [[ ${#RUNS[@]} -le $NUM_GPUS ]] || { echo "error: ${#RUNS[@]} runs > $NUM_GPUS GPUs" >&2; exit 1; }
+
+ensure_ray_head
 
 LOG_DIR="logs/aws/${WAVE_NAME}"
 mkdir -p "$LOG_DIR"
