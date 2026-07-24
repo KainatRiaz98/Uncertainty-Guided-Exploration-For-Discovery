@@ -234,3 +234,10 @@ gpu_mode/kernel_compare.tsv
 gpu_mode/gpu_scores.tsv
 
 tinker_log/
+
+# NeurIPS review-period material — confidential, do not publish
+reviews.txt
+rebuttal/
+.claude/
+submitted_paper.pdf
+logs/aws/
