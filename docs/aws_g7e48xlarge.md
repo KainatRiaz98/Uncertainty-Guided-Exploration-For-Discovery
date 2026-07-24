@@ -78,33 +78,33 @@ For the denoising domain, additionally install
 `requirements/denoising/requirements-denoising.txt` and dry-run its verifier once
 before committing a GPU.
 
-## Two things that break 8 concurrent runs
+## Concurrency model: one shared Ray head per node
 
-**1. CPU oversubscription.** Verification runs on CPU.
-[`utils/cpu_scheduler.py`](../utils/cpu_scheduler.py) sizes its worker pool from
-`os.sched_getaffinity(0)` and partitions it into groups of `num_cpus_per_task`.
-Start 8 runs plainly and **each sees all 192 vCPUs**, building a pool as if it
-owned the machine — with `num_cpus_per_task=2` that is 96 slots per run, 768
-across the box, on 192 real cores. Every run thrashes and the box ends up slower
-than a single-GPU instance.
+The task layer decides this, and the launcher follows it — do **not** use the
+per-run-`taskset` / separate-Ray model an earlier draft suggested; it is wrong
+for this code.
 
-`sched_getaffinity` respects `taskset`, so pinning each run to its own slice
-makes the scheduler self-limit with no code change:
+**Why one head.** The verifiers hardcode `ray.init("auto")`
+([`tasks/alphaevolve_ac2/task.py:72`](../tasks/alphaevolve_ac2/task.py),
+[`tasks/erdos_min_overlap/task.py:69`](../tasks/erdos_min_overlap/task.py),
+[`utils/cpu_scheduler.py:97`](../utils/cpu_scheduler.py)), so every run needs a
+running Ray head — with none, `ray.init("auto")` **crashes the run** at first
+verification. `scripts/run.sh` already sets `RAY_ADDRESS=auto` for this reason.
 
-```bash
-# 192 vCPUs / 8 runs = 24 vCPUs per run
-CUDA_VISIBLE_DEVICES=0 taskset -c 0-23  python3 -m tinker_cookbook.rl.mlora_train ...
-CUDA_VISIBLE_DEVICES=1 taskset -c 24-47 python3 -m tinker_cookbook.rl.mlora_train ...
-```
+**Why no `taskset`.** [`tasks/base_reward_task.py:460-476`](../tasks/base_reward_task.py)
+get-or-creates a **detached, host-keyed `cpu_scheduler` actor** that partitions
+this node's CPUs into groups of `num_cpus_per_task` across *all* co-resident
+runs. That is the intended CPU-sharing mechanism. Pinning each run with
+`taskset` fights it and can leave cores idle or oversubscribed. Instead:
 
-**2. Shared Ray cluster.** `scripts/run.sh` sets `RAY_ADDRESS=auto`, which joins
-an existing cluster. `cpu_scheduler.py` registers a **detached actor named
-`cpu_scheduler`**, so 8 runs on one Ray cluster collide on that name and share a
-single CPU pool. Give each run its own local Ray instance by leaving
-`RAY_ADDRESS` unset.
+- Start one head per node, sized to the whole box: `ray start --head --num-cpus=<total>`.
+- Give every run the **same** `--num_cpus_per_task` (the launcher uses 2).
+- Let the scheduler divide the cores.
 
-[`scripts/aws/launch_wave.sh`](../scripts/aws/launch_wave.sh) handles both. Use
-it rather than launching by hand, and smoke-test one run before filling the box.
+[`scripts/aws/launch_wave.sh`](../scripts/aws/launch_wave.sh) does all of this:
+it exports `RAY_ADDRESS=auto`, starts a head if none is running, and launches
+one run per GPU with no `taskset`. Use it rather than launching by hand, and
+smoke-test one run before filling the box.
 
 ## Launching a wave
 

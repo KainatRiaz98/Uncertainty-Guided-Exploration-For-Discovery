@@ -16,14 +16,23 @@ cd "${SCRIPT_DIR}/../.."
 export TOKENIZERS_PARALLELISM=false
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export RAY_DEDUP_LOGS=0
-# Each run gets its OWN local Ray instance. Do NOT set RAY_ADDRESS=auto here:
-# utils/cpu_scheduler.py registers a detached actor named "cpu_scheduler", so 8
-# runs sharing one Ray cluster would collide on that name and on its CPU pool.
-unset RAY_ADDRESS || true
+# ONE shared Ray head per node. The task layer hardcodes ray.init("auto")
+# (tasks/*/task.py, utils/cpu_scheduler.py) and base_reward_task.py get-or-creates
+# a detached, host-keyed "cpu_scheduler" actor that partitions this node's CPUs
+# across all co-resident runs. So every run must join the SAME head (matching
+# scripts/run.sh, which also sets RAY_ADDRESS=auto) and must NOT be taskset-pinned
+# — the scheduler does the CPU partitioning; taskset would fight it.
+export RAY_ADDRESS=auto
 
 NUM_GPUS="${NUM_GPUS:-8}"
 TOTAL_CPUS="${TOTAL_CPUS:-$(nproc)}"
-CPUS_PER_RUN=$(( TOTAL_CPUS / NUM_GPUS ))
+
+# Ensure a Ray head exists on this node, sized to the whole box so the
+# cpu_scheduler pool covers all cores. Idempotent: skip if one is already up.
+if ! ray status >/dev/null 2>&1; then
+  echo "No Ray head found — starting one (--num-cpus ${TOTAL_CPUS})."
+  ray start --head --num-cpus="${TOTAL_CPUS}" --disable-usage-stats >/dev/null
+fi
 
 # Published UG-TTT configuration (paper Tables 3-4). The argparse defaults are
 # upstream TTT-Discover values, so these are passed explicitly.
@@ -128,7 +137,7 @@ esac
 LOG_DIR="logs/aws/${WAVE_NAME}"
 mkdir -p "$LOG_DIR"
 
-echo "Launching ${#RUNS[@]} runs on $NUM_GPUS GPUs (${CPUS_PER_RUN} vCPUs each)"
+echo "Launching ${#RUNS[@]} runs on $NUM_GPUS GPUs (shared Ray head, cpu_scheduler partitions ${TOTAL_CPUS} vCPUs)"
 echo "Logs: $LOG_DIR"
 echo
 
@@ -147,12 +156,12 @@ for spec in "${RUNS[@]}"; do
     fi
   done
 
-  cpu_lo=$(( gpu * CPUS_PER_RUN ))
-  cpu_hi=$(( cpu_lo + CPUS_PER_RUN - 1 ))
-
+  # Pin only the GPU. CPUs are partitioned by the shared cpu_scheduler actor
+  # (base_reward_task.py) — do NOT taskset here; every run uses the same
+  # --num_cpus_per_task from COMMON so the scheduler divides cores evenly.
   CUDA_VISIBLE_DEVICES="$gpu" \
   PYTHONPATH="mLoRA:${PYTHONPATH:-}" \
-  setsid taskset -c "${cpu_lo}-${cpu_hi}" \
+  setsid \
     python3 -m tinker_cookbook.rl.mlora_train \
       "${COMMON[@]}" \
       "${arm_flags[@]}" \
@@ -164,12 +173,14 @@ for spec in "${RUNS[@]}"; do
       --wandb_name "$name" \
     > "${LOG_DIR}/${name}.log" 2>&1 &
 
-  echo "  GPU ${gpu}  cpus ${cpu_lo}-${cpu_hi}  ${name}  (pid $!)"
+  echo "  GPU ${gpu}  ${name}  (pid $!)"
   gpu=$(( gpu + 1 ))
 done
 
 echo
 echo "All runs detached. Follow one with:"
 echo "  tail -f ${LOG_DIR}/<run-name>.log"
-echo "Check placement:  nvidia-smi"
-echo "Load average should settle near ${TOTAL_CPUS}; much higher means pinning failed."
+echo "Check placement:  nvidia-smi   (one python process per GPU)"
+echo "Check the CPU pool: ray status   (cpu_scheduler should own ${TOTAL_CPUS} CPUs)"
+echo "Load average should settle near ${TOTAL_CPUS}; much higher means the"
+echo "cpu_scheduler didn't bound the pool (check --num_cpus_per_task is uniform)."
