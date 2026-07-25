@@ -86,6 +86,35 @@ def wrap_qwen3_chat_template(prompt_text: str) -> str:
     )
 
 
+def wrap_llama_chat_template(prompt_text: str) -> str:
+    """Wrap raw prompt text in Llama-3.1 chat format (single-phase, no thinking).
+
+    Llama-3.1 has no <think> reasoning mode, so the cross-family runs use
+    single-phase generation. BOS (<|begin_of_text|>) is added by the tokenizer
+    (encode is called with bos=True), so it is intentionally omitted here to
+    avoid a doubled BOS.
+
+    Produces:
+        <|start_header_id|>user<|end_header_id|>
+
+        {prompt_text}<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+    """
+    return (
+        f"<|start_header_id|>user<|end_header_id|>\n\n{prompt_text}<|eot_id|>"
+        f"<|start_header_id|>assistant<|end_header_id|>\n\n"
+    )
+
+
+def base_model_family(base_model: str) -> str:
+    """Coarse model-family tag used to pick chat template + stop tokens.
+
+    "llama" -> Llama-3.x single-phase path; otherwise the Qwen3 thinking path
+    (the published default). Qwen2.5/Qwen3 both take the qwen3 branch.
+    """
+    return "llama" if "llama" in base_model.lower() else "qwen3"
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Config — mirrors tinker_cookbook/rl/train.py:Config with ensemble additions
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1785,6 +1814,7 @@ def main(
     )
 
     # ── Two-phase setup (compute once before training loop) ──────────────
+    family = base_model_family(cfg.base_model)
     prefill_tokens_list: Optional[List[int]] = None
     stop_token_ids: Optional[List[int]] = None
     if cfg.two_phase_sampling:
@@ -1799,6 +1829,12 @@ def main(
             f"context_window={cfg.context_window}, prefill_len={len(prefill_tokens_list)}, "
             f"stop_ids={stop_token_ids}"
         )
+    elif family == "llama":
+        # Cross-family single-phase path: stop generation at Llama's turn end.
+        eot_tokens = tokenizer.tokenizer_.encode("<|eot_id|>", add_special_tokens=False)
+        if eot_tokens:
+            stop_token_ids = [eot_tokens[0]]
+        logger.info(f"Llama single-phase generation: stop_ids={stop_token_ids}")
 
     for epoch in range(start_epoch, cfg.num_epochs):
         t_start = time.time()
@@ -1822,6 +1858,8 @@ def main(
             prompt_text = prompt_fn(parent_state)
             if cfg.two_phase_sampling:
                 prompt_text = wrap_qwen3_chat_template(prompt_text)
+            elif family == "llama":
+                prompt_text = wrap_llama_chat_template(prompt_text)
             prompt_tokens = tokenizer.encode(prompt_text, bos=True, eos=False)
 
             group_rollouts = do_group_rollout_batched(
