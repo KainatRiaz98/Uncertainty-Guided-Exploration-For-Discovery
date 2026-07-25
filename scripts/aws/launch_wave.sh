@@ -96,8 +96,9 @@ declare -a WAVE1=(
 
 # Wave 2: component ablations + the streaming comparison. Streaming is OFF on
 # every run EXCEPT cp26-stream, which pairs with cp26-nostream to answer the
-# post-hoc-config critique (DmAa W2) as a controlled ablation. denoising is
-# dropped: the mlora path dispatches only ac1/ac2/cp/erdos, so it would crash.
+# post-hoc-config critique (DmAa W2) as a controlled ablation. denoising is not
+# here because it needs its own node infra (see WAVE4), not because the dispatch
+# is missing — mlora_train.py:2425/2487 handles denoising, ahc039 and ahc058.
 declare -a WAVE2=(
   "cp26-alpha0|cp|26|ALPHA0|"
   "cp26-entropy|cp|26|ENTROPY|"
@@ -136,10 +137,13 @@ declare -a WAVE3=(
 # Wave 4: NEW DOMAINS beyond the mathematical subset — the direct answer to
 # 8mjY W3 / vGzb W1. UG-TTT vs baseline pair per domain, streaming off.
 #   denoising = single-cell biology (pure-CPU verifier; needs the bio deps +
-#     openproblems + pancreas dataset installed in the training venv —
-#     see requirements/denoising/README.md).
-#   ahc039    = AtCoder heuristic algorithm design (C++; needs Docker + the
-#     ALE-Bench container yimjk/ale-bench:cpp20-202301; data/judges vendored).
+#     openproblems + pancreas dataset in a venv the TRAINER uses — the verifier
+#     is imported in-process at mlora_train.py:2426, so a standalone venv is
+#     never seen. Use a clone of the training venv; see
+#     requirements/denoising/README.md).
+#   ahc039    = AtCoder heuristic algorithm design (C++; NO Docker —
+#     ale_bench/utils.py:487 docker_client() is a host-side Ray mock that
+#     compiles on the host; any C++20 g++ works. Data/judges vendored).
 # These two need DIFFERENT node infra; smoke-test one baseline per domain before
 # launching its pair. Requires 4 GPUs on a node with the matching setup.
 declare -a WAVE4=(

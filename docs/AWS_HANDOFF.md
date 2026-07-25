@@ -65,8 +65,12 @@ Resume is automatic: relaunching the identical command picks up from
 
 ```bash
 export WANDB_API_KEY=<key>
-export WANDB_ENTITY=kriaz-msee20seecs
+export WANDB_ENTITY=kriaz-msee20seecs-nust
 ```
+
+The entity is `kriaz-msee20seecs-**nust**`. Plain `kriaz-msee20seecs` 404s
+("entity not found") — earlier revisions of this doc had it wrong. Nodes 1 and 2
+are logging to the `-nust` entity.
 
 `ml_log.py` **silently skips wandb** if the key is unset — you would lose all
 remote logging without an error. Verify with `wandb login --verify $WANDB_API_KEY`.
@@ -87,17 +91,38 @@ with `taskset` fights it. Every run must pass the same `--num_cpus_per_task`.
 
 Neither domain runs until its verifier deps exist **on that node**:
 
+- **ahc039** (AtCoder heuristics, C++): `pip install -r requirements/requirements-ahc.txt`
+  and that is all. **No Docker.** Ignore any instruction to install a daemon or
+  `docker pull yimjk/ale-bench:cpp20-202301` — on this branch
+  `ale_bench/utils.py:487` `docker_client()` is a host-side Ray mock
+  ("deprecated - kept for compatibility but uses ray instead") that strips the
+  `/bin/sh -c` wrapper and compiles on the host. Any C++20 g++ works. Inputs and
+  judges are vendored in-repo. **Launch this domain first — it has no setup.**
+  Note for the writeup: the host compiler is not AtCoder's pinned 2023-01
+  toolchain, so report the UG-TTT-vs-baseline *delta* (same compiler both arms)
+  and do not compare absolute ahc039 scores to AtCoder leaderboard numbers.
 - **denoising** (single-cell biology): install
-  `requirements/denoising/new_reqs.txt`, then git-install `simscity` and
+  `requirements/denoising/requirements-denoising.txt` (there is no
+  `new_reqs.txt` — the file was renamed), then git-install `simscity` and
   `molecular-cross-validation`, clone `openproblems` and
   `git apply requirements/denoising/openproblems_api_fix.patch`. See
   `requirements/denoising/README.md`. Watch the documented NumPy-2.x-vs-torch
   conflict. Pancreas data downloads to `~/.cache/denoising_datasets` on first run.
   **This is the fragile one — budget setup time.**
-- **ahc039** (AtCoder heuristics, C++): `pip install -r requirements/requirements-ahc.txt`,
-  ensure Docker works, `docker pull yimjk/ale-bench:cpp20-202301`. Inputs and
-  judges are vendored in-repo, and compilation is container-isolated — more
-  reliable than denoising.
+
+  Two things that are easy to get wrong here:
+  1. The verifier is imported **in-process by the trainer**
+     (`mlora_train.py:2426`), so the bio deps must be in a venv the training
+     process actually uses. A standalone `uv venv .venv` is never seen.
+  2. Installing them therefore mutates the venv the ahc039 runs share. Give
+     denoising a **clone** of the training venv and point its runs at it with
+     `PYTHON=`. Otherwise a NumPy swap can break already-launched ahc039 runs
+     when they auto-resume after the ~24h instance reboot.
+
+  ```bash
+  cp -a ~/venv ~/venv-denoise         # or: python3 -m venv --system-site-packages
+  source ~/venv-denoise/bin/activate  # do the whole bio install in here
+  ```
 - **heavy-model wave only**: `pip install bitsandbytes` (required for `nf4`
   quantized loading; not in any requirements file).
 
@@ -116,11 +141,44 @@ Qwen2.5 is not a `<think>` model, so these runs are **single-phase** (no
 
 **Run the smoke test first — this combination has no prior successful run.**
 
+**Launch the two domains separately, ahc039 first.** ahc039 needs no setup;
+denoising's bio stack does. Node 3 is the only node carrying new domains at all
+(`wave4` in `launch_wave.sh` is assigned to no node), so getting one
+non-mathematical domain landed matters more than starting both together.
+
 ```bash
-bash scripts/aws/launch_heavy_domain_wave.sh smoke
+DOMAIN=ahc039 bash scripts/aws/launch_heavy_domain_wave.sh --list
+DOMAIN=ahc039 bash scripts/aws/launch_heavy_domain_wave.sh smoke
 ```
 
-Before launching the other 6, confirm in each smoke log:
+Once the ahc039 smoke log looks healthy, kill it and take GPUs 0–3:
+
+```bash
+DOMAIN=ahc039 bash scripts/aws/launch_heavy_domain_wave.sh run
+```
+
+Then, with the bio deps installed in a cloned venv, take GPUs 4–7:
+
+```bash
+DOMAIN=denoising GPU_START=4 PYTHON=~/venv-denoise/bin/python \
+  bash scripts/aws/launch_heavy_domain_wave.sh smoke
+DOMAIN=denoising GPU_START=4 PYTHON=~/venv-denoise/bin/python \
+  bash scripts/aws/launch_heavy_domain_wave.sh run
+```
+
+If denoising's setup is still fighting you, do not leave 4 GPUs idle. This takes
+ahc039 to 3 seeds per arm, which answers vGzb's one-random-seed weakness on the
+new domain:
+
+```bash
+GPU_START=4 bash scripts/aws/launch_heavy_domain_wave.sh ahc-extra
+```
+
+Nothing on this node lands by Jul 27 either way — 24–36 h runs make these
+Phase-2 (discussion) results, which the plan already assumes. Denoising's real
+deadline is **launch by ~Jul 30** to finish before Aug 3.
+
+Before launching the rest of a domain, confirm in its smoke log:
 - nf4 load succeeded (no bitsandbytes / CUDA error)
 - completions are real code, not garbled tokens (confirms ChatML wrapping)
 - `train/correctness/nonzero > 0` for at least one epoch

@@ -8,12 +8,21 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ## Setup
 
+**Do not create a fresh empty venv.** The denoising verifier is imported
+in-process by the trainer (`tinker_cookbook/rl/mlora_train.py:2426`), so these
+deps have to live in a venv that already has torch and the training stack. And
+because the install churns NumPy (see Known Issues #2), do it in a **clone** of
+the training venv rather than the training venv itself — otherwise it can break
+co-resident runs of other domains when they auto-resume after a reboot. Launch
+the denoising runs against the clone with
+`PYTHON=~/venv-denoise/bin/python`.
+
 ```bash
-uv venv .venv
-source .venv/bin/activate
+cp -a ~/venv ~/venv-denoise
+source ~/venv-denoise/bin/activate
 
 # Install requirements
-uv pip install -r new_reqs.txt
+uv pip install -r requirements-denoising.txt
 
 # Git dependencies
 uv pip install git+https://github.com/czbiohub/simscity.git
