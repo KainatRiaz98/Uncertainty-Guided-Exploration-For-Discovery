@@ -105,12 +105,38 @@ Neither domain runs until its verifier deps exist **on that node**:
   `requirements/denoising/requirements-denoising.txt` (there is no
   `new_reqs.txt` — the file was renamed), then git-install `simscity` and
   `molecular-cross-validation`, clone `openproblems` and
-  `git apply requirements/denoising/openproblems_api_fix.patch`. See
-  `requirements/denoising/README.md`. Watch the documented NumPy-2.x-vs-torch
-  conflict. Pancreas data downloads to `~/.cache/denoising_datasets` on first run.
-  **This is the fragile one — budget setup time.**
+  `git apply requirements/denoising/openproblems_api_fix.patch`. Pancreas data
+  downloads to `~/.cache/denoising_datasets` on first run.
 
-  Two things that are easy to get wrong here:
+  **All of that is now scripted — run this instead of doing it by hand:**
+
+  ```bash
+  bash scripts/aws/setup_denoising_venv.sh
+  ```
+
+  It clones the venv, installs the bio stack, pins ray to whatever the node's
+  Ray head runs, applies the openproblems patch idempotently, and finishes by
+  importing the verifier exactly the way the trainer does. If it exits 0, the
+  domain will launch.
+
+  **Ignore the old "NumPy-2.x-vs-torch conflict" warning — it was wrong.**
+  `torch==2.9.1` is pinned identically in all three requirement files; there is
+  no torch/NumPy conflict. The documented breakage
+  (`np.asarray(..., copy=False)`) is a NumPy 2.0 API removal *inside the bio
+  code*, which happens under every pin here — the source patch fixes it, not
+  version juggling.
+
+  The pin that actually matters is **ray**, and it disagrees across files:
+  `requirements-math.txt` has 2.51.1, while `requirements-ahc.txt` and
+  `requirements-denoising.txt` both have 2.53.0. Every run attaches to one
+  shared head per node via `ray.init("auto")`, and Ray refuses to attach on a
+  version mismatch. numpy and scipy may differ freely between venvs — they never
+  cross a process boundary — but **ray must be identical in every venv on the
+  node.** So on node 3: install first, start the head second. If a head is
+  already up from before the install, kill it (`ray stop`) and let the launcher
+  start a fresh one.
+
+  Two more things that are easy to get wrong here:
   1. The verifier is imported **in-process by the trainer**
      (`mlora_train.py:2426`), so the bio deps must be in a venv the training
      process actually uses. A standalone `uv venv .venv` is never seen.
