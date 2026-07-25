@@ -13,24 +13,48 @@ posting ends **Aug 3**. These runs produce the numbers for that response.
 The runnable module is **`tinker_cookbook.rl.mlora_train`** (NOT `ug_ttt.*` —
 that package name only exists in the public mirror repo).
 
-## Launch commands
+## Current status — what is left to launch
+
+| Node | Wave | Status |
+|---|---|---|
+| 1 | `wave1` — 8 seed runs: seeds 2,3 × {AC1, CP26} × {UG-TTT, baseline} | **already running** |
+| 2 | `wave2` — 4 CP26 ablations + streaming/no-stream pair + AC1 + Erdős | **already running** |
+| 3 | **heavy-model domain wave** — denoising + ahc039 on Qwen2.5-72B | **← the only thing left to launch** |
+
+**`wave3` (Qwen3-14B/32B model-scaling) is NOT being run.** It still exists in
+`launch_wave.sh` but has been deprioritised — node 3 is for the new-domain
+runs instead. Do not launch `wave3` unless explicitly asked.
 
 All runs: 6 epochs, checkpoint every 2 epochs, streaming OFF (except one
-deliberate wave2 comparison pair). Always `--list` first.
+deliberate wave2 comparison pair). Always `--list` before launching.
+
+## STEP 0 — back up the running nodes before anything else
+
+wandb stores **only scalars**. The generated code — which the solution-family
+(Shannon) entropy metric is computed from — exists **only** in
+`trajectories.jsonl` on the instance disk. If a box is wiped, family entropy is
+**permanently uncomputable** for those runs; wandb cannot reconstruct it.
+Instances here reboot on a ~24h cycle.
 
 ```bash
-bash scripts/aws/launch_wave.sh --list
+df -h .                                              # is ./logs on EBS or ephemeral NVMe?
+bash scripts/aws/backup_logs.sh s3://YOUR-BUCKET/ugttt
 ```
 
-| Node | Command | What it is |
-|---|---|---|
-| 1 | `bash scripts/aws/launch_wave.sh wave1` | 8 seed runs: seeds 2,3 × {AC1, CP26} × {UG-TTT, baseline} |
-| 2 | `bash scripts/aws/launch_wave.sh wave2` | 4 CP26 ablations + streaming/no-stream pair + AC1 + Erdős |
-| 3 | `bash scripts/aws/launch_wave.sh wave3` | Qwen3-14B/32B model-scaling pairs (6 runs) |
-| 3 (alt) | `bash scripts/aws/launch_heavy_domain_wave.sh smoke` then `run` | NEW domains on Qwen2.5-72B (see below) |
+Then make it automatic (survives your SSH session dropping):
 
-`wave3` and the heavy-domain wave both target node 3 — pick one, or run the
-heavy wave after wave3 finishes.
+```bash
+(crontab -l 2>/dev/null; echo "*/15 * * * * cd $PWD && bash scripts/aws/backup_logs.sh s3://YOUR-BUCKET/ugttt >> /tmp/ugttt_backup.log 2>&1") | crontab -
+```
+
+`WITH_CHECKPOINTS=1` also syncs adapter weights (bigger, but allows resuming
+mid-run instead of from epoch 0). No S3 bucket? Any path on the EBS root volume
+is still far better than nothing.
+
+Resume is automatic: relaunching the identical command picks up from
+`last_epoch.txt`, reloads adapters and sampler state, and *appends* to
+`trajectories.jsonl` — so nothing already captured is lost. With
+`--save_every 2` you lose at most 2 epochs of compute.
 
 ## Before launching, on each node
 
@@ -72,7 +96,9 @@ Neither domain runs until its verifier deps exist **on that node**:
 - **heavy-model wave only**: `pip install bitsandbytes` (required for `nf4`
   quantized loading; not in any requirements file).
 
-## The heavy-model wave (`launch_heavy_domain_wave.sh`)
+## The heavy-model domain wave — THIS IS NODE 3'S JOB
+
+`scripts/aws/launch_heavy_domain_wave.sh`
 
 8 runs on Qwen2.5-72B-Instruct at `--precision nf4` (QLoRA), **1 GPU per run**.
 True 2-GPU model sharding was investigated and rejected: mLoRA's `pipeline`
