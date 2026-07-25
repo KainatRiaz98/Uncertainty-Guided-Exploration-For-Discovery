@@ -19,14 +19,19 @@ that package name only exists in the public mirror repo).
 |---|---|---|
 | 1 | `wave1` — 8 seed runs: seeds 2,3 × {AC1, CP26} × {UG-TTT, baseline} | **already running** |
 | 2 | `wave2` — 4 CP26 ablations + streaming/no-stream pair + AC1 + Erdős | **already running** |
-| 3 | **heavy-model domain wave** — denoising + ahc039 on Qwen2.5-72B | **← the only thing left to launch** |
+| 3 | **heavy-model domain wave** — denoising + ahc039 on Qwen2.5-72B (8 runs) | to launch |
+| 4 | **`wave3`** — Qwen3-14B/32B model-scaling pairs (6 runs) | to launch |
 
-**`wave3` (Qwen3-14B/32B model-scaling) is NOT being run.** It still exists in
-`launch_wave.sh` but has been deprioritised — node 3 is for the new-domain
-runs instead. Do not launch `wave3` unless explicitly asked.
+Each node runs **only** its own wave. Node 3 must not launch `wave3`; node 4
+must not launch the heavy-domain wave.
 
-All runs: 6 epochs, checkpoint every 2 epochs, streaming OFF (except one
-deliberate wave2 comparison pair). Always `--list` before launching.
+All runs: 6 epochs, streaming OFF (except one deliberate wave2 comparison
+pair). Always `--list` before launching.
+
+**Checkpoint cadence:** nodes 3 and 4 checkpoint **every epoch**
+(`--save_every 1`), so a 24h reboot costs at most one epoch. Nodes 1 and 2 are
+already running at `--save_every 2` and were deliberately left alone — changing
+`COMMON` would have altered their behaviour on resume.
 
 ## STEP 0 — back up the running nodes before anything else
 

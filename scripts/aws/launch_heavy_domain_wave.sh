@@ -82,7 +82,11 @@ COMMON=(
   --sampler_type puct_backprop
   --initial_exp_type random
   --num_cpus_per_task 2
-  --save_every 2
+  # Checkpoint EVERY epoch (not every 2). Instances reboot on a ~24h cycle, so
+  # a resume should lose at most one epoch of compute. Checkpoints accumulate in
+  # per-step dirs rather than overwriting, but LoRA adapters (rank 16, q/k/v/o)
+  # are small, so the extra disk is cheap insurance.
+  --save_every 1
 )
 
 UGTTT=(    --num_ensemble_members 5 --rmi_coef 0.1 --nnm_coef 0.075 --uncertainty_metric true_mi )

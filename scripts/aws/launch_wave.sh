@@ -119,13 +119,18 @@ declare -a WAVE2=(
 # the frozen base is shared across the ensemble, so 32B (~64GB fp16) fits in
 # 80GB. NOTE: 32B is the tight one; smoke-test a single 32B run before filling
 # the node. Cross-FAMILY (Llama-3.1-8B) is on branch exp/cross-family-llama.
+#
+# --save_every 1 is set PER RUN here rather than in COMMON on purpose: wave1 and
+# wave2 are already running on nodes 1-2 at --save_every 2, and changing COMMON
+# would alter their behaviour if they ever resume. Same argparse-last-wins
+# mechanism as --base_model. Every epoch = a reboot costs at most 1 epoch.
 declare -a WAVE3=(
-  "cp26-qwen14b-ugttt|cp|26|UGTTT|--base_model Qwen/Qwen3-14B"
-  "cp26-qwen14b-base|cp|26|BASELINE|--base_model Qwen/Qwen3-14B"
-  "cp26-qwen32b-ugttt|cp|26|UGTTT|--base_model Qwen/Qwen3-32B"
-  "cp26-qwen32b-base|cp|26|BASELINE|--base_model Qwen/Qwen3-32B"
-  "ac1-qwen14b-ugttt|ac1|improvement|UGTTT|--base_model Qwen/Qwen3-14B"
-  "ac1-qwen14b-base|ac1|improvement|BASELINE|--base_model Qwen/Qwen3-14B"
+  "cp26-qwen14b-ugttt|cp|26|UGTTT|--base_model Qwen/Qwen3-14B --save_every 1"
+  "cp26-qwen14b-base|cp|26|BASELINE|--base_model Qwen/Qwen3-14B --save_every 1"
+  "cp26-qwen32b-ugttt|cp|26|UGTTT|--base_model Qwen/Qwen3-32B --save_every 1"
+  "cp26-qwen32b-base|cp|26|BASELINE|--base_model Qwen/Qwen3-32B --save_every 1"
+  "ac1-qwen14b-ugttt|ac1|improvement|UGTTT|--base_model Qwen/Qwen3-14B --save_every 1"
+  "ac1-qwen14b-base|ac1|improvement|BASELINE|--base_model Qwen/Qwen3-14B --save_every 1"
 )
 
 # Wave 4: NEW DOMAINS beyond the mathematical subset — the direct answer to
