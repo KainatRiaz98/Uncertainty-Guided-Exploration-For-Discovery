@@ -71,7 +71,13 @@ COMMON=(
   --group_size 8
   --groups_per_batch 8
   --num_epochs 6
-  --max_tokens 260000
+  # SINGLE-PHASE decode bound. Do NOT copy launch_wave.sh's 260000 here: that
+  # is a TWO-phase total budget, and the two-phase path clamps itself to the
+  # context window (ensemble.py phase2_budget). The single-phase decode loop
+  # (`for step in range(1, max_tokens)`, generate_batch_multi_adapter) has NO
+  # context bound, so max_tokens must stay under context_window (32768) minus
+  # room for the prompt, or generation runs past the context and blows up.
+  --max_tokens 24000
   --temperature 1.0
   --sampler_type puct_backprop
   --initial_exp_type random

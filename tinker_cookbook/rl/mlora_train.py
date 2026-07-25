@@ -1810,12 +1810,21 @@ def main(
             f"stop_ids={stop_token_ids}"
         )
     else:
-        # Single-phase ChatML models (e.g. Qwen2.5-Instruct) still need a stop
-        # token at the turn boundary, or generation runs to max_tokens every time.
-        im_end_tokens = tokenizer.tokenizer_.encode("<|im_end|>", add_special_tokens=False)
-        if im_end_tokens:
-            stop_token_ids = [im_end_tokens[0]]
-        logger.info(f"Single-phase ChatML generation: stop_ids={stop_token_ids}")
+        # Single-phase (ChatML instruct models, e.g. Qwen2.5-Instruct).
+        # NOTE: generate_batch_multi_adapter() accepts NO stop_token_ids — the
+        # single-phase decode loop terminates only on tokenizer.eos_id_. For
+        # ChatML *-Instruct models eos_token IS <|im_end|>, so the assistant
+        # turn ends correctly. Warn loudly if this model disagrees, because then
+        # every rollout silently runs to --max_tokens.
+        _im_end = tokenizer.tokenizer_.encode("<|im_end|>", add_special_tokens=False)
+        _im_end_id = _im_end[0] if _im_end else None
+        if tokenizer.eos_id_ != _im_end_id:
+            logger.warning(
+                f"Single-phase: eos_id_={tokenizer.eos_id_} != <|im_end|>={_im_end_id}. "
+                "Generation will NOT stop at the ChatML turn boundary and will run to "
+                "--max_tokens on every rollout. Use an *-Instruct checkpoint."
+            )
+        logger.info(f"Single-phase ChatML generation: eos_id={tokenizer.eos_id_}")
 
     for epoch in range(start_epoch, cfg.num_epochs):
         t_start = time.time()
