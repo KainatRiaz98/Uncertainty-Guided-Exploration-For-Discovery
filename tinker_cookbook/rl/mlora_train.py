@@ -2217,7 +2217,9 @@ def cli_main():
 
     from tinker_cookbook.recipes.ttt.sampler import create_sampler
     from tinker_cookbook.recipes.ttt.env_ttt import last_codeblock_postprocess
-    from tinker_cookbook.recipes.ttt.state import InequalitiesState, CirclePackingState, ErdosState
+    from tinker_cookbook.recipes.ttt.state import (
+        InequalitiesState, CirclePackingState, ErdosState, DenoisingState, AleBenchState,
+    )
 
     os.makedirs(cfg.log_path, exist_ok=True)
 
@@ -2392,8 +2394,120 @@ def cli_main():
                 },
             }
 
+    elif cfg.env == "denoising":
+        from tinker_cookbook.recipes.ttt.env_denoising import build_denoising_prompt, verify_denoising
+
+        def prompt_fn(state: DenoisingState) -> str:
+            return build_denoising_prompt(
+                state,
+                budget_s=cfg.budget_s,
+                num_cpus_per_task=cfg.num_cpus_per_task,
+                problem_idx=cfg.problem_idx,
+            )
+
+        def process_fn(generated_text: str, parent_state: DenoisingState, step: int) -> Dict[str, Any]:
+            parsed_code = last_codeblock_postprocess(generated_text, ["python"], keep_separators=True)
+            if not parsed_code or not parsed_code.strip():
+                return {"reward": 0.0, "child_state": None, "correctness": 0.0, "metrics": {}}
+
+            outs = verify_denoising(
+                parsed_code, step,
+                num_cpus_per_task=cfg.num_cpus_per_task,
+                eval_timeout=cfg.eval_timeout,
+                log_path=cfg.log_path,
+                state=parent_state,
+            )
+            correctness = outs.get("correctness", 0.0)
+            performance = outs.get("performance")
+            mse = outs.get("mse")
+
+            # Reward — same as DenoisingEnv._compute_reward()
+            if cfg.adv_estimator in ("entropic", "entropic_adaptive_beta"):
+                current_mse = mse if mse is not None else float('inf')
+                reward = 1/current_mse if (correctness > 0 and current_mse > 0) else 0.0
+            else:
+                reward = outs["score"]
+
+            # Child state — same as DenoisingEnv._create_next_state()
+            child_state = None
+            if performance is not None:
+                parent_values = ([parent_state.value] + parent_state.parent_values
+                                 if parent_state.value is not None else [])
+                child_state = DenoisingState(
+                    timestep=step,
+                    code=parsed_code,
+                    value=performance,
+                    mse=mse,
+                    poisson=outs.get("poisson"),
+                    parent_values=parent_values,
+                    observation=outs.get("stdout", ""),
+                )
+
+            return {
+                "reward": reward,
+                "child_state": child_state,
+                "correctness": correctness,
+                "metrics": {
+                    "score": outs.get("score", 0.0),
+                    "correctness": correctness,
+                    "mse": mse,
+                    "poisson": outs.get("poisson"),
+                    "performance": performance,
+                },
+            }
+
+    elif cfg.env in ("ahc039", "ahc058"):
+        from tinker_cookbook.recipes.ttt.env_ale_bench import (
+            build_ale_bench_prompt, verify_ale_bench, parse_ale_bench_problem_idx,
+        )
+
+        problem_id, _ = parse_ale_bench_problem_idx(cfg.problem_idx)
+
+        def prompt_fn(state: AleBenchState) -> str:
+            return build_ale_bench_prompt(state, problem_id)
+
+        def process_fn(generated_text: str, parent_state: AleBenchState, step: int) -> Dict[str, Any]:
+            # ALE-Bench candidates are C++, and separators are not kept.
+            parsed_code = last_codeblock_postprocess(generated_text, ["cpp"], keep_separators=False)
+            if not parsed_code or not parsed_code.strip():
+                return {"reward": 0.0, "child_state": None, "correctness": 0.0, "metrics": {}}
+
+            outs = verify_ale_bench(
+                parsed_code, step,
+                num_cpus_per_task=cfg.num_cpus_per_task,
+                problem_idx=problem_id,
+                log_dir=cfg.log_path,
+            )
+            correctness = outs.get("correctness", 0.0)
+            performance = outs.get("performance")
+
+            # Reward — same as AleBenchEnv._compute_reward()
+            reward = outs["score"] if correctness > 0 else 0.0
+
+            # Child state — same as AleBenchEnv._create_next_state()
+            child_state = None
+            if correctness > 0:
+                child_state = AleBenchState(
+                    timestep=step,
+                    code=parsed_code,
+                    value=performance,
+                )
+
+            return {
+                "reward": reward,
+                "child_state": child_state,
+                "correctness": correctness,
+                "metrics": {
+                    "score": outs.get("score", 0.0),
+                    "correctness": correctness,
+                    "performance": performance,
+                },
+            }
+
     else:
-        raise ValueError(f"Unsupported env: {cfg.env}. Supported: ac1, ac2, cp, erdos")
+        raise ValueError(
+            f"Unsupported env: {cfg.env}. Supported: ac1, ac2, cp, erdos, denoising, ahc039, ahc058"
+        )
 
     # ── Create sampler (with resume support) ─────────────────────────────
     resume_step = None

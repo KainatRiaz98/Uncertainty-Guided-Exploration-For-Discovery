@@ -128,7 +128,23 @@ declare -a WAVE3=(
   "ac1-qwen14b-base|ac1|improvement|BASELINE|--base_model Qwen/Qwen3-14B"
 )
 
-usage() { echo "usage: $0 [--list] <wave1|wave2|wave3>"; exit 1; }
+# Wave 4: NEW DOMAINS beyond the mathematical subset — the direct answer to
+# 8mjY W3 / vGzb W1. UG-TTT vs baseline pair per domain, streaming off.
+#   denoising = single-cell biology (pure-CPU verifier; needs the bio deps +
+#     openproblems + pancreas dataset installed in the training venv —
+#     see requirements/denoising/README.md).
+#   ahc039    = AtCoder heuristic algorithm design (C++; needs Docker + the
+#     ALE-Bench container yimjk/ale-bench:cpp20-202301; data/judges vendored).
+# These two need DIFFERENT node infra; smoke-test one baseline per domain before
+# launching its pair. Requires 4 GPUs on a node with the matching setup.
+declare -a WAVE4=(
+  "denoise-ugttt|denoising|improvement|UGTTT|"
+  "denoise-base|denoising|improvement|BASELINE|"
+  "ahc039-ugttt|ahc039|ahc039|UGTTT|"
+  "ahc039-base|ahc039|ahc039|BASELINE|"
+)
+
+usage() { echo "usage: $0 [--list] <wave1|wave2|wave3|wave4>"; exit 1; }
 
 list_runs() {
   local -n arr=$1
@@ -145,6 +161,7 @@ if [[ "$1" == "--list" ]]; then
   echo "== wave1 =="; list_runs WAVE1
   echo; echo "== wave2 =="; list_runs WAVE2
   echo; echo "== wave3 =="; list_runs WAVE3
+  echo; echo "== wave4 =="; list_runs WAVE4
   exit 0
 fi
 
@@ -153,6 +170,7 @@ case "$WAVE_NAME" in
   wave1) RUNS=("${WAVE1[@]}") ;;
   wave2) RUNS=("${WAVE2[@]}") ;;
   wave3) RUNS=("${WAVE3[@]}") ;;
+  wave4) RUNS=("${WAVE4[@]}") ;;
   *) usage ;;
 esac
 

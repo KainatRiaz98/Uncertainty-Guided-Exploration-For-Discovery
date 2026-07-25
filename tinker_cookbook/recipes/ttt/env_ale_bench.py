@@ -36,6 +36,33 @@ def parse_ale_bench_problem_idx(problem_idx: str) -> tuple[int, str | None]:
     return problem_idx, "v1"
 
 
+def build_ale_bench_prompt(state: AleBenchState, problem_idx: str) -> str:
+    """Standalone ALE-Bench prompt builder for the UG-TTT path.
+
+    Mirrors AleBenchEnv._get_improvement_prompt but takes explicit params
+    instead of `self`. problem_idx must be a bare problem id ("ahc039"/"ahc058");
+    callers should pass it through parse_ale_bench_problem_idx first.
+    """
+    assert problem_idx in {"ahc039", "ahc058"}, f"Unsupported ALE-Bench problem: {problem_idx}"
+
+    if problem_idx == "ahc058":
+        target = 6_500_000
+    else:  # ahc039
+        target = 5000
+
+    if state.value is not None and state.value > 0:
+        current_performance = state.value
+        value_ctx = f"\nCurrent performance (higher is better): {current_performance:.4f}"
+        value_ctx += f"\nTarget: {target}. Current gap: {target - current_performance:.4f}"
+    else:
+        value_ctx = f"\nTarget performance: {target}"
+
+    prompt = create_prompt(problem_idx)
+    prompt = prompt.replace("<<<LAST_CODE>>>", state.code if state.code else "# No previous attempt has been made.")
+    prompt = prompt.replace("<<<VALUE_CONTEXT>>>", value_ctx)
+    return prompt
+
+
 class AleBenchEnv(BaseTTTEnv):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

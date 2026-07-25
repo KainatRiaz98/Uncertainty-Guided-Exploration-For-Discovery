@@ -91,6 +91,66 @@ def _is_entropic_adv(adv_estimator: str | None) -> bool:
     return adv_estimator in ("entropic", "entropic_adaptive_beta")
 
 
+def build_denoising_prompt(
+    state: DenoisingState,
+    budget_s: int = 1000,
+    num_cpus_per_task: int = 4,
+    problem_idx: str = "improvement",
+) -> str:
+    """Standalone denoising prompt builder for the UG-TTT path.
+
+    Mirrors DenoisingEnv._get_improvement_prompt but takes explicit params
+    instead of `self`, so mlora_train's process_fn can call it directly
+    (same pattern as build_erdos_prompt / build_cp_prompt). Handles both the
+    initial (no-code) state and iterative improvement.
+    """
+    has_code = bool(state.code and state.code.strip())
+
+    value_ctx = ""
+    if state.mse is not None or state.poisson is not None:
+        metrics = []
+        if state.mse is not None:
+            metrics.append(f"MSE: {state.mse:.6f}")
+        if state.poisson is not None:
+            metrics.append(f"Poisson: {state.poisson:.6f}")
+        value_ctx = f"\nCurrent metrics (lower is better): {', '.join(metrics)}"
+
+    prompt = SYSTEM_PROMPT
+    prompt = prompt.replace("<<<BUDGET_S>>>", str(budget_s))
+    prompt = prompt.replace("<<<CPUS>>>", str(num_cpus_per_task))
+    prompt = prompt.replace("<<<EVALUATE_MSE_FUNC>>>", EVALUATE_MSE_FUNC)
+    prompt = prompt.replace("<<<EVALUATE_POISSON_FUNC>>>", EVALUATE_POISSON_FUNC)
+
+    if has_code:
+        clean_code = state.code.strip()
+        if clean_code.startswith("```python"):
+            clean_code = clean_code[len("```python"):].strip()
+        if clean_code.startswith("```"):
+            clean_code = clean_code[3:].strip()
+        if clean_code.endswith("```"):
+            clean_code = clean_code[:-3].strip()
+        code_section = f"""
+Here is the current implementation:
+```python
+{clean_code}
+```
+
+You are iteratively improving the denoising algorithm.{value_ctx}
+
+Reason about how you could improve this approach.
+"""
+    else:
+        code_section = f"""
+{value_ctx}
+
+Write code to implement a denoising algorithm.
+"""
+
+    return f"""{prompt}
+{code_section}
+Write your improved `magic_denoise` function."""
+
+
 class DenoisingEnv(BaseTTTEnv):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
