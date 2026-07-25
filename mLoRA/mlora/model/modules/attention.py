@@ -81,7 +81,7 @@ class Attention(torch.nn.Module):
     wv_: Linear
     wo_: Linear
 
-    def __init__(self, layer_id: int, args: LLMModelArgs):
+    def __init__(self, layer_id: int, args: LLMModelArgs, device=None):
         super().__init__()
 
         # use layer id to local the adapter
@@ -97,12 +97,24 @@ class Attention(torch.nn.Module):
         self.k_norm_: Optional[RMSNorm] = None
 
         # rope angle cos and sin
+        #
+        # NOTE: cos_/sin_ are plain tensor attributes, NOT registered buffers,
+        # so torch.nn.Module.to() will never move them. Under layer sharding
+        # they must therefore be built on the owning GPU up front -- hence the
+        # `device` override.
+        self.device_ = device or args.device_
         self.cos_, self.sin_ = precompute_rope_angle(
             args.dim_ // args.n_heads_,
             args.max_seq_len_,
             args.rope_theta_,
-            args.device_,
+            self.device_,
         )
+
+    def to_device(self, device) -> None:
+        """Move the (unregistered) RoPE tables. Used only if placement changes."""
+        self.device_ = device
+        self.cos_ = self.cos_.to(device)
+        self.sin_ = self.sin_.to(device)
 
     def forward(self, data: torch.Tensor, mask: torch.Tensor, input_args: ModelData):
         batch_size, max_seq_len, _ = data.shape

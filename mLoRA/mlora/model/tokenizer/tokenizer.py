@@ -1,8 +1,15 @@
+import logging
 from typing import Tuple
 
 from transformers import AutoTokenizer
 
 from mlora.model.args import Masks, Tokens
+
+logger = logging.getLogger(__name__)
+
+# Running tally of prompts that hit the cutoff_len cap, so a silent truncation
+# cannot pass unnoticed. See the warning in Tokenizer.encode below.
+TRUNCATION_STATS = {"encoded": 0, "truncated": 0, "max_seen": 0}
 
 
 class Tokenizer:
@@ -25,7 +32,33 @@ class Tokenizer:
         # Qwen and others have bos_token_id / eos_token_id = None; never insert None.
         use_bos = bos and self.bos_id_ is not None
         use_eos = eos and self.eos_id_ is not None
-        tokens = tokens[: cutoff_len - int(use_bos) - int(use_eos)]
+
+        # ── Truncation detector (observability only, behaviour unchanged) ──
+        # cutoff_len defaults to 4096 and callers do not override it. In the
+        # UG-TTT prompt templates the <<<LAST_CODE>>> placeholder sits near the
+        # END, so everything truncation removes first is the task instruction,
+        # the Rules, and the "return the final program between ```python and
+        # ```" line that last_codeblock_postprocess depends on -- which makes
+        # the rollout score exactly 0.0 with no other symptom.
+        #
+        # Programs carried forward grow over a run, so this can switch on
+        # mid-run. Long-program domains (ahc*/gpu_mode: 17-35 KB artifacts) are
+        # far more exposed than the math domains.
+        limit = cutoff_len - int(use_bos) - int(use_eos)
+        TRUNCATION_STATS["encoded"] += 1
+        TRUNCATION_STATS["max_seen"] = max(TRUNCATION_STATS["max_seen"], len(tokens))
+        if len(tokens) > limit:
+            TRUNCATION_STATS["truncated"] += 1
+            logger.warning(
+                "PROMPT TRUNCATED: %d tokens -> %d (cutoff_len=%d). The tail of "
+                "the prompt, including the output-format instruction, was "
+                "discarded; this rollout will most likely score 0. "
+                "(%d/%d prompts truncated so far)",
+                len(tokens), limit, cutoff_len,
+                TRUNCATION_STATS["truncated"], TRUNCATION_STATS["encoded"],
+            )
+
+        tokens = tokens[:limit]
         if use_bos:
             tokens = [self.bos_id_] + tokens
         if use_eos:

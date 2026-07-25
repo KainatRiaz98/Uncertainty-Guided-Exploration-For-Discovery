@@ -22,6 +22,7 @@ import torch
 import torch.nn.functional as F
 
 from tinker_cookbook.rl.uncertainty import compute_true_mi
+from tinker_cookbook.rl.gpu_utils import empty_cache_all
 from mlora.model.llm import LLMModel
 from mlora.model.args import (
     LinearInfo,
@@ -56,11 +57,22 @@ class LoRAEnsemble:
         learning_rate: float = 4e-5,
         optimizer: str = "adamw",
         seed: int = 42,
+        memory_efficient_prefill: Optional[bool] = None,
     ):
         self.model = model
         self.K = num_members
         self.seed_base = seed
         self.contexts: List[TrainLoRAContext] = []
+
+        # Default: on iff the model is sharded. Sharded runs are the ones that
+        # cannot afford the (B, P, V) fp32 prefill tensor; single-GPU runs stay
+        # on the original code path so they remain bit-identical to published
+        # results. Pass True explicitly to force it on at every model size.
+        if memory_efficient_prefill is None:
+            memory_efficient_prefill = bool(
+                getattr(model, "is_sharded", lambda: False)()
+            )
+        self.memory_efficient_prefill = memory_efficient_prefill
 
         if target_modules is None:
             target_modules = {
@@ -84,6 +96,7 @@ class LoRAEnsemble:
     ):
         """Create K LoRA adapters with different random seeds."""
         linears_info = self.model.linears_info()
+        adapter_devices = self._build_adapter_device_map(linears_info)
 
         for k in range(self.K):
             # Different seed → different Kaiming initialization → different hypothesis.
@@ -116,11 +129,76 @@ class LoRAEnsemble:
             with torch.no_grad():
                 for module in context.adapter_model_.values():
                     torch.nn.init.normal_(module.lora_b_, mean=0.0, std=0.01)
-            context.switch_device(self.model.device_)
+
+            # NOTE: adapter tensors are created AND initialised on CPU
+            # (mlora LoRA.__init__ / init_weight), so everything above is
+            # device-independent — a sharded run and a single-GPU run produce
+            # bitwise identical adapters. Only the placement below differs.
+            if adapter_devices is None:
+                context.switch_device(self.model.device_)
+            else:
+                self._place_adapter_sharded(context, adapter_devices)
+
             self.contexts.append(context)
             self.model.load_adapter(context.adapter_model())
 
-        logger.info(f"Initialized {self.K} LoRA ensemble members (rank={rank})")
+        logger.info(
+            f"Initialized {self.K} LoRA ensemble members (rank={rank})"
+            + ("" if adapter_devices is None else " [sharded across GPUs]")
+        )
+
+    # ── Device placement ─────────────────────────────────────────────────
+
+    def _build_adapter_device_map(
+        self, linears_info: "Dict[str, LinearInfo]"
+    ) -> Optional[Dict[str, torch.device]]:
+        """
+        Map each adapter target name -> the GPU that owns its decoder layer.
+
+        Returns None on the single-GPU path so the original code path is used
+        verbatim. Keys look like 'layers.{i}.self_attn.q_proj'.
+        """
+        layer_devices = getattr(self.model, "layer_devices", lambda: None)()
+        if not layer_devices:
+            return None
+
+        out: Dict[str, torch.device] = {}
+        for name in linears_info.keys():
+            parts = name.split(".")
+            if len(parts) < 2 or parts[0] != "layers":
+                raise RuntimeError(
+                    f"cannot infer the owning layer of adapter target {name!r}; "
+                    "sharded placement expects 'layers.<idx>.<module>' names"
+                )
+            idx = int(parts[1])
+            out[name] = torch.device(layer_devices[idx])
+        return out
+
+    @staticmethod
+    def _place_adapter_sharded(
+        context: TrainLoRAContext, adapter_devices: Dict[str, torch.device]
+    ) -> None:
+        """
+        Put each adapter tensor on the GPU that owns its layer.
+
+        Rebinds `.data` rather than reassigning the tensor object, because
+        TrainTaskContext.create_optimizer captured these exact objects at
+        construction. AdamW allocates exp_avg/exp_avg_sq lazily on the
+        parameter's own device at the first step(), so placing here — before any
+        step — needs no optimizer-state migration.
+        """
+        with torch.no_grad():
+            for name, module in context.adapter_model_.items():
+                dev = adapter_devices[name]
+                for tensor in module.get_all_tensors():
+                    tensor.data = tensor.data.to(dev)
+                    if tensor._grad is not None:
+                        tensor._grad.data = tensor._grad.data.to(dev)
+        # Sentinel: this context is no longer on one device. Nothing reads
+        # device_ for placement (only TrainTaskContext.switch_device's guard),
+        # and a stray switch_device call would crash loudly rather than
+        # silently collapse the shards.
+        context.device_ = "sharded"
 
     # ── LM head access ───────────────────────────────────────────────────
 
@@ -130,6 +208,54 @@ class LoRAEnsemble:
             if hasattr(module, 'wrapper_module_') and hasattr(module.wrapper_module_, 'lm_head_'):
                 return module.wrapper_module_.lm_head_
         raise RuntimeError("Could not find LM head in model")
+
+    def logits_device(self) -> torch.device:
+        """
+        The device every logprob/logit/MI tensor comes back on.
+
+        Single source of truth for the training step — do NOT re-derive this
+        from cfg.device, which is only the *input* device and is the wrong GPU
+        under sharding.
+        """
+        return self._get_lm_head().weight.device
+
+    @torch.no_grad()
+    def _prefill_last_logits(self, mlora_data: MLoRAData) -> torch.Tensor:
+        """
+        Prefill forward returning ONLY the final position's logits, (B, V).
+
+        Semantically `self.model.forward(...)[:, -1, :]`, but it never
+        materialises the (B, P, V) fp32 logits tensor. For Qwen2.5-72B with
+        K=5 adapters and a 4k prompt that tensor is ~12 GB, of which all but
+        one row per sequence is thrown away.
+
+        The KV cache is populated identically: return_hidden_states_ only skips
+        the OutputLayer; every decoder layer — and therefore every cache write —
+        still runs. The final RMSNorm also still runs, since it sits before the
+        OutputLayer in the Sequential, so applying lm_head here is exactly what
+        OutputLayer would have done.
+
+        Only enabled when self.memory_efficient_prefill is set (default: on iff
+        the model is sharded), because restricting the matmul to a single row
+        can change cuBLAS kernel selection and therefore the last bits of the
+        logits — harmless, but enough to occasionally flip a sampled token, so
+        single-GPU runs stay bit-identical to the published ones by default.
+        """
+        mlora_data.return_hidden_states_ = True
+        hidden = self.model.forward(mlora_data.model_data())   # (B, P, D)
+        last_hidden = hidden[:, -1:, :].contiguous()           # (B, 1, D)
+        del hidden
+        lm_head = self._get_lm_head()
+        return lm_head(last_hidden).float()[:, -1, :]          # (B, V)
+
+    def _prefill_logits_last_position(self, mlora_data: MLoRAData) -> torch.Tensor:
+        """Dispatch to the memory-efficient prefill or the original full-logits path."""
+        if self.memory_efficient_prefill:
+            return self._prefill_last_logits(mlora_data)
+        logits = self.model.forward(mlora_data.model_data())   # (B, P, V)
+        last = logits[:, -1, :].clone()
+        del logits
+        return last
 
     # ── Ensemble scoring ──────────────────────────────────────────────────
 
@@ -899,13 +1025,13 @@ class LoRAEnsemble:
             cache_position=0,
             kv_quantize=False,  # don't quantize yet; quantize after expansion
         )
-        logits = self.model.forward(prefill_data.model_data())  # (num_unique, P, V)
+        last_logits = self._prefill_logits_last_position(prefill_data)  # (num_unique, V)
 
         # Extract per-adapter last-token logits
         adapter_prefill_logits: Dict[int, torch.Tensor] = {}
         for idx, k in enumerate(sorted_adapters):
-            adapter_prefill_logits[k] = logits[idx, -1, :]  # (V,)
-        del logits
+            adapter_prefill_logits[k] = last_logits[idx]  # (V,)
+        del last_logits
 
         # ── Phase 3: Expand KV cache from num_unique → N sequences ──
         # When quantizing, quantize the K unique caches FIRST (K × fp16 → K × int8),
@@ -1134,12 +1260,12 @@ class LoRAEnsemble:
             cache_position=0,
             kv_quantize=False,
         )
-        logits = self.model.forward(prefill_data.model_data())
+        last_logits = self._prefill_logits_last_position(prefill_data)
 
         adapter_prefill_logits: Dict[int, torch.Tensor] = {}
         for idx, k in enumerate(sorted_adapters):
-            adapter_prefill_logits[k] = logits[idx, -1, :]
-        del logits
+            adapter_prefill_logits[k] = last_logits[idx]
+        del last_logits
 
         # ── Phase 3: Expand KV cache from num_unique → N sequences ──
         kv_cache_batch: List = []
@@ -1605,7 +1731,7 @@ class LoRAEnsemble:
                         )
 
                     del hidden
-                    torch.cuda.empty_cache()
+                    empty_cache_all()
         finally:
             self.model.seq_module_.train()
 
@@ -1681,11 +1807,31 @@ class LoRAEnsemble:
 
     def load(self, path: str, step: int):
         """Load adapter weights from checkpoint."""
+        missing: List[str] = []
         for k, ctx in enumerate(self.contexts):
             fpath = os.path.join(path, f"ensemble_{k}", f"step_{step}", "adapter.pt")
             if os.path.exists(fpath):
-                ctx.recover_weight(torch.load(fpath, weights_only=True))
+                # map_location="cpu" makes checkpoints independent of the shard
+                # layout they were written under: torch.save records each
+                # tensor's device, so without this a checkpoint saved on cuda:3
+                # fails (or lands on the wrong GPU) when the layout changes.
+                # recover_weight then copy_()s into the live, correctly-placed
+                # tensor, which is exact.
+                ctx.recover_weight(
+                    torch.load(fpath, weights_only=True, map_location="cpu")
+                )
                 logger.info(f"Loaded ensemble member {k} from {fpath}")
+            else:
+                missing.append(fpath)
+
+        if missing:
+            # Silently continuing here means resuming from randomly-initialised
+            # adapters while the epoch counter says otherwise — the run looks
+            # healthy and the results are meaningless.
+            raise FileNotFoundError(
+                f"Resume requested at step {step} but {len(missing)}/{self.K} "
+                f"adapter checkpoints are missing. First missing: {missing[0]}"
+            )
 
     # ── Helpers ───────────────────────────────────────────────────────────
 

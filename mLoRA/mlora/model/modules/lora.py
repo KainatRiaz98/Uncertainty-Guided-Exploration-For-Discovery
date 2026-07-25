@@ -1,4 +1,5 @@
 import math
+import os
 from typing import Any, Dict, List, Optional, Tuple
 from typing_extensions import override
 
@@ -9,6 +10,23 @@ from mlora.backends import MPSBackend, get_backend
 from mlora.model.args import ModelData
 
 from .adapter import Adapter
+
+# ── Test-only determinism switch (default OFF -> production behaviour) ──────
+#
+# LoRAFunction.forward calls F.dropout WITHOUT passing `training`, so it
+# defaults to True and stays active even under torch.no_grad() and even after
+# seq_module_.eval() -- eval() cannot reach a functional call. Every logprob and
+# every MI value is therefore a draw from a random variable.
+#
+# That is fine for training, but it makes 1-GPU vs sharded comparison
+# impossible: under layer sharding each layer's dropout draws from a DIFFERENT
+# GPU's RNG stream, so the two runs can never agree token-for-token.
+#
+# Setting UGTTT_DISABLE_LORA_DROPOUT=1 makes the LoRA path fully deterministic
+# (identity instead of dropout, and the matching backward correction dropped so
+# gradients stay consistent). It is used ONLY by the equivalence tests. Leave it
+# unset for real runs or the numbers will not match the published 8B results.
+DISABLE_LORA_DROPOUT: bool = os.environ.get("UGTTT_DISABLE_LORA_DROPOUT", "") == "1"
 
 g_cached_range_tensor: Dict[torch.device, torch.Tensor] = {}
 # also max batch size
@@ -59,13 +77,18 @@ class LoRAFunction(torch.autograd.Function):
             start_idx = lora_config.batch_start_idx_
             end_idx = lora_config.batch_end_idx_
 
-            # must ensure the dropout is not zero
-            # is dropout == 0, dropdata is a data's referece
-            # so the data will be changed
-            assert dropout > 0.0
+            if DISABLE_LORA_DROPOUT:
+                # Out-of-place on purpose: F.dropout(training=False) returns its
+                # input unchanged, so an in-place mul_ would corrupt `data`.
+                drop_data = data[start_idx:end_idx] * scaling
+            else:
+                # must ensure the dropout is not zero
+                # is dropout == 0, dropdata is a data's referece
+                # so the data will be changed
+                assert dropout > 0.0
 
-            drop_data = F.dropout(data[start_idx:end_idx], p=dropout)
-            drop_data.mul_(scaling)
+                drop_data = F.dropout(data[start_idx:end_idx], p=dropout)
+                drop_data.mul_(scaling)
             drop_data = drop_data @ lora_a.transpose(0, 1)
             lora_data = drop_data @ lora_b.transpose(0, 1)
 
@@ -154,7 +177,11 @@ class LoRAFunction(torch.autograd.Function):
 
             # bstage shape is batch_size * seq_len * r
             bstage = grad_y @ lora_b
-            bstage *= scaling / (1 - dropout)
+            # The 1/(1-dropout) term compensates for the inverted-dropout
+            # scaling applied in forward. With dropout disabled there is no such
+            # scaling, so the correction must be dropped too or gradients come
+            # out 1/(1-p) too large.
+            bstage *= scaling if DISABLE_LORA_DROPOUT else scaling / (1 - dropout)
 
             grad_a = torch.sum(bstage.transpose(1, 2) @ lora_data, dim=0)
             grad_b = torch.sum(grad_y.transpose(1, 2) @ drop_data, dim=0)

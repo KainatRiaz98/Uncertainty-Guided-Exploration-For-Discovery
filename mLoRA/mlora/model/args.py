@@ -27,6 +27,15 @@ class LLMModelArgs:
     device_: str
     dtype_: torch.dtype
 
+    # ── Multi-GPU layer sharding ──────────────────────────────────────────
+    # device_ remains the INPUT device (embedding / token tensor). When the
+    # model is sharded across several GPUs these carry the rest of the layout:
+    #   layer_devices_ : device string per decoder layer index (len == n_layers_)
+    #   output_device_ : device holding model.norm and lm_head (== layer_devices_[-1])
+    # Both stay None/"" for the single-GPU path, which behaves exactly as before.
+    layer_devices_: Optional[List[str]] = None
+    output_device_: str = ""
+
     def __init__(self, config: PretrainedConfig):
         self.__from_pretrained_config(config)
 
@@ -64,6 +73,8 @@ class LLMModelArgs:
 
         self.device_ = ""
         self.dtype_ = torch.float32
+        self.layer_devices_ = None
+        self.output_device_ = ""
 
 
 @dataclass

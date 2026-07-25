@@ -15,12 +15,15 @@ class Decoder(torch.nn.Module):
     attn_norm_: RMSNorm
     mlp_norm_: RMSNorm
 
-    def __init__(self, layer_id: int, args: LLMModelArgs):
+    def __init__(self, layer_id: int, args: LLMModelArgs, device=None):
         super().__init__()
 
         self.layer_id_ = layer_id
+        # `device` overrides args.device_ when the model is sharded by layer,
+        # so this layer's RoPE tables are built on the GPU that owns it.
+        self.device_ = device or args.device_
 
-        self.attn_: Attention = Attention(layer_id, args)
+        self.attn_: Attention = Attention(layer_id, args, device=device)
         self.mlp_: MLP = MLP(layer_id)
 
     def forward(

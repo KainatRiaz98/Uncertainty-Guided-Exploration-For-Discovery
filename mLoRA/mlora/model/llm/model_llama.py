@@ -78,10 +78,142 @@ LEN_LLAMA_SEQUENTIAL_MODULE_IO = 4
 LlamaCompatibleModelTypes = ["mistral", "qwen2", "qwen3", "llama"]
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Multi-GPU layer sharding
+#
+# The model is split *by layer* across the visible GPUs and executed
+# sequentially, hopping the hidden state device->device between layers. This
+# adds only device transfers: the ops, their order and their reductions are
+# unchanged, so the numbers stay comparable with a single-GPU run.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def build_layer_balance(num_layers: int, num_devices: int) -> List[int]:
+    """
+    Default layer-count-per-device split.
+
+    Remainder layers go to the EARLIER devices on purpose: the last device
+    additionally carries model.norm, the lm_head and every fp32 logit/MI
+    buffer ((K, chunk, V) fp32 is several GB), so it needs the most headroom.
+    """
+    assert num_devices > 0, "need at least one device"
+    assert num_layers >= num_devices, (
+        f"cannot split {num_layers} layers across {num_devices} devices"
+    )
+    base, rem = divmod(num_layers, num_devices)
+    return [base + (1 if i < rem else 0) for i in range(num_devices)]
+
+
+def build_shard_layout(
+    num_layers: int,
+    devices: List[str],
+    balance: Optional[List[int]] = None,
+) -> Tuple[List[str], str, str]:
+    """
+    Returns (layer_devices, input_device, output_device).
+
+    layer_devices[i] is the device string for decoder layer i.
+    input_device holds the embedding; output_device holds norm + lm_head and is
+    always the device of the LAST decoder layer, so that the hidden state
+    handed to the LM head never has to hop again (this is what lets
+    LoRAEnsemble._chunked_logprobs stay untouched).
+    """
+    if balance is None:
+        balance = build_layer_balance(num_layers, len(devices))
+
+    if len(balance) != len(devices):
+        raise ValueError(
+            f"gpu_layer_balance has {len(balance)} entries but {len(devices)} "
+            f"devices were given: {balance} vs {devices}"
+        )
+    if sum(balance) != num_layers:
+        raise ValueError(
+            f"gpu_layer_balance sums to {sum(balance)} but the model has "
+            f"{num_layers} layers: {balance}"
+        )
+    if any(b <= 0 for b in balance):
+        raise ValueError(f"every device must own at least one layer, got {balance}")
+
+    layer_devices: List[str] = []
+    for dev, count in zip(devices, balance):
+        layer_devices.extend([dev] * count)
+
+    return layer_devices, devices[0], layer_devices[-1]
+
+
+def build_hf_device_map(
+    config,
+    layer_devices: List[str],
+    input_device: str,
+    output_device: str,
+) -> Dict[str, str]:
+    """
+    Build an explicit HuggingFace device_map covering EVERY top-level submodule.
+
+    The key list is derived by instantiating the architecture on the `meta`
+    device (zero memory, zero IO) rather than hardcoded, so a module that only
+    exists in some transformers versions -- e.g. `model.rotary_emb` on Qwen3 in
+    4.56/4.57 -- cannot be silently left unmapped. An unmapped module stays on
+    `meta` and fails much later with a confusing error.
+    """
+    with torch.device("meta"):
+        skeleton = AutoModelForCausalLM.from_config(config)
+
+    device_map: Dict[str, str] = {}
+    for top_name, top_module in skeleton.named_children():
+        if not list(top_module.named_children()):
+            # A leaf at the top level (e.g. `lm_head`).
+            device_map[top_name] = output_device
+            continue
+        for sub_name, _ in top_module.named_children():
+            full = f"{top_name}.{sub_name}"
+            if sub_name == "layers":
+                for idx, dev in enumerate(layer_devices):
+                    device_map[f"{full}.{idx}"] = dev
+            elif sub_name == "embed_tokens":
+                device_map[full] = input_device
+            else:
+                # norm, rotary_emb, and anything else that hangs off the trunk.
+                device_map[full] = output_device
+
+    del skeleton
+    return device_map
+
+
+def assert_no_offload(hf_device_map: Dict[str, str]) -> None:
+    """
+    Fail loudly if any module landed on CPU or disk.
+
+    Silent CPU/disk offload does not corrupt results, but it makes a run
+    100x slower -- which on a deadline is just as fatal, and far harder to
+    notice than a crash.
+    """
+    offloaded = {
+        name: dev
+        for name, dev in hf_device_map.items()
+        if str(dev) in ("cpu", "disk", "meta")
+    }
+    if offloaded:
+        raise RuntimeError(
+            "Model was partially offloaded to CPU/disk/meta, which would make "
+            "training unusably slow. Reduce --context_window or --group_size, "
+            "or give the run more GPUs.\nOffloaded modules: "
+            + ", ".join(f"{k} -> {v}" for k, v in sorted(offloaded.items())[:20])
+            + (" ..." if len(offloaded) > 20 else "")
+        )
+
+
 class LlamaSequentialWrapper(torch.nn.Module):
-    def __init__(self, module: torch.nn.Module):
+    def __init__(self, module: torch.nn.Module, device: Optional[str] = None):
         super().__init__()
         self.wrapper_module_ = module
+        # Device this stage's weights live on. None => single-GPU path, no hop.
+        self.device_: Optional[str] = device
+        # Precomputed: forward() compares against this once per layer per decode
+        # step, and a 80-layer model decoding 24k tokens does that ~2M times.
+        self.torch_device_: Optional[torch.device] = (
+            torch.device(device) if device is not None else None
+        )
 
     def name(self) -> str:
         return type(self.wrapper_module_).__name__
@@ -152,9 +284,24 @@ class LlamaModel(LLMModel):
         self.dim_ = args.dim_
         self.vocab_size_ = args.vocab_size_
 
+        # Sharding layout. layer_devices_ is None on the single-GPU path.
+        self.layer_devices_ = args.layer_devices_
+        self.output_device_ = args.output_device_ or args.device_
+
         # need to set
         self.pad_token_id_ = args.pad_token_id_
         self.eos_token_id_ = -1
+
+    def layer_devices(self) -> Optional[List[str]]:
+        """Device string per decoder layer index, or None when not sharded."""
+        return self.layer_devices_
+
+    def output_device(self) -> str:
+        """Device holding model.norm and the LM head (where logits appear)."""
+        return self.output_device_
+
+    def is_sharded(self) -> bool:
+        return self.layer_devices_ is not None and len(set(self.layer_devices_)) > 1
 
     @override
     def forward(self, input: ModelData) -> torch.Tensor:
@@ -167,6 +314,15 @@ class LlamaModel(LLMModel):
             # 1-element sentinel: signals flash causal attention, avoids O(n²) mask
             mask = torch.empty(1, device=self.device_)
         else:
+            if self.is_sharded():
+                # The additive mask is (B, n_heads, T, T); copying it at every
+                # layer boundary would dwarf the hidden state. Every UG-TTT call
+                # path sets use_flash_causal_, so this is a guard, not a limit.
+                raise RuntimeError(
+                    "Sharded execution requires use_flash_causal_=True. The "
+                    "additive-mask path allocates a (B, n_heads, T, T) tensor "
+                    "per device and is not supported across shards."
+                )
             mask = precompute_mask(tokens, self.n_heads_, self.device_, input.batch_mask_)
 
         if input.enable_checkpoint_:
@@ -178,6 +334,25 @@ class LlamaModel(LLMModel):
             # Skip OutputLayer when only hidden states are needed
             if getattr(input, 'return_hidden_states_', False) and seq_layer.name() == "OutputLayer":
                 break
+
+            # ── Cross-device hop ──────────────────────────────────────────
+            # Done HERE, outside the wrapper, so it is outside
+            # CheckpointRecomputeFunction. Putting a .to() inside the
+            # checkpointed region would make the recompute pass see different
+            # inputs and desync the dropout RNG.
+            #
+            # Tensor.to() is differentiable and returns `self` when already on
+            # the target device, so this is free on the single-GPU path and
+            # autograd carries gradients back across the boundary by itself.
+            stage_device = seq_layer.torch_device_
+            if stage_device is not None:
+                hidden, mask_t = data[0], data[1]
+                if hidden.device != stage_device:
+                    hidden = hidden.to(stage_device)
+                if mask_t.device != stage_device:
+                    mask_t = mask_t.to(stage_device)
+                data = (hidden, mask_t) + data[2:]
+
             data = seq_layer.forward(data)
 
         return data[0]
@@ -189,11 +364,53 @@ class LlamaModel(LLMModel):
         device: str,
         precision: str,
         partial_model_to_device: Optional[List[int]] = None,
+        devices: Optional[List[str]] = None,
+        layer_balance: Optional[List[int]] = None,
     ) -> LLMModel:
+        # ── Multi-GPU layer sharding layout (None on the single-GPU path) ──
+        shard_layer_devices: Optional[List[str]] = None
+        shard_input_device = device
+        shard_output_device = device
+        sharded = devices is not None and len(devices) > 1
+
+        if sharded:
+            shard_config = AutoConfig.from_pretrained(path)
+            if getattr(shard_config, "tie_word_embeddings", False):
+                raise RuntimeError(
+                    f"{path} has tie_word_embeddings=True, so lm_head shares "
+                    "storage with model.embed_tokens. Layer sharding places "
+                    "those on different GPUs, which HuggingFace cannot express. "
+                    "Use an untied checkpoint (Qwen3-8B/14B/32B and "
+                    "Qwen2.5-72B-Instruct are all untied) or run on one GPU."
+                )
+            (
+                shard_layer_devices,
+                shard_input_device,
+                shard_output_device,
+            ) = build_shard_layout(
+                shard_config.num_hidden_layers, devices, layer_balance
+            )
+            logging.info(
+                "Sharding %d layers across %s (balance=%s), "
+                "embedding on %s, norm+lm_head on %s",
+                shard_config.num_hidden_layers,
+                devices,
+                [shard_layer_devices.count(d) for d in devices],
+                shard_input_device,
+                shard_output_device,
+            )
+
         # create the device map for parallelism
         def create_device_map() -> str | Dict[str, str]:
             device_map: str | Dict[str, str]
-            if partial_model_to_device is None:
+            if sharded:
+                device_map = build_hf_device_map(
+                    shard_config,
+                    shard_layer_devices,
+                    shard_input_device,
+                    shard_output_device,
+                )
+            elif partial_model_to_device is None:
                 device_map = device
             else:
                 config = AutoConfig.from_pretrained(path)
@@ -256,11 +473,36 @@ class LlamaModel(LLMModel):
             f"loading llama compatible model - {llama_model.config.model_type}"
         )
 
+        if sharded:
+            hf_map = getattr(llama_model, "hf_device_map", None)
+            if not hf_map:
+                raise RuntimeError(
+                    "Requested multi-GPU sharding but transformers did not "
+                    "produce an hf_device_map. This usually means `accelerate` "
+                    "is not installed (`pip install accelerate`)."
+                )
+            assert_no_offload(hf_map)
+            logging.info("hf_device_map resolved to %d entries", len(hf_map))
+
         llama_args = LLMModelArgs(llama_model.config)
         if llama_args.pad_token_id_ is None:
             llama_args.pad_token_id_ = -1
-        llama_args.device_ = device
+        llama_args.device_ = shard_input_device
         llama_args.dtype_ = llama_model.dtype
+        llama_args.layer_devices_ = shard_layer_devices
+        llama_args.output_device_ = shard_output_device
+
+        # RoPE tables are sized by max_seq_len_ and sliced with no bounds check
+        # in Attention.forward, so a too-small table fails deep inside
+        # apply_rotary_emb rather than here. Surface it at load time instead.
+        if llama_args.max_seq_len_ < 8192:
+            logging.warning(
+                "max_seq_len_ resolved to %d -- RoPE tables are sized to this "
+                "and positions beyond it will fail with a shape mismatch inside "
+                "apply_rotary_emb. Check the model config's "
+                "max_position_embeddings / sliding_window.",
+                llama_args.max_seq_len_,
+            )
 
         # load model from pretrained large model
         model = LlamaModel.convert_model_from_huggingface(llama_model, llama_args)
@@ -273,6 +515,13 @@ class LlamaModel(LLMModel):
     ):
         llama_model.requires_grad_(False)
 
+        # Per-stage device, or None everywhere on the single-GPU path (in which
+        # case LlamaModel.forward skips the hop entirely).
+        layer_devices = llama_args.layer_devices_
+        is_sharded = layer_devices is not None
+        in_dev = llama_args.device_ if is_sharded else None
+        out_dev = llama_args.output_device_ if is_sharded else None
+
         seq_model: OrderedDict[str, torch.nn.Module] = OrderedDict()
 
         seq_model.update(
@@ -280,27 +529,36 @@ class LlamaModel(LLMModel):
                 "embedding": LlamaSequentialWrapper(
                     Embedding(
                         llama_model.model.embed_tokens.weight, llama_args.pad_token_id_
-                    )
+                    ),
+                    device=in_dev,
                 )
             }
         )
 
         for idx, target_layer in enumerate(llama_model.model.layers):
-            decoder = Decoder(idx, llama_args)
+            layer_dev = layer_devices[idx] if is_sharded else None
+            # Build the RoPE tables directly on this layer's device. They are
+            # plain tensor attributes, not registered buffers, so a later
+            # module.to() would NOT move them.
+            decoder = Decoder(idx, llama_args, device=layer_dev)
             decoder.from_pretrained(target_layer, llama_args.norm_eps_)
-            seq_model.update({f"layer{idx}": LlamaSequentialWrapper(decoder)})
+            seq_model.update(
+                {f"layer{idx}": LlamaSequentialWrapper(decoder, device=layer_dev)}
+            )
 
         seq_model.update(
             {
                 "norm": LlamaSequentialWrapper(
-                    RMSNorm(llama_model.model.norm.weight, llama_args.norm_eps_)
+                    RMSNorm(llama_model.model.norm.weight, llama_args.norm_eps_),
+                    device=out_dev,
                 )
             }
         )
         seq_model.update(
             {
                 "output": LlamaSequentialWrapper(
-                    OutputLayer(llama_model.lm_head.weight, llama_args)
+                    OutputLayer(llama_model.lm_head.weight, llama_args),
+                    device=out_dev,
                 )
             }
         )

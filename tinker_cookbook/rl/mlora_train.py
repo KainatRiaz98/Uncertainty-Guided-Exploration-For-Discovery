@@ -43,6 +43,11 @@ from mlora.model.tokenizer import Tokenizer as MLoRATokenizer
 
 # ── Our new modules ────────────────────────────────────────────────────────────
 from tinker_cookbook.rl.ensemble import LoRAEnsemble
+from tinker_cookbook.rl.gpu_utils import (
+    empty_cache_all,
+    format_memory_line,
+    memory_metrics,
+)
 from tinker_cookbook.rl.nuclear_norm import compute_nuclear_norm_diversity_loss
 from tinker_cookbook.rl.uncertainty import (
     UNCERTAINTY_FNS,
@@ -100,6 +105,51 @@ def wrap_chatml_single_phase(prompt_text: str) -> str:
 # Config — mirrors tinker_cookbook/rl/train.py:Config with ensemble additions
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def resolve_shard_devices(gpus: str) -> Optional[List[str]]:
+    """
+    Turn the --gpus spec into an explicit device list, or None for single-GPU.
+
+    Indices are process-local: CUDA_VISIBLE_DEVICES has already remapped them,
+    so "0,1" always means the first two GPUs this process can see.
+    """
+    spec = (gpus or "1").strip().lower()
+
+    if spec in ("", "1"):
+        return None
+
+    available = torch.cuda.device_count() if torch.cuda.is_available() else 0
+
+    if spec == "auto":
+        indices = list(range(available))
+    elif spec.isdigit():
+        want = int(spec)
+        if want > available:
+            raise ValueError(
+                f"--gpus {want} requested but only {available} CUDA device(s) "
+                "are visible. Check CUDA_VISIBLE_DEVICES."
+            )
+        indices = list(range(want))
+    else:
+        indices = [int(part) for part in spec.split(",") if part.strip() != ""]
+        bad = [i for i in indices if i >= available]
+        if bad:
+            raise ValueError(
+                f"--gpus {gpus} refers to device(s) {bad} but only {available} "
+                "are visible. Indices are process-local (post "
+                "CUDA_VISIBLE_DEVICES remapping)."
+            )
+
+    if len(indices) <= 1:
+        return None
+    return [f"cuda:{i}" for i in indices]
+
+
+def parse_layer_balance(balance: Optional[str]) -> Optional[List[int]]:
+    if not balance:
+        return None
+    return [int(part) for part in balance.split(",") if part.strip() != ""]
+
+
 def seed_everything(seed: int) -> None:
     """Seed Python, NumPy and Torch RNGs for reproducible runs.
 
@@ -128,6 +178,18 @@ class Config:
     base_model: str = "Qwen/Qwen3-8B"
     precision: str = "fp16"
     device: str = "cuda"
+
+    # ── Multi-GPU layer sharding ──────────────────────────────────────────
+    # gpus: "1" (default, single GPU — behaves exactly as before)
+    #       "auto" (every visible device) | "N" (first N) | "0,1,2" (explicit)
+    # gpu_layer_balance: optional "20,20,20,20" override for layers per GPU.
+    #   Default splits evenly with the remainder on the EARLIER devices,
+    #   because the last device also carries norm + lm_head + every fp32
+    #   logit/MI buffer. Shift layers off the last GPU if it OOMs.
+    # memory_efficient_prefill: None = on iff sharded. See LoRAEnsemble.
+    gpus: str = "1"
+    gpu_layer_balance: Optional[str] = None
+    memory_efficient_prefill: Optional[bool] = None
 
     # ── Environment ───────────────────────────────────────────────────────
     env: str = "ac1"
@@ -311,10 +373,20 @@ def compute_rl_loss(
             the original train.py behaviour where Tinker receives per-token
             advantages via datum.loss_fn_inputs["advantages"].
     """
+    # current_logprobs comes off the LM head, which under layer sharding is the
+    # LAST GPU — not cfg.device. Normalise every operand to it. Tensor.to()
+    # returns self when already co-located, so this is free on one GPU.
+    # old_logprobs and action_mask are non-grad leaves, so moving them adds
+    # nothing to the graph; current_logprobs (the only grad-carrying operand) is
+    # deliberately never moved.
+    dev = current_logprobs.device
+    old_logprobs = old_logprobs.to(dev)
+    action_mask = action_mask.to(dev)
+
     if isinstance(advantage, torch.Tensor):
-        adv = advantage.to(current_logprobs.device)
+        adv = advantage.to(dev)
     else:
-        adv = torch.tensor(advantage, device=current_logprobs.device)
+        adv = torch.tensor(advantage, device=dev)
     log_ratio = current_logprobs - old_logprobs
     ratio = log_ratio.exp()
 
@@ -437,7 +509,6 @@ def incorporate_kl_penalty(
     ensemble: "LoRAEnsemble",
     kl_penalty_coef: float,
     kl_discount_factor: float,
-    device: str = "cuda",
 ) -> Tuple[List[torch.Tensor], Dict[str, float]]:
     """
     Adjust advantages with per-token KL penalty against the base model.
@@ -459,7 +530,11 @@ def incorporate_kl_penalty(
         ensemble: LoRAEnsemble (used to get base model for logprob computation).
         kl_penalty_coef: Coefficient for KL penalty.
         kl_discount_factor: Temporal discount factor (0 = disabled).
-        device: Device for tensors.
+
+    Note on devices: there is deliberately no `device` argument. Every tensor
+    here is built on the device the base logprobs came back on (the LM head's,
+    which under layer sharding is the LAST GPU). Threading cfg.device in was the
+    original bug — cfg.device is the *input* device.
 
     Returns:
         per_token_advantages: List of (T_i-1,) tensors, one per rollout.
@@ -469,13 +544,20 @@ def incorporate_kl_penalty(
             per-token KL adjustments in-place.
         metrics: Dict with 'kl_policy_base' metric.
     """
+    # With no `device` argument there is no fallback when rollouts is empty:
+    # the loop would not run, sum(...) over an empty list returns int 0, and
+    # total_mask.clamp() would raise AttributeError on an int.
+    if not rollouts:
+        return [], {"kl_policy_base": 0.0}
+
     # Compute per-token KL diffs for each rollout
     logprob_diffs = []
     float_masks = []
 
     for rollout in rollouts:
-        base_logprobs = _compute_base_logprobs(ensemble, rollout.full_tokens, device)
+        base_logprobs = _compute_base_logprobs(ensemble, rollout.full_tokens)
 
+        device = base_logprobs.device
         sampling_lp = torch.tensor(rollout.sampling_logprobs, device=device)
         mask = rollout.action_mask.to(device)
 
@@ -496,9 +578,12 @@ def incorporate_kl_penalty(
     for i, rollout in enumerate(rollouts):
         kl_advantages = kl_penalty_coef * float_masks[i] * (avg_logp_diff - logprob_diffs[i])
         if kl_discount_factor > 0:
+            # Rebuild on the device it came from, not cfg.device — otherwise
+            # this silently re-pins to cuda:0 and the next line crashes.
+            kl_dev = kl_advantages.device
             kl_advantages = torch.tensor(
                 discounted_future_sum_vectorized(kl_advantages.cpu().numpy(), kl_discount_factor),
-                device=device,
+                device=kl_dev,
             )
         # Broadcast scalar advantage to all tokens, add per-token KL adjustment
         token_adv = advantages[i] * float_masks[i] + kl_advantages
@@ -511,16 +596,16 @@ def incorporate_kl_penalty(
 def _compute_base_logprobs(
     ensemble: "LoRAEnsemble",
     token_ids: List[int],
-    device: str,
 ) -> torch.Tensor:
     """
     Compute logprobs from the base model (no LoRA adapters).
 
     This gives us p_base(y_t | y_{<t}) for KL penalty computation.
-    We temporarily disable all LoRA adapters and do a forward pass.
+    No adapter matches the "__base__" name, so LoRAFunction skips every adapter
+    branch — meaning no LoRA is applied and no dropout RNG is consumed.
 
     Returns:
-        (T-1,) tensor of base model log-probabilities.
+        (T-1,) tensor of base model log-probabilities, on the LM head's device.
     """
     T = len(token_ids)
 
@@ -543,23 +628,37 @@ def _compute_base_logprobs(
         data_config=[data_config],
     )
     mlora_data.use_flash_causal_ = True
+    # Stop before the OutputLayer and apply the LM head chunk-wise instead.
+    #
+    # The previous version ran the full model and materialised a (1, T, V) fp32
+    # logits tensor BEFORE chunking the log_softmax. At V=152064 and T=24k that
+    # is ~15 GB on one GPU — and this runs once per rollout whenever
+    # kl_penalty_coef > 0, which is the default (0.01) in every launch script.
+    # It is the single largest transient allocation in the trainer and it alone
+    # makes 32B/72B infeasible.
+    #
+    # Chunking the head instead keeps peak at (1, chunk, V) fp32 ≈ 156 MB. This
+    # is exactly the pattern LoRAEnsemble._chunked_logprobs already uses for the
+    # policy logprobs; log_softmax is row-independent so the values are the same
+    # up to cuBLAS kernel selection on the smaller matmul.
+    mlora_data.return_hidden_states_ = True
 
-    logits = ensemble.model.forward(mlora_data.model_data())  # (1, T, V)
+    hidden = ensemble.model.forward(mlora_data.model_data())  # (1, T, D)
+    lm_head = ensemble._get_lm_head()
 
-    # Chunk over the sequence dim to avoid materialising the full (T-1, V) log-prob tensor.
-    # For Qwen3-8B: V=152064, T=26K → ~8 GB for log_softmax output if done at once.
-    # Chunking keeps peak at (1, T, V) logits + (chunk, V) log_softmax ≈ 8.1 GB instead of ~16 GB.
-    # logits[0, start:end, :] is a view (no copy), so only the chunk_lp allocation is new each step.
-    dev = logits.device
+    dev = hidden.device
     target = torch.tensor(token_ids[1:], dtype=torch.long, device=dev)
     chunk_size = 256
     per_token_chunks = []
     for start in range(0, T - 1, chunk_size):
         end = min(start + chunk_size, T - 1)
-        chunk_lp = F.log_softmax(logits[0, start:end, :], dim=-1)  # (chunk, V)
-        per_token_chunks.append(chunk_lp.gather(1, target[start:end].unsqueeze(1)).squeeze(1))
-        del chunk_lp
-    del logits
+        chunk_logits = lm_head(hidden[:, start:end, :]).float()      # (1, chunk, V)
+        chunk_lp = F.log_softmax(chunk_logits, dim=-1)
+        per_token_chunks.append(
+            chunk_lp[0].gather(1, target[start:end].unsqueeze(1)).squeeze(1)
+        )
+        del chunk_logits, chunk_lp
+    del hidden
     return torch.cat(per_token_chunks)
 
 
@@ -570,7 +669,6 @@ def _compute_base_logprobs(
 def compute_kl_sample_train(
     rollouts: List["Rollout"],
     training_logprobs: List[torch.Tensor],
-    device: str = "cuda",
 ) -> Dict[str, float]:
     """
     Compute KL divergence between sampling and training logprobs.
@@ -582,7 +680,10 @@ def compute_kl_sample_train(
     Args:
         rollouts: List of Rollout objects with sampling_logprobs.
         training_logprobs: List of (T-1,) tensors from the training forward pass.
-        device: Device for tensors.
+
+    Note on devices: derived per-rollout from train_lp, never from a
+    caller-supplied string. cfg.device is the input device and is the wrong GPU
+    once the model is sharded.
 
     Returns:
         Dict with 'optim/kl_sample_train_v1', 'optim/kl_sample_train_v2',
@@ -592,8 +693,9 @@ def compute_kl_sample_train(
     all_sampling_logprobs: List[torch.Tensor] = []
 
     for rollout, train_lp in zip(rollouts, training_logprobs):
-        sampling_lp = torch.tensor(rollout.sampling_logprobs, device=device)
-        mask = rollout.action_mask.to(device) > 0
+        dev = train_lp.device
+        sampling_lp = torch.tensor(rollout.sampling_logprobs, device=dev)
+        mask = rollout.action_mask.to(dev) > 0
 
         sampling_actions = sampling_lp[mask]
         training_actions = train_lp[mask]
@@ -1090,7 +1192,7 @@ def do_group_rollout_batched(
     all_full_tokens = [ft for ft, _ in gen_results]
     if rmi_coef > 0:
         t_score_start = time.time()
-        torch.cuda.empty_cache()
+        empty_cache_all()
         all_scored = ensemble.compute_ensemble_logprobs_batch(all_full_tokens)
         t_score = time.time() - t_score_start
         logger.info(f"  Group {group_idx}: batched ensemble scoring in {t_score:.1f}s")
@@ -1406,7 +1508,6 @@ def train_step(
                 ensemble=ensemble,
                 kl_penalty_coef=cfg.kl_penalty_coef,
                 kl_discount_factor=cfg.kl_discount_factor,
-                device=cfg.device,
             )
             metrics_accum["advantage/mean"].append(scalar_advantages.mean().item())
             metrics_accum["advantage/std"].append(scalar_advantages.std().item())
@@ -1446,13 +1547,18 @@ def train_step(
     all_training_logprobs: List[torch.Tensor] = []
     all_trained_rollouts: List[Rollout] = []
 
+    # Where logprobs come back from the LM head. Under layer sharding this is
+    # the LAST GPU, not cfg.device (which is only the embedding/input device).
+    # Invariant across k, so it is hoisted out of both loops.
+    logits_dev = ensemble.logits_device()
+
     for substep_batch in substep_batches:
         n_batch = max(len(substep_batch), 1)
 
         for rollout, adv in substep_batch:
-            action_mask = rollout.action_mask.to(cfg.device)
+            action_mask = rollout.action_mask.to(logits_dev)
             old_logprobs = torch.tensor(
-                rollout.sampling_logprobs, device=cfg.device
+                rollout.sampling_logprobs, device=logits_dev
             )
 
             # Sequential per-adapter forward+backward: peak activation memory is
@@ -1510,7 +1616,7 @@ def train_step(
     kl_track_metrics = {}
     if all_trained_rollouts:
         kl_track_metrics = compute_kl_sample_train(
-            all_trained_rollouts, all_training_logprobs, cfg.device
+            all_trained_rollouts, all_training_logprobs
         )
 
     # ── Aggregate metrics ──
@@ -1687,17 +1793,39 @@ def main(
             ml_logger.log_metrics(metrics, step=step)
 
     # ── 2. Load model + ensemble ──────────────────────────────────────────
-    logger.info(f"Loading base model: {cfg.base_model} ({cfg.precision})")
+    shard_devices = resolve_shard_devices(cfg.gpus)
+    layer_balance = parse_layer_balance(cfg.gpu_layer_balance)
+
+    if shard_devices:
+        logger.info(
+            f"Loading base model: {cfg.base_model} ({cfg.precision}) "
+            f"SHARDED across {len(shard_devices)} GPUs: {shard_devices}"
+        )
+    else:
+        logger.info(f"Loading base model: {cfg.base_model} ({cfg.precision})")
+
     args = argparse.Namespace(
         base_model=cfg.base_model,
-        device=cfg.device,
+        # On the sharded path this is the embedding/input device; the rest of
+        # the layout is carried by `devices`.
+        device=shard_devices[0] if shard_devices else cfg.device,
         precision=cfg.precision,
         model_type="llama",
         pipeline=False,
         balance=None,
         rank=None,
+        devices=shard_devices,
+        gpu_layer_balance=layer_balance,
     )
     tokenizer, model = mlora_load_model(args)
+
+    if shard_devices:
+        layer_devices = model.layer_devices() or []
+        per_gpu = {d: layer_devices.count(d) for d in shard_devices}
+        logger.info(
+            "Shard layout: %s | norm+lm_head on %s | %s",
+            per_gpu, model.output_device(), format_memory_line(),
+        )
 
     ensemble = LoRAEnsemble(
         model=model,
@@ -1709,7 +1837,14 @@ def main(
         learning_rate=cfg.learning_rate,
         optimizer="adamw",
         seed=cfg.seed,
+        memory_efficient_prefill=cfg.memory_efficient_prefill,
     )
+
+    if shard_devices:
+        logger.info(
+            "After adapter placement: %s | logits land on %s",
+            format_memory_line(), ensemble.logits_device(),
+        )
 
     if cfg.uncertainty_metric == "true_mi":
         # True MI is computed from full vocab distributions during scoring;
@@ -1943,9 +2078,7 @@ def main(
             status = "KEPT" if kept else "FILTERED"
             gpu_msg = ""
             if torch.cuda.is_available():
-                mem_alloc = torch.cuda.memory_allocated() / 1e9
-                mem_reserved = torch.cuda.memory_reserved() / 1e9
-                gpu_msg = f" | GPU: {mem_alloc:.1f}/{mem_reserved:.1f}GB"
+                gpu_msg = f" | GPU: {format_memory_line()}"
             logger.info(
                 f"  [{epoch}][{g+1}/{num_groups_total}] {status} | "
                 f"R_exec={np.mean(group_rewards_exec):.4f} (max={np.max(group_rewards_exec):.4f}) "
@@ -1974,13 +2107,11 @@ def main(
                     r.metrics.get("streaming_mi/tokens_saved", 0) for r in group_rollouts
                 ])),
             }
-            if torch.cuda.is_available():
-                group_metrics["gpu/memory_allocated_gb"] = torch.cuda.memory_allocated() / 1e9
-                group_metrics["gpu/memory_reserved_gb"] = torch.cuda.memory_reserved() / 1e9
+            group_metrics.update(memory_metrics())
             _log_metrics_quiet(group_metrics)
 
             # Free any residual KV cache / scoring tensors before the next group
-            torch.cuda.empty_cache()
+            empty_cache_all()
 
         metrics["time/rollout"] = time.time() - t_start
 
@@ -1990,11 +2121,11 @@ def main(
             f"Training on {len(rollout_groups)}/{num_groups_total} groups..."
         )
         t_train = time.time()
-        torch.cuda.empty_cache()  # release fragmented reserved-but-unallocated pool before backward
+        empty_cache_all()  # release fragmented reserved-but-unallocated pool before backward
         train_metrics = train_step(ensemble, rollout_groups, cfg)
         metrics.update(train_metrics)
         metrics["time/train"] = time.time() - t_train
-        torch.cuda.empty_cache()  # release post-backward gradient/activation pool before next epoch's rollout
+        empty_cache_all()  # release post-backward gradient/activation pool before next epoch's rollout
 
         # ── Streaming MI threshold update ────────────────────────────
         if mi_tracker is not None:
@@ -2044,10 +2175,7 @@ def main(
 
         # ── Logging ───────────────────────────────────────────────────
         metrics["time/total"] = time.time() - t_start
-        if torch.cuda.is_available():
-            metrics["gpu/memory_allocated_gb"] = torch.cuda.memory_allocated() / 1e9
-            metrics["gpu/memory_reserved_gb"] = torch.cuda.memory_reserved() / 1e9
-            metrics["gpu/memory_peak_gb"] = torch.cuda.max_memory_allocated() / 1e9
+        metrics.update(memory_metrics())
         ml_logger.log_metrics(metrics)
 
         r_exec = metrics.get("train/reward/exec/mean", 0)
@@ -2100,6 +2228,29 @@ def cli_main():
     parser.add_argument("--precision", default="fp16",
                         choices=["nf4", "fp4", "int8", "bf16", "fp16", "fp32"])
     parser.add_argument("--device", default="cuda")
+    parser.add_argument(
+        "--gpus", default="1",
+        help="Layer-shard the model across GPUs so models larger than one card "
+             "fit. '1' (default) = single GPU, unchanged behaviour. 'auto' = "
+             "every visible device. 'N' = first N. '0,1,2' = explicit indices. "
+             "Indices are process-local (after CUDA_VISIBLE_DEVICES remapping).",
+    )
+    parser.add_argument(
+        "--gpu_layer_balance", default=None,
+        help="Optional decoder layers per GPU, e.g. '20,20,20,20'. Must sum to "
+             "the model's layer count. Default splits evenly with the remainder "
+             "on the earlier devices, since the last GPU also holds norm, the "
+             "LM head and the fp32 logit/MI buffers. Shift layers off the last "
+             "GPU if it OOMs.",
+    )
+    parser.add_argument(
+        "--memory_efficient_prefill", default=None,
+        action=argparse.BooleanOptionalAction,
+        help="Apply the LM head only to the last prefill position instead of "
+             "materialising (B, prompt_len, vocab) fp32 (~12GB for 72B with "
+             "K=5). Default: on iff sharded, so single-GPU runs stay "
+             "bit-identical to published results.",
+    )
 
     # Environment
     parser.add_argument("--env", default="ac1")
@@ -2190,6 +2341,9 @@ def cli_main():
         base_model=args.base_model,
         precision=args.precision,
         device=args.device,
+        gpus=args.gpus,
+        gpu_layer_balance=args.gpu_layer_balance,
+        memory_efficient_prefill=args.memory_efficient_prefill,
         env=args.env,
         problem_idx=args.problem_idx,
         budget_s=args.budget_s,

@@ -32,11 +32,22 @@ def load_partial_model(args) -> LLMModel:
 
 
 def load_full_model(args) -> LLMModel:
+    # `devices` / `gpu_layer_balance` are optional and only set by the UG-TTT
+    # trainer when a run spans several GPUs. getattr keeps mLoRA's own CLIs
+    # (mlora_train.py, mlora_pp_train.py) working unchanged.
+    devices = getattr(args, "devices", None)
+    layer_balance = getattr(args, "gpu_layer_balance", None)
+
+    if devices:
+        logging.info(f"Loading model sharded across devices: {devices}")
+
     return MODEL_TYPE_DICT[args.model_type].from_pretrained(
         path=args.base_model,
         device=args.device,
         precision=args.precision,
         partial_model_to_device=None,
+        devices=devices,
+        layer_balance=layer_balance,
     )
 
 

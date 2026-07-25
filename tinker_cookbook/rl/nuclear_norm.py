@@ -80,11 +80,29 @@ def compute_nuclear_norm_diversity_loss(
     """
     weight_dict = get_ensemble_lora_a_stacked(ensemble)
 
+    # Where the combined loss should live. Under layer sharding each stacked
+    # lora_A sits on the GPU that owns its decoder layer, so there is no single
+    # "the" device — pick the one the RL loss already uses (the LM head's), so
+    # the caller can add the two together without another hop.
+    try:
+        target_device = ensemble.logits_device()
+    except Exception:  # pragma: no cover - single-GPU / older ensembles
+        target_device = (
+            next(iter(weight_dict.values())).device if weight_dict else torch.device("cpu")
+        )
+
     if not weight_dict:
-        dummy = torch.zeros(1, requires_grad=True)
+        dummy = torch.zeros(1, device=target_device, requires_grad=True)
         return dummy, 0.0, 0.0
 
-    reg_loss: torch.Tensor = torch.zeros(1, device=next(iter(weight_dict.values())).device)
+    # Accumulate per device, then make ONE hop per device instead of one per
+    # (layer, module) — there are ~200 of those per substep. Autograd's
+    # copy-back routes each gradient home, so every adapter still receives its
+    # gradient on its own GPU.
+    #
+    # Do NOT collapse these to floats: .item()/float() would detach and silently
+    # zero the diversity gradient, which is worse than the crash this replaces.
+    per_device: Dict[torch.device, torch.Tensor] = {}
     nuc_total = 0.0
     fro_total = 0.0
     n = len(weight_dict)
@@ -101,9 +119,14 @@ def compute_nuclear_norm_diversity_loss(
         else:
             reg = -w_nuc
 
-        reg_loss = reg_loss + reg
+        dev = reg.device
+        per_device[dev] = reg if dev not in per_device else per_device[dev] + reg
         nuc_total += w_nuc.detach().item()
         fro_total += w_fro.detach().item()
+
+    reg_loss = torch.zeros(1, device=target_device)
+    for partial in per_device.values():
+        reg_loss = reg_loss + partial.to(target_device)
 
     nnm_loss = reg_loss / n
     return nnm_loss, nuc_total / n, fro_total / n
