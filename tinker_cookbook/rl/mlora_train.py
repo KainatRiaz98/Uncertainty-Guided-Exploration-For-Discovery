@@ -86,6 +86,16 @@ def wrap_qwen3_chat_template(prompt_text: str) -> str:
     )
 
 
+def wrap_chatml_single_phase(prompt_text: str) -> str:
+    """Wrap raw prompt text in plain ChatML, no thinking phase.
+
+    For ChatML-family instruct models that are NOT <think>-reasoning models
+    (e.g. Qwen2.5-Instruct) run with --two_phase_sampling off. Same user-turn
+    markers as wrap_qwen3_chat_template, without the <think> prefill.
+    """
+    return f"<|im_start|>user\n{prompt_text}<|im_end|>\n<|im_start|>assistant\n"
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Config — mirrors tinker_cookbook/rl/train.py:Config with ensemble additions
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1799,6 +1809,13 @@ def main(
             f"context_window={cfg.context_window}, prefill_len={len(prefill_tokens_list)}, "
             f"stop_ids={stop_token_ids}"
         )
+    else:
+        # Single-phase ChatML models (e.g. Qwen2.5-Instruct) still need a stop
+        # token at the turn boundary, or generation runs to max_tokens every time.
+        im_end_tokens = tokenizer.tokenizer_.encode("<|im_end|>", add_special_tokens=False)
+        if im_end_tokens:
+            stop_token_ids = [im_end_tokens[0]]
+        logger.info(f"Single-phase ChatML generation: stop_ids={stop_token_ids}")
 
     for epoch in range(start_epoch, cfg.num_epochs):
         t_start = time.time()
@@ -1822,6 +1839,8 @@ def main(
             prompt_text = prompt_fn(parent_state)
             if cfg.two_phase_sampling:
                 prompt_text = wrap_qwen3_chat_template(prompt_text)
+            else:
+                prompt_text = wrap_chatml_single_phase(prompt_text)
             prompt_tokens = tokenizer.encode(prompt_text, bos=True, eos=False)
 
             group_rollouts = do_group_rollout_batched(
