@@ -4,8 +4,8 @@
 #   export WANDB_ENTITY=... WANDB_API_KEY=...
 #   ./runs_a100/launch_all.sh
 #
-#   GPUs 0,1  ahc-baseline        (--env ac1)
-#   GPUs 2,3  ahc-ugttt           (--env ac1)
+#   GPUs 0,1  ahc039-baseline     (--env ahc039, --problem_idx ahc039)
+#   GPUs 2,3  ahc039-ugttt        (--env ahc039, --problem_idx ahc039)
 #   GPUs 4,5  denoising-baseline  (--env denoising)
 #   GPUs 6,7  denoising-ugttt     (--env denoising)
 #
@@ -31,10 +31,14 @@ fi
 
 mkdir -p logs
 
+# ahc039 takes its problem id as problem_idx ("ahc039"), NOT "improvement":
+# env_ale_bench asserts problem_idx in {ahc039, ahc058}. denoising is the one
+# that uses "improvement". Values match scripts/aws/launch_heavy_domain_wave.sh.
+#
 #            RUN_NAME             ENV_NAME    ARM       GPUS  RAY_PORT  PROBLEM_IDX
 RUNS=(
-  "ahc-baseline|ac1|baseline|0,1|6390|improvement"
-  "ahc-ugttt|ac1|ugttt|2,3|6391|improvement"
+  "ahc039-baseline|ahc039|baseline|0,1|6390|ahc039"
+  "ahc039-ugttt|ahc039|ugttt|2,3|6391|ahc039"
   "denoising-baseline|denoising|baseline|4,5|6392|improvement"
   "denoising-ugttt|denoising|ugttt|6,7|6393|improvement"
 )
