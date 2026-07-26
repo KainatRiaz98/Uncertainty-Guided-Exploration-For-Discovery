@@ -70,4 +70,4 @@ PYTHONPATH="mLoRA:${PYTHONPATH:-}" "$SCRIPT_DIR/.venv/bin/python3" -m tinker_coo
     --wandb_project "ttt-discover-uncertainty" \
     --wandb_name "cp26-32b-no-streaming-truemi-r16-nnm" \
     --log_path ./logs/cp26_32b_no_streaming \
-    --save_every 5
+    --save_every 1

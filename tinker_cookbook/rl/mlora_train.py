@@ -1258,6 +1258,19 @@ def do_group_rollout_batched(
 
     # Group-level normalized MI summary (mean and std across all rollouts in this group)
     group_true_mis = [r.metrics.get("uncertainty/true_mi", 0.0) for r in rollouts]
+    # This summary is diagnostics ONLY -- nothing below feeds training -- so it
+    # must never be able to kill a run that has already paid for generation and
+    # scoring. statistics.stdev() blows up on non-finite input with a confusing
+    # "'float' object has no attribute 'numerator'" (it hands a float to code
+    # expecting a Fraction), which is exactly how a NaN true_MI took down epoch 0
+    # of the 32B run after ~5h. Drop non-finite values and say so instead.
+    n_bad = sum(1 for v in group_true_mis if not math.isfinite(v))
+    if n_bad:
+        logger.warning(
+            f"  [g{group_idx}] {n_bad}/{len(group_true_mis)} true_MI values were "
+            f"non-finite (NaN/inf) and are excluded from the group MI summary"
+        )
+        group_true_mis = [v for v in group_true_mis if math.isfinite(v)]
     if group_true_mis:
         import statistics
         g_mean = sum(group_true_mis) / len(group_true_mis)
