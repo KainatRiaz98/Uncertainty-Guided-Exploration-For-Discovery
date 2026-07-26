@@ -89,7 +89,7 @@ class Attention(torch.nn.Module):
 
         self.n_heads_ = args.n_heads_
         self.n_kv_heads_ = args.n_kv_heads_
-        self.head_dim_ = args.dim_ // args.n_heads_
+        self.head_dim_ = args.head_dim_
         self.n_rep_ = self.n_heads_ // self.n_kv_heads_
 
         # optional QK-Norm (used by Qwen3, not by Llama)
@@ -104,7 +104,7 @@ class Attention(torch.nn.Module):
         # `device` override.
         self.device_ = device or args.device_
         self.cos_, self.sin_ = precompute_rope_angle(
-            args.dim_ // args.n_heads_,
+            args.head_dim_,
             args.max_seq_len_,
             args.rope_theta_,
             self.device_,

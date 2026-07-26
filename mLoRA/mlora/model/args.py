@@ -17,6 +17,7 @@ class LLMModelArgs:
     multiple_of_: int
     n_heads_: int
     n_kv_heads_: int
+    head_dim_: int
     n_layers_: int
     rope_theta_: float
     norm_eps_: float
@@ -46,6 +47,13 @@ class LLMModelArgs:
         self.n_heads_ = config.num_attention_heads
         if hasattr(config, "num_key_value_heads"):
             self.n_kv_heads_ = config.num_key_value_heads
+        # Some model families (Qwen3, Qwen2.5, Gemma2, ...) set head_dim
+        # explicitly in config, decoupled from hidden_size // num_attention_heads
+        # (e.g. Qwen3-32B: hidden_size=5120, num_attention_heads=64 -> 80, but
+        # the real head_dim is 128). Trust the explicit value when present.
+        self.head_dim_ = getattr(
+            config, "head_dim", config.hidden_size // config.num_attention_heads
+        )
         self.n_layers_ = config.num_hidden_layers
         self.rope_theta_ = 10000.0
         self.norm_eps_ = config.rms_norm_eps
