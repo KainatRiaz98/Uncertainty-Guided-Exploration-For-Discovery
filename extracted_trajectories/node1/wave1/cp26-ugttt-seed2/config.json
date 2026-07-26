@@ -59,6 +59,6 @@
   "wandb_name": "cp26-ugttt-seed2",
   "eval_every": 3,
   "save_every": 2,
-  "seed": 2,
+  "seed": 42,
   "dataset_builder": null
 }

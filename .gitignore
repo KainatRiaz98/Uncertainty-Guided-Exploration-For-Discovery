@@ -234,3 +234,10 @@ gpu_mode/kernel_compare.tsv
 gpu_mode/gpu_scores.tsv
 
 tinker_log/
+
+# LoRA adapter checkpoints — large binaries, kept local only (not committed)
+extracted_trajectories/**/adapter.pt
+extracted_trajectories/**/*.pt
+extracted_trajectories/**/*.safetensors
+extracted_trajectories/**/.*.pt.*
+.*.pt.*
