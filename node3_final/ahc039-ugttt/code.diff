@@ -1,0 +1,42 @@
+### repo: /home/greenland-user/Uncertainty-Guided-Exploration-For-Discovery @ 1eb925fbc654f2ea6e89b5acd7e090f9f0a8b812
+modules: tinker_cookbook
+-- repo-wide (vs HEAD, staged+unstaged) --
+diff --git a/runs_a100/run_one.sh b/runs_a100/run_one.sh
+index 8b8a777..46010b2 100755
+--- a/runs_a100/run_one.sh
++++ b/runs_a100/run_one.sh
+@@ -29,7 +29,8 @@ GROUP_SIZE="${GROUP_SIZE:-8}"
+ PHASE1_MAX_TOKENS="${PHASE1_MAX_TOKENS:-26000}"
+ 
+ # ── Interpreter: this repo has been seen with either venv name ──────────────
+-if   [ -x "$REPO_DIR/.venv/bin/python3"     ]; then PY="$REPO_DIR/.venv/bin/python3"
++if   [ -n "${PYTHON:-}" ] && [ -x "$PYTHON" ]; then PY="$PYTHON"
++elif [ -x "$REPO_DIR/.venv/bin/python3"     ]; then PY="$REPO_DIR/.venv/bin/python3"
+ elif [ -x "$REPO_DIR/discovery/bin/python3" ]; then PY="$REPO_DIR/discovery/bin/python3"
+ else echo "FATAL: no .venv or discovery venv in $REPO_DIR" >&2; exit 1; fi
+ RAY_BIN="$(dirname "$PY")/ray"
+diff --git a/tasks/ale_bench/task.py b/tasks/ale_bench/task.py
+index 513ea33..a88dae9 100644
+--- a/tasks/ale_bench/task.py
++++ b/tasks/ale_bench/task.py
+@@ -237,7 +237,7 @@ def run_cases_remote(
+         tool_dir=tool_dir_abs,
+         return_details=False,
+         skip_local_visualization=True,
+-        num_workers=150,
++        num_workers=32,
+         base_dir=base_dir,  # Use NFS directory for temp files
+     )
+     
+diff --git a/tinker_cookbook/rl/mlora_train.py b/tinker_cookbook/rl/mlora_train.py
+index 3decc47..b70f1ef 100644
+--- a/tinker_cookbook/rl/mlora_train.py
++++ b/tinker_cookbook/rl/mlora_train.py
+@@ -1467,6 +1467,7 @@ def train_step(
+     # When kl_penalty_coef > 0, advantages are per-token tensors (matching train.py).
+     # When kl_penalty_coef == 0, advantages are scalars (float).
+     trainable_rollouts: List[Tuple["Rollout", "Union[float, torch.Tensor]"]] = []
++    kl_metrics: Dict[str, float] = {}  # default when no groups survive filtering (0/8)
+ 
+     for group in rollout_groups:
+         # β sees R_exec ONLY — preserves max-reward-seeking gradient

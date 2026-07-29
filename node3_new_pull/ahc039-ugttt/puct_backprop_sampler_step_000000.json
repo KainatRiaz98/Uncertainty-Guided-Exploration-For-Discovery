@@ -1,0 +1,154 @@
+{
+  "initial_states": [
+    {
+      "code": "",
+      "id": "1ffb473f-c0f1-4916-89a9-4d151be01660",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "3b75a516-8956-4390-83ae-7de9bef583ac",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "088fe540-6a1e-433c-893e-d0291207e443",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "0499c675-309d-4223-8507-3702551db7a3",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "9c419c1b-683f-49a4-88bd-e8d704e79c2b",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "cd190332-1a2e-4a56-bf4f-865acc272310",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "0fc39049-3beb-4db4-bd60-b2b8de73f309",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "f9f6c119-ce90-4450-bba9-b7e13f527e25",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    }
+  ],
+  "puct_T": 0,
+  "puct_m": {},
+  "puct_n": {},
+  "states": [
+    {
+      "code": "",
+      "id": "1ffb473f-c0f1-4916-89a9-4d151be01660",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "3b75a516-8956-4390-83ae-7de9bef583ac",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "088fe540-6a1e-433c-893e-d0291207e443",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "0499c675-309d-4223-8507-3702551db7a3",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "9c419c1b-683f-49a4-88bd-e8d704e79c2b",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "cd190332-1a2e-4a56-bf4f-865acc272310",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "0fc39049-3beb-4db4-bd60-b2b8de73f309",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "f9f6c119-ce90-4450-bba9-b7e13f527e25",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    }
+  ],
+  "step": 0
+}
