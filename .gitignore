@@ -241,3 +241,10 @@ extracted_trajectories/**/*.pt
 extracted_trajectories/**/*.safetensors
 extracted_trajectories/**/.*.pt.*
 .*.pt.*
+
+# Node pull dirs — exclude large adapter/sampler binaries, keep jsonl trajectories+metrics
+node*_final/**/*.pt
+node*_final/**/*.safetensors
+node*_pull/**/*.pt
+node*_pull/**/*.safetensors
+node*/**/wandb/
