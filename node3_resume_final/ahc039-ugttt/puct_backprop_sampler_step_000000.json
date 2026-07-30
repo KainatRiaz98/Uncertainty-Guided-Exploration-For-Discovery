@@ -1,0 +1,428 @@
+{
+  "initial_states": [
+    {
+      "code": "",
+      "id": "e4068389-1fe4-4621-80f1-3e38affedbb0",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "59bcd341-97b0-4175-9feb-ef81f0e9af2a",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "ffda775e-3d3b-46b2-8a0e-0df353afb25f",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "61801af4-8d41-4f30-96fc-9c6bdf2747e0",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "bf0a4af7-d08c-453f-b695-e77b1dca99dd",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "ce006659-167f-4710-b526-f324251438e9",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "2dbd3d20-b262-4223-a7e0-add9b91b3a76",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "d24707ca-77fb-4fa4-a550-b4b4e4578e44",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    }
+  ],
+  "puct_T": 18,
+  "puct_m": {
+    "2dbd3d20-b262-4223-a7e0-add9b91b3a76": 1696.8066666666666,
+    "59bcd341-97b0-4175-9feb-ef81f0e9af2a": 1525.2933333333333,
+    "61801af4-8d41-4f30-96fc-9c6bdf2747e0": 1525.2933333333333,
+    "bf0a4af7-d08c-453f-b695-e77b1dca99dd": 299.23333333333335,
+    "ce006659-167f-4710-b526-f324251438e9": 1576.1466666666668,
+    "d24707ca-77fb-4fa4-a550-b4b4e4578e44": 1854.3466666666666,
+    "e4068389-1fe4-4621-80f1-3e38affedbb0": 1525.2933333333333,
+    "ffda775e-3d3b-46b2-8a0e-0df353afb25f": 1525.2933333333333
+  },
+  "puct_n": {
+    "2dbd3d20-b262-4223-a7e0-add9b91b3a76": 3,
+    "59bcd341-97b0-4175-9feb-ef81f0e9af2a": 2,
+    "61801af4-8d41-4f30-96fc-9c6bdf2747e0": 3,
+    "bf0a4af7-d08c-453f-b695-e77b1dca99dd": 2,
+    "ce006659-167f-4710-b526-f324251438e9": 3,
+    "d24707ca-77fb-4fa4-a550-b4b4e4578e44": 1,
+    "e4068389-1fe4-4621-80f1-3e38affedbb0": 1,
+    "ffda775e-3d3b-46b2-8a0e-0df353afb25f": 3
+  },
+  "states": [
+    {
+      "code": "",
+      "id": "e4068389-1fe4-4621-80f1-3e38affedbb0",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "59bcd341-97b0-4175-9feb-ef81f0e9af2a",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "ffda775e-3d3b-46b2-8a0e-0df353afb25f",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "61801af4-8d41-4f30-96fc-9c6bdf2747e0",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "bf0a4af7-d08c-453f-b695-e77b1dca99dd",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "ce006659-167f-4710-b526-f324251438e9",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "2dbd3d20-b262-4223-a7e0-add9b91b3a76",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "",
+      "id": "d24707ca-77fb-4fa4-a550-b4b4e4578e44",
+      "parent_values": [],
+      "parents": [],
+      "timestep": -1,
+      "type": "AleBenchState",
+      "value": 0.0
+    },
+    {
+      "code": "#include <iostream>\n#include <vector>\n#include <algorithm>\n#include <functional>\n#include <climits>\n\nusing namespace std;\n\nstruct Point {\n    int x, y;\n};\n\nint main() {\n    int N;\n    cin >> N;\n    vector<Point> mackerels;\n    vector<Point> sardines;\n    for (int i = 0; i < N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        mackerels.push_back({x, y});\n    }\n    for (int i = 0; i < N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        sardines.push_back({x, y});\n    }\n\n    // Sort mackerels by x, then by y\n    sort(mackerels.begin(), mackerels.end(), [](const Point& a, const Point& b) {\n        return a.x < b.x || (a.x == b.x && a.y < b.y);\n    });\n    // Sort sardines similarly\n    sort(sardines.begin(), sardines.end(), [](const Point& a, const Point& b) {\n        return a.x < b.x || (a.x == b.x && a.y < b.y);\n    });\n\n    // Compute B_m\n    int x_min_m = mackerels[0].x;\n    int x_max_m = mackerels[0].x;\n    int y_min_m = mackerels[0].y;\n    int y_max_m = mackerels[0].y;\n    for (const auto& p : mackerels) {\n        x_min_m = min(x_min_m, p.x);\n        x_max_m = max(x_max_m, p.x);\n        y_min_m = min(y_min_m, p.y);\n        y_max_m = max(y_max_m, p.y);\n    }\n\n    // Count sardines in B_m\n    int sardines_in_Bm = 0;\n    vector<Point> sardines_in_Bm_list;\n    for (const auto& s : sardines) {\n        if (s.x >= x_min_m && s.x <= x_max_m && s.y >= y_min_m && s.y <= y_max_m) {\n            sardines_in_Bm++;\n            sardines_in_Bm_list.push_back(s);\n        }\n    }\n\n    if (sardines_in_Bm == 0) {\n        cout << 4 << endl;\n        cout << x_min_m << \" \" << y_min_m << endl;\n        cout << x_max_m << \" \" << y_min_m << endl;\n        cout << x_max_m << \" \" << y_max_m << endl;\n        cout << x_min_m << \" \" << y_max_m << endl;\n        return 0;\n    }\n\n    int best_diff = -1;\n    int best_xmin = x_min_m;\n    int best_xmax = x_max_m;\n    int best_ymin = y_min_m;\n    int best_ymax = y_max_m;\n\n    auto count_mackerels = [&](int x1, int x2, int y1, int y2) -> int {\n        int cnt = 0;\n        auto left = lower_bound(mackerels.begin(), mackerels.end(), Point{x1, 0}, \n            [](const Point& a, const Point& b) { return a.x < b.x; });\n        auto right = upper_bound(mackerels.begin(), mackerels.end(), Point{x2, INT_MAX}, \n            [](const Point& a, const Point& b) { return a.x < b.x; });\n        for (auto it = left; it != right; ++it) {\n            if (it->y >= y1 && it->y <= y2) {\n                cnt++;\n            }\n        }\n        return cnt;\n    };\n\n    auto count_sardines = [&](int x1, int x2, int y1, int y2) -> int {\n        int cnt = 0;\n        auto left = lower_bound(sardines.begin(), sardines.end(), Point{x1, 0}, \n            [](const Point& a, const Point& b) { return a.x < b.x; });\n        auto right = upper_bound(sardines.begin(), sardines.end(), Point{x2, INT_MAX}, \n            [](const Point& a, const Point& b) { return a.x < b.x; });\n        for (auto it = left; it != right; ++it) {\n            if (it->y >= y1 && it->y <= y2) {\n                cnt++;\n            }\n        }\n        return cnt;\n    };\n\n    for (const auto& s : sardines_in_Bm_list) {\n        // Adjust x_min to exclude s.x\n        int new_xmin = s.x + 1;\n        int new_xmax = x_max_m;\n        if (new_xmin <= new_xmax) {\n            int a = count_mackerels(new_xmin, new_xmax, y_min_m, y_max_m);\n            int b = count_sardines(new_xmin, new_xmax, y_min_m, y_max_m);\n            int diff = a - b;\n            if (diff > best_diff) {\n                best_diff = diff;\n                best_xmin = new_xmin;\n                best_xmax = new_xmax;\n                best_ymin = y_min_m;\n                best_ymax = y_max_m;\n            }\n        }\n\n        // Adjust x_max to exclude s.x\n        int new_xmax_s = s.x - 1;\n        int new_xmin_s = x_min_m;\n        if (new_xmin_s <= new_xmax_s) {\n            int a = count_mackerels(new_xmin_s, new_xmax_s, y_min_m, y_max_m);\n            int b = count_sardines(new_xmin_s, new_xmax_s, y_min_m, y_max_m);\n            int diff = a - b;\n            if (diff > best_diff) {\n                best_diff = diff;\n                best_xmin = new_xmin_s;\n                best_xmax = new_xmax_s;\n                best_ymin = y_min_m;\n                best_ymax = y_max_m;\n            }\n        }\n\n        // Adjust y_min to exclude s.y\n        int new_ymin = s.y + 1;\n        int new_ymax = y_max_m;\n        if (new_ymin <= new_ymax) {\n            int a = count_mackerels(x_min_m, x_max_m, new_ymin, new_ymax);\n            int b = count_sardines(x_min_m, x_max_m, new_ymin, new_ymax);\n            int diff = a - b;\n            if (diff > best_diff) {\n                best_diff = diff;\n                best_xmin = x_min_m;\n                best_xmax = x_max_m;\n                best_ymin = new_ymin;\n                best_ymax = new_ymax;\n            }\n        }\n\n        // Adjust y_max to exclude s.y\n        int new_ymax_s = s.y - 1;\n        int new_ymin_s = y_min_m;\n        if (new_ymin_s <= new_ymax_s) {\n            int a = count_mackerels(x_min_m, x_max_m, new_ymin_s, new_ymax_s);\n            int b = count_sardines(x_min_m, x_max_m, new_ymin_s, new_ymax_s);\n            int diff = a - b;\n            if (diff > best_diff) {\n                best_diff = diff;\n                best_xmin = x_min_m;\n                best_xmax = x_max_m;\n                best_ymin = new_ymin_s;\n                best_ymax = new_ymax_s;\n            }\n        }\n    }\n\n    // Compute original_diff\n    int original_a = count_mackerels(x_min_m, x_max_m, y_min_m, y_max_m);\n    int original_b = count_sardines(x_min_m, x_max_m, y_min_m, y_max_m);\n    int original_diff = original_a - original_b;\n    if (original_diff > best_diff) {\n        best_diff = original_diff;\n        best_xmin = x_min_m;\n        best_xmax = x_max_m;\n        best_ymin = y_min_m;\n        best_ymax = y_max_m;\n    }\n\n    cout << 4 << endl;\n    cout << best_xmin << \" \" << best_ymin << endl;\n    cout << best_xmax << \" \" << best_ymin << endl;\n    cout << best_xmax << \" \" << best_ymax << endl;\n    cout << best_xmin << \" \" << best_ymax << endl;\n    return 0;\n}",
+      "id": "47c56393-c802-4cc4-a06d-0783370da07a",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "e4068389-1fe4-4621-80f1-3e38affedbb0",
+          "timestep": -1
+        }
+      ],
+      "timestep": 0,
+      "type": "AleBenchState",
+      "value": 1525.2933333333333
+    },
+    {
+      "code": "#include <iostream>\n#include <vector>\n#include <algorithm>\n\nusing namespace std;\n\nint main() {\n    int N;\n    cin >> N;\n    vector<pair<int, int>> mackerels;\n    vector<pair<int, int>> sardines;\n    for (int i = 0; i < 2 * N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        if (i < N) {\n            mackerels.push_back({x, y});\n        } else {\n            sardines.push_back({x, y});\n        }\n    }\n\n    // Compute initial rectangle covering all mackerels\n    int x_min = mackerels[0].first;\n    int x_max = mackerels[0].first;\n    int y_min = mackerels[0].second;\n    int y_max = mackerels[0].second;\n\n    for (const auto& p : mackerels) {\n        x_min = min(x_min, p.first);\n        x_max = max(x_max, p.first);\n        y_min = min(y_min, p.second);\n        y_max = max(y_max, p.second);\n    }\n\n    // Count sardines in initial rectangle\n    int b0 = 0;\n    for (const auto& s : sardines) {\n        if (s.first >= x_min && s.first <= x_max && s.second >= y_min && s.second <= y_max) {\n            b0++;\n        }\n    }\n\n    int a0 = N;\n    int best_score = a0 - b0;\n    vector<pair<int, int>> best_rect(4);\n\n    // Initialize best_rect with initial rectangle\n    best_rect[0] = {x_min, y_min};\n    best_rect[1] = {x_max, y_min};\n    best_rect[2] = {x_max, y_max};\n    best_rect[3] = {x_min, y_max};\n\n    // Try all sardines inside the initial rectangle\n    for (const auto& s : sardines) {\n        if (s.first >= x_min && s.first <= x_max && s.second >= y_min && s.second <= y_max) {\n            // Try adjusting left boundary\n            int new_x_min = s.first + 1;\n            int new_x_max = x_max;\n            int new_y_min = y_min;\n            int new_y_max = y_max;\n            if (new_x_min <= new_x_max) {\n                int a = 0, b = 0;\n                for (const auto& m : mackerels) {\n                    if (m.first >= new_x_min && m.first <= new_x_max && m.second >= new_y_min && m.second <= new_y_max) {\n                        a++;\n                    }\n                }\n                for (const auto& s2 : sardines) {\n                    if (s2.first >= new_x_min && s2.first <= new_x_max && s2.second >= new_y_min && s2.second <= new_y_max) {\n                        b++;\n                    }\n                }\n                int current_score = a - b;\n                if (current_score > best_score) {\n                    best_score = current_score;\n                    best_rect[0] = {new_x_min, new_y_min};\n                    best_rect[1] = {new_x_max, new_y_min};\n                    best_rect[2] = {new_x_max, new_y_max};\n                    best_rect[3] = {new_x_min, new_y_max};\n                }\n            }\n\n            // Try adjusting right boundary\n            new_x_min = x_min;\n            new_x_max = s.first - 1;\n            new_y_min = y_min;\n            new_y_max = y_max;\n            if (new_x_min <= new_x_max) {\n                int a = 0, b = 0;\n                for (const auto& m : mackerels) {\n                    if (m.first >= new_x_min && m.first <= new_x_max && m.second >= new_y_min && m.second <= new_y_max) {\n                        a++;\n                    }\n                }\n                for (const auto& s2 : sardines) {\n                    if (s2.first >= new_x_min && s2.first <= new_x_max && s2.second >= new_y_min && s2.second <= new_y_max) {\n                        b++;\n                    }\n                }\n                int current_score = a - b;\n                if (current_score > best_score) {\n                    best_score = current_score;\n                    best_rect[0] = {new_x_min, new_y_min};\n                    best_rect[1] = {new_x_max, new_y_min};\n                    best_rect[2] = {new_x_max, new_y_max};\n                    best_rect[3] = {new_x_min, new_y_max};\n                }\n            }\n\n            // Try adjusting bottom boundary\n            new_y_min = s.second + 1;\n            new_y_max = y_max;\n            new_x_min = x_min;\n            new_x_max = x_max;\n            if (new_y_min <= new_y_max) {\n                int a = 0, b = 0;\n                for (const auto& m : mackerels) {\n                    if (m.first >= new_x_min && m.first <= new_x_max && m.second >= new_y_min && m.second <= new_y_max) {\n                        a++;\n                    }\n                }\n                for (const auto& s2 : sardines) {\n                    if (s2.first >= new_x_min && s2.first <= new_x_max && s2.second >= new_y_min && s2.second <= new_y_max) {\n                        b++;\n                    }\n                }\n                int current_score = a - b;\n                if (current_score > best_score) {\n                    best_score = current_score;\n                    best_rect[0] = {new_x_min, new_y_min};\n                    best_rect[1] = {new_x_max, new_y_min};\n                    best_rect[2] = {new_x_max, new_y_max};\n                    best_rect[3] = {new_x_min, new_y_max};\n                }\n            }\n\n            // Try adjusting top boundary\n            new_y_min = y_min;\n            new_y_max = s.second - 1;\n            new_x_min = x_min;\n            new_x_max = x_max;\n            if (new_y_min <= new_y_max) {\n                int a = 0, b = 0;\n                for (const auto& m : mackerels) {\n                    if (m.first >= new_x_min && m.first <= new_x_max && m.second >= new_y_min && m.second <= new_y_max) {\n                        a++;\n                    }\n                }\n                for (const auto& s2 : sardines) {\n                    if (s2.first >= new_x_min && s2.first <= new_x_max && s2.second >= new_y_min && s2.second <= new_y_max) {\n                        b++;\n                    }\n                }\n                int current_score = a - b;\n                if (current_score > best_score) {\n                    best_score = current_score;\n                    best_rect[0] = {new_x_min, new_y_min};\n                    best_rect[1] = {new_x_max, new_y_min};\n                    best_rect[2] = {new_x_max, new_y_max};\n                    best_rect[3] = {new_x_min, new_y_max};\n                }\n            }\n        }\n    }\n\n    // Output the best rectangle\n    cout << 4 << endl;\n    for (int i = 0; i < 4; ++i) {\n        cout << best_rect[i].first << \" \" << best_rect[i].second << endl;\n    }\n\n    return 0;\n}",
+      "id": "c2adcdae-12a6-42d4-9bf0-6fc14f69996e",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "e4068389-1fe4-4621-80f1-3e38affedbb0",
+          "timestep": -1
+        }
+      ],
+      "timestep": 2,
+      "type": "AleBenchState",
+      "value": 1525.2933333333333
+    },
+    {
+      "code": "#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(0);\n    cout.tie(0);\n\n    int N;\n    cin >> N;\n\n    vector<pair<int, int>> mackerels, sardines;\n    for (int i = 0; i < N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        mackerels.emplace_back(x, y);\n    }\n    for (int i = 0; i < N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        sardines.emplace_back(x, y);\n    }\n\n    // Compute initial box for mackerels\n    int x_min_m = mackerels[0].first;\n    int x_max_m = mackerels[0].first;\n    int y_min_m = mackerels[0].second;\n    int y_max_m = mackerels[0].second;\n    for (const auto& p : mackerels) {\n        x_min_m = min(x_min_m, p.first);\n        x_max_m = max(x_max_m, p.first);\n        y_min_m = min(y_min_m, p.second);\n        y_max_m = max(y_max_m, p.second);\n    }\n\n    // Check for sardines in initial box\n    vector<pair<int, int>> conflict_sardines;\n    for (const auto& s : sardines) {\n        int x = s.first;\n        int y = s.second;\n        if (x_min_m <= x && x <= x_max_m && y_min_m <= y && y <= y_max_m) {\n            conflict_sardines.push_back(s);\n        }\n    }\n\n    if (conflict_sardines.empty()) {\n        // Output initial box\n        cout << 4 << endl;\n        cout << x_min_m << \" \" << y_min_m << endl;\n        cout << x_min_m << \" \" << y_max_m << endl;\n        cout << x_max_m << \" \" << y_max_m << endl;\n        cout << x_max_m << \" \" << y_min_m << endl;\n        return 0;\n    }\n\n    // Generate candidates\n    vector<vector<int>> candidates;\n    // Add initial box\n    vector<int> initial_box = {x_min_m, x_max_m, y_min_m, y_max_m};\n    candidates.push_back(initial_box);\n\n    for (const auto& s : conflict_sardines) {\n        int xs = s.first;\n        int ys = s.second;\n\n        // Adjust x_min\n        int new_x1 = xs + 1;\n        int new_x2 = x_max_m;\n        if (new_x1 <= new_x2) {\n            vector<int> box = {new_x1, new_x2, y_min_m, y_max_m};\n            candidates.push_back(box);\n        }\n\n        // Adjust x_max\n        int new_x2_adj = xs - 1;\n        int new_x1_adj = x_min_m;\n        if (new_x2_adj >= new_x1_adj) {\n            vector<int> box = {new_x1_adj, new_x2_adj, y_min_m, y_max_m};\n            candidates.push_back(box);\n        }\n\n        // Adjust y_min\n        int new_y1 = ys + 1;\n        int new_y2 = y_max_m;\n        if (new_y1 <= new_y2) {\n            vector<int> box = {x_min_m, x_max_m, new_y1, new_y2};\n            candidates.push_back(box);\n        }\n\n        // Adjust y_max\n        int new_y2_adj = ys - 1;\n        int new_y1_adj = y_min_m;\n        if (new_y2_adj >= new_y1_adj) {\n            vector<int> box = {x_min_m, x_max_m, new_y1_adj, new_y2_adj};\n            candidates.push_back(box);\n        }\n    }\n\n    // Now evaluate all candidates\n    int best_val = -1;\n    vector<int> best_box;\n\n    for (const auto& box : candidates) {\n        int x1 = box[0], x2 = box[1], y1 = box[2], y2 = box[3];\n\n        // Count mackerels\n        int a = 0;\n        for (const auto& p : mackerels) {\n            if (x1 <= p.first && p.first <= x2 && y1 <= p.second && p.second <= y2) {\n                a++;\n            }\n        }\n\n        // Count sardines\n        int b = 0;\n        for (const auto& s : sardines) {\n            if (x1 <= s.first && s.first <= x2 && y1 <= s.second && s.second <= y2) {\n                b++;\n            }\n        }\n\n        int current_val = a - b;\n        if (current_val > best_val) {\n            best_val = current_val;\n            best_box = box;\n        }\n    }\n\n    // Output best_box\n    int x1 = best_box[0], x2 = best_box[1], y1 = best_box[2], y2 = best_box[3];\n\n    cout << 4 << endl;\n    cout << x1 << \" \" << y1 << endl;\n    cout << x1 << \" \" << y2 << endl;\n    cout << x2 << \" \" << y2 << endl;\n    cout << x2 << \" \" << y1 << endl;\n    return 0;\n}",
+      "id": "6442a3fc-0988-4285-947b-c17cf890f1a1",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "59bcd341-97b0-4175-9feb-ef81f0e9af2a",
+          "timestep": -1
+        }
+      ],
+      "timestep": 8,
+      "type": "AleBenchState",
+      "value": 1525.2933333333333
+    },
+    {
+      "code": "#include <bits/stdc++.h>\nusing namespace std;\n\nstruct Point {\n    int x, y;\n};\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(0);\n    int N;\n    cin >> N;\n    vector<Point> mackerels, sardines;\n    for (int i = 0; i < N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        mackerels.push_back({x, y});\n    }\n    for (int i = 0; i < N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        sardines.push_back({x, y});\n    }\n\n    // Compute initial bounding box for mackerels\n    int x_min = mackerels[0].x;\n    int x_max = mackerels[0].x;\n    int y_min = mackerels[0].y;\n    int y_max = mackerels[0].y;\n    for (auto& p : mackerels) {\n        x_min = min(x_min, p.x);\n        x_max = max(x_max, p.x);\n        y_min = min(y_min, p.y);\n        y_max = max(y_max, p.y);\n    }\n\n    // Count sardines in initial box\n    int sardines_in_box = 0;\n    for (auto& s : sardines) {\n        if (s.x >= x_min && s.x <= x_max && s.y >= y_min && s.y <= y_max) {\n            sardines_in_box++;\n        }\n    }\n\n    if (sardines_in_box == 0) {\n        cout << 4 << endl;\n        cout << x_min << \" \" << y_min << endl;\n        cout << x_max << \" \" << y_min << endl;\n        cout << x_max << \" \" << y_max << endl;\n        cout << x_min << \" \" << y_max << endl;\n        return 0;\n    }\n\n    // Compute initial a and b\n    int a_initial = 0, b_initial = 0;\n    for (auto& m : mackerels) {\n        if (m.x >= x_min && m.x <= x_max && m.y >= y_min && m.y <= y_max) {\n            a_initial++;\n        }\n    }\n    for (auto& s : sardines) {\n        if (s.x >= x_min && s.x <= x_max && s.y >= y_min && s.y <= y_max) {\n            b_initial++;\n        }\n    }\n    int best_score = a_initial - b_initial;\n    int best_x1 = x_min;\n    int best_x2 = x_max;\n    int best_y1 = y_min;\n    int best_y2 = y_max;\n\n    // Try adjusting each sardine in the initial box\n    for (auto& s : sardines) {\n        if (s.x >= x_min && s.x <= x_max && s.y >= y_min && s.y <= y_max) {\n            // Adjust y lower\n            int new_y_min_adj = s.y + 1;\n            int new_y_min = max(y_min, new_y_min_adj);\n            if (new_y_min <= y_max) {\n                int a = 0, b = 0;\n                for (auto& m : mackerels) {\n                    if (m.x >= x_min && m.x <= x_max && m.y >= new_y_min && m.y <= y_max) {\n                        a++;\n                    }\n                }\n                for (auto& sard : sardines) {\n                    if (sard.x >= x_min && sard.x <= x_max && sard.y >= new_y_min && sard.y <= y_max) {\n                        b++;\n                    }\n                }\n                int score = a - b;\n                if (score > best_score) {\n                    best_score = score;\n                    best_x1 = x_min;\n                    best_x2 = x_max;\n                    best_y1 = new_y_min;\n                    best_y2 = y_max;\n                }\n            }\n\n            // Adjust y upper\n            int new_y_upper = s.y - 1;\n            int new_y_upper_adj = min(y_max, new_y_upper);\n            if (new_y_upper_adj >= y_min) {\n                int a = 0, b = 0;\n                for (auto& m : mackerels) {\n                    if (m.x >= x_min && m.x <= x_max && m.y >= y_min && m.y <= new_y_upper_adj) {\n                        a++;\n                    }\n                }\n                for (auto& sard : sardines) {\n                    if (sard.x >= x_min && sard.x <= x_max && sard.y >= y_min && sard.y <= new_y_upper_adj) {\n                        b++;\n                    }\n                }\n                int score = a - b;\n                if (score > best_score) {\n                    best_score = score;\n                    best_x1 = x_min;\n                    best_x2 = x_max;\n                    best_y1 = y_min;\n                    best_y2 = new_y_upper_adj;\n                }\n            }\n\n            // Adjust x lower\n            int new_x_min_adj = s.x + 1;\n            int new_x_min = max(x_min, new_x_min_adj);\n            if (new_x_min <= x_max) {\n                int a = 0, b = 0;\n                for (auto& m : mackerels) {\n                    if (m.x >= new_x_min && m.x <= x_max && m.y >= y_min && m.y <= y_max) {\n                        a++;\n                    }\n                }\n                for (auto& sard : sardines) {\n                    if (sard.x >= new_x_min && sard.x <= x_max && sard.y >= y_min && sard.y <= y_max) {\n                        b++;\n                    }\n                }\n                int score = a - b;\n                if (score > best_score) {\n                    best_score = score;\n                    best_x1 = new_x_min;\n                    best_x2 = x_max;\n                    best_y1 = y_min;\n                    best_y2 = y_max;\n                }\n            }\n\n            // Adjust x upper\n            int new_x_upper = s.x - 1;\n            int new_x_upper_adj = min(x_max, new_x_upper);\n            if (new_x_upper_adj >= x_min) {\n                int a = 0, b = 0;\n                for (auto& m : mackerels) {\n                    if (m.x >= x_min && m.x <= new_x_upper_adj && m.y >= y_min && m.y <= y_max) {\n                        a++;\n                    }\n                }\n                for (auto& sard : sardines) {\n                    if (sard.x >= x_min && sard.x <= new_x_upper_adj && sard.y >= y_min && sard.y <= y_max) {\n                        b++;\n                    }\n                }\n                int score = a - b;\n                if (score > best_score) {\n                    best_score = score;\n                    best_x1 = x_min;\n                    best_x2 = new_x_upper_adj;\n                    best_y1 = y_min;\n                    best_y2 = y_max;\n                }\n            }\n        }\n    }\n\n    // Output the best rectangle\n    cout << 4 << endl;\n    cout << best_x1 << \" \" << best_y1 << endl;\n    cout << best_x2 << \" \" << best_y1 << endl;\n    cout << best_x2 << \" \" << best_y2 << endl;\n    cout << best_x1 << \" \" << best_y2 << endl;\n\n    return 0;\n}",
+      "id": "8299e688-7c51-49be-874d-d46d96bab92d",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "59bcd341-97b0-4175-9feb-ef81f0e9af2a",
+          "timestep": -1
+        }
+      ],
+      "timestep": 10,
+      "type": "AleBenchState",
+      "value": 1525.2933333333333
+    },
+    {
+      "code": "#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    int N;\n    cin >> N;\n    vector<pair<int, int>> mackerels, sardines;\n    for (int i = 0; i < 2 * N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        if (i < N) {\n            mackerels.push_back({x, y});\n        } else {\n            sardines.push_back({x, y});\n        }\n    }\n\n    // Compute initial bounding box for mackerels\n    int x_min_m = mackerels[0].first;\n    int x_max_m = mackerels[0].first;\n    int y_min_m = mackerels[0].second;\n    int y_max_m = mackerels[0].second;\n\n    for (auto& p : mackerels) {\n        x_min_m = min(x_min_m, p.first);\n        x_max_m = max(x_max_m, p.first);\n        y_min_m = min(y_min_m, p.second);\n        y_max_m = max(y_max_m, p.second);\n    }\n\n    // Check for sardines inside the initial box\n    vector<pair<int, int>> sardines_in_initial;\n    for (auto& s : sardines) {\n        int sx = s.first;\n        int sy = s.second;\n        if (sx >= x_min_m && sx <= x_max_m && sy >= y_min_m && sy <= y_max_m) {\n            sardines_in_initial.push_back(s);\n        }\n    }\n\n    // Preprocess mackerel x and y coordinates for binary search\n    vector<int> m_x;\n    vector<int> m_y;\n    for (auto& p : mackerels) {\n        m_x.push_back(p.first);\n        m_y.push_back(p.second);\n    }\n    sort(m_x.begin(), m_x.end());\n    sort(m_y.begin(), m_y.end());\n\n    vector<tuple<int, int, int, int>> candidates;\n\n    // Add initial rectangle as a candidate\n    int width_initial = x_max_m - x_min_m;\n    int height_initial = y_max_m - y_min_m;\n    if (2 * (width_initial + height_initial) <= 400000) {\n        candidates.push_back({x_min_m, x_max_m, y_min_m, y_max_m});\n    }\n\n    // Generate additional candidates by excluding each sardine in initial box\n    for (auto& s : sardines_in_initial) {\n        int sx = s.first;\n        int sy = s.second;\n\n        // Try adjusting x boundaries\n        auto it_x = lower_bound(m_x.begin(), m_x.end(), sx);\n        int pos_x = it_x - m_x.begin();\n        if (pos_x > 0) {\n            int max_x_less = m_x[pos_x - 1];\n            candidates.push_back({x_min_m, max_x_less, y_min_m, y_max_m});\n        }\n        if (pos_x < m_x.size()) {\n            int min_x_greater = m_x[pos_x];\n            candidates.push_back({min_x_greater, x_max_m, y_min_m, y_max_m});\n        }\n\n        // Try adjusting y boundaries\n        auto it_y = lower_bound(m_y.begin(), m_y.end(), sy);\n        int pos_y = it_y - m_y.begin();\n        if (pos_y > 0) {\n            int max_y_less = m_y[pos_y - 1];\n            candidates.push_back({x_min_m, x_max_m, y_min_m, max_y_less});\n        }\n        if (pos_y < m_y.size()) {\n            int min_y_greater = m_y[pos_y];\n            candidates.push_back({x_min_m, x_max_m, min_y_greater, y_max_m});\n        }\n    }\n\n    // Evaluate all candidates\n    int best_score_val = -1e9;\n    vector<tuple<int, int, int, int>> best_candidates;\n\n    for (auto& cand : candidates) {\n        int x_min_c = get<0>(cand);\n        int x_max_c = get<1>(cand);\n        int y_min_c = get<2>(cand);\n        int y_max_c = get<3>(cand);\n\n        // Check if valid rectangle\n        if (x_max_c < x_min_c || y_max_c < y_min_c) continue;\n\n        int width = x_max_c - x_min_c;\n        int height = y_max_c - y_min_c;\n        if (2 * (width + height) > 400000) continue;\n\n        int cnt_m = 0, cnt_s = 0;\n        for (auto& p : mackerels) {\n            if (p.first >= x_min_c && p.first <= x_max_c && p.second >= y_min_c && p.second <= y_max_c) {\n                ++cnt_m;\n            }\n        }\n        for (auto& s : sardines) {\n            if (s.first >= x_min_c && s.first <= x_max_c && s.second >= y_min_c && s.second <= y_max_c) {\n                ++cnt_s;\n            }\n        }\n\n        double current_score = cnt_m - cnt_s;\n        if (current_score > best_score_val) {\n            best_score_val = current_score;\n            best_candidates.clear();\n            best_candidates.push_back(cand);\n        } else if (current_score == best_score_val) {\n            best_candidates.push_back(cand);\n        }\n    }\n\n    // Choose the best candidate\n    if (best_candidates.empty()) {\n        // Fallback to initial box if no valid candidates found\n        if (width_initial >= 0 && height_initial >= 0 && 2 * (width_initial + height_initial) <= 400000) {\n            candidates.push_back({x_min_m, x_max_m, y_min_m, y_max_m});\n            best_candidates = candidates;\n        }\n    }\n\n    auto best_cand = best_candidates[0];\n    int x_min_c = get<0>(best_cand);\n    int x_max_c = get<1>(best_cand);\n    int y_min_c = get<2>(best_cand);\n    int y_max_c = get<3>(best_cand);\n\n    cout << 4 << endl;\n    cout << x_min_c << \" \" << y_min_c << endl;\n    cout << x_max_c << \" \" << y_min_c << endl;\n    cout << x_max_c << \" \" << y_max_c << endl;\n    cout << x_min_c << \" \" << y_max_c << endl;\n    return 0;\n}",
+      "id": "e55aefcd-5fbb-4654-a032-99684362b20f",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "ffda775e-3d3b-46b2-8a0e-0df353afb25f",
+          "timestep": -1
+        }
+      ],
+      "timestep": 17,
+      "type": "AleBenchState",
+      "value": 1525.2933333333333
+    },
+    {
+      "code": "#include <iostream>\n#include <vector>\n#include <algorithm>\n#include <climits>\n#include <cmath>\n\nusing namespace std;\n\nstruct Point {\n    int x, y;\n};\n\nint main() {\n    int N;\n    cin >> N;\n    vector<Point> mackerels;\n    vector<Point> sardines;\n    for (int i = 0; i < 2 * N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        if (i < N) {\n            mackerels.push_back({x, y});\n        } else {\n            sardines.push_back({x, y});\n        }\n    }\n\n    // Compute initial bounding box for mackerels\n    int x_min = INT_MAX;\n    int x_max = INT_MIN;\n    int y_min = INT_MAX;\n    int y_max = INT_MIN;\n\n    for (const auto &p : mackerels) {\n        x_min = min(x_min, p.x);\n        x_max = max(x_max, p.x);\n        y_min = min(y_min, p.y);\n        y_max = max(y_max, p.y);\n    }\n\n    // Compute initial score\n    int initial_s_count = 0;\n    for (const auto &s : sardines) {\n        if (s.x >= x_min && s.x <= x_max && s.y >= y_min && s.y <= y_max) {\n            initial_s_count++;\n        }\n    }\n    int initial_score = max(0, N + 1 - 2 * initial_s_count);\n    int best_score = initial_score;\n    int best_xmin = x_min;\n    int best_xmax = x_max;\n    int best_ymin = y_min;\n    int best_ymax = y_max;\n\n    // Generate candidates by adjusting the bounding box to exclude sardines\n    for (const auto &s : sardines) {\n        if (s.x >= x_min && s.x <= x_max && s.y >= y_min && s.y <= y_max) {\n            // Option 1: shrink x_max to s.x - 1\n            int new_xmin = x_min;\n            int new_xmax = s.x - 1;\n            int new_ymin = y_min;\n            int new_ymax = y_max;\n            if (new_xmin <= new_xmax && new_ymin <= new_ymax) {\n                int m_count = 0;\n                int s_count = 0;\n                for (const auto &p : mackerels) {\n                    if (p.x >= new_xmin && p.x <= new_xmax && p.y >= new_ymin && p.y <= new_ymax) {\n                        m_count++;\n                    }\n                }\n                for (const auto &p : sardines) {\n                    if (p.x >= new_xmin && p.x <= new_xmax && p.y >= new_ymin && p.y <= new_ymax) {\n                        s_count++;\n                    }\n                }\n                int score = max(0, m_count - s_count + 1);\n                if (score > best_score) {\n                    best_score = score;\n                    best_xmin = new_xmin;\n                    best_xmax = new_xmax;\n                    best_ymin = new_ymin;\n                    best_ymax = new_ymax;\n                }\n            }\n\n            // Option 2: shrink x_min to s.x + 1\n            new_xmin = s.x + 1;\n            new_xmax = x_max;\n            new_ymin = y_min;\n            new_ymax = y_max;\n            if (new_xmin <= new_xmax && new_ymin <= new_ymax) {\n                int m_count = 0;\n                int s_count = 0;\n                for (const auto &p : mackerels) {\n                    if (p.x >= new_xmin && p.x <= new_xmax && p.y >= new_ymin && p.y <= new_ymax) {\n                        m_count++;\n                    }\n                }\n                for (const auto &p : sardines) {\n                    if (p.x >= new_xmin && p.x <= new_xmax && p.y >= new_ymin && p.y <= new_ymax) {\n                        s_count++;\n                    }\n                }\n                int score = max(0, m_count - s_count + 1);\n                if (score > best_score) {\n                    best_score = score;\n                    best_xmin = new_xmin;\n                    best_xmax = new_xmax;\n                    best_ymin = new_ymin;\n                    best_ymax = new_ymax;\n                }\n            }\n\n            // Option 3: shrink y_max to s.y - 1\n            new_xmin = x_min;\n            new_xmax = x_max;\n            new_ymin = y_min;\n            new_ymax = s.y - 1;\n            if (new_xmin <= new_xmax && new_ymin <= new_ymax) {\n                int m_count = 0;\n                int s_count = 0;\n                for (const auto &p : mackerels) {\n                    if (p.x >= new_xmin && p.x <= new_xmax && p.y >= new_ymin && p.y <= new_ymax) {\n                        m_count++;\n                    }\n                }\n                for (const auto &p : sardines) {\n                    if (p.x >= new_xmin && p.x <= new_xmax && p.y >= new_ymin && p.y <= new_ymax) {\n                        s_count++;\n                    }\n                }\n                int score = max(0, m_count - s_count + 1);\n                if (score > best_score) {\n                    best_score = score;\n                    best_xmin = new_xmin;\n                    best_xmax = new_xmax;\n                    best_ymin = new_ymin;\n                    best_ymax = new_ymax;\n                }\n            }\n\n            // Option 4: shrink y_min to s.y + 1\n            new_xmin = x_min;\n            new_xmax = x_max;\n            new_ymin = s.y + 1;\n            new_ymax = y_max;\n            if (new_xmin <= new_xmax && new_ymin <= new_ymax) {\n                int m_count = 0;\n                int s_count = 0;\n                for (const auto &p : mackerels) {\n                    if (p.x >= new_xmin && p.x <= new_xmax && p.y >= new_ymin && p.y <= new_ymax) {\n                        m_count++;\n                    }\n                }\n                for (const auto &p : sardines) {\n                    if (p.x >= new_xmin && p.x <= new_xmax && p.y >= new_ymin && p.y <= new_ymax) {\n                        s_count++;\n                    }\n                }\n                int score = max(0, m_count - s_count + 1);\n                if (score > best_score) {\n                    best_score = score;\n                    best_xmin = new_xmin;\n                    best_xmax = new_xmax;\n                    best_ymin = new_ymin;\n                    best_ymax = new_ymax;\n                }\n            }\n        }\n    }\n\n    // Output the best rectangle\n    cout << 4 << endl;\n    cout << best_xmin << ' ' << best_ymin << endl;\n    cout << best_xmax << ' ' << best_ymin << endl;\n    cout << best_xmax << ' ' << best_ymax << endl;\n    cout << best_xmin << ' ' << best_ymax << endl;\n    return 0;\n}",
+      "id": "3ea38caa-a644-44c9-b56c-dfa80bef74d5",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "ffda775e-3d3b-46b2-8a0e-0df353afb25f",
+          "timestep": -1
+        }
+      ],
+      "timestep": 22,
+      "type": "AleBenchState",
+      "value": 1525.2933333333333
+    },
+    {
+      "code": "#include <iostream>\n#include <vector>\n#include <algorithm>\n#include <cmath>\n#include <utility>\n#include <climits>\n\nusing namespace std;\n\nstruct Point {\n    int x, y;\n};\n\nint main() {\n    int N;\n    cin >> N;\n    vector<Point> points(2 * N);\n    for (int i = 0; i < 2 * N; ++i) {\n        cin >> points[i].x >> points[i].y;\n    }\n\n    vector<Point> mackerels;\n    vector<Point> sardines;\n    for (int i = 0; i < N; ++i) {\n        mackerels.push_back(points[i]);\n    }\n    for (int i = N; i < 2 * N; ++i) {\n        sardines.push_back(points[i]);\n    }\n\n    // Compute initial rectangle for mackerels\n    int min_x_m = INT_MAX, max_x_m = INT_MIN, min_y_m = INT_MAX, max_y_m = INT_MIN;\n    for (const auto& p : mackerels) {\n        min_x_m = min(min_x_m, p.x);\n        max_x_m = max(max_x_m, p.x);\n        min_y_m = min(min_y_m, p.y);\n        max_y_m = max(max_y_m, p.y);\n    }\n\n    int x_min = min_x_m;\n    int x_max = max_x_m;\n    int y_min = min_y_m;\n    int y_max = max_y_m;\n\n    // Function to count number of points in a rectangle\n    auto count_points_in_rect = [&](const vector<Point>& points_list, int rx_min, int rx_max, int ry_min, int ry_max) -> int {\n        int count = 0;\n        for (const auto& p : points_list) {\n            if (p.x >= rx_min && p.x <= rx_max && p.y >= ry_min && p.y <= ry_max) {\n                ++count;\n            }\n        }\n        return count;\n    };\n\n    // Count sardines in the initial rectangle\n    int sardines_in_initial = count_points_in_rect(sardines, x_min, x_max, y_min, y_max);\n\n    int best_score = N - sardines_in_initial;\n    int best_x_min = x_min;\n    int best_x_max = x_max;\n    int best_y_min = y_min;\n    int best_y_max = y_max;\n\n    // Try to adjust for each sardine inside initial rectangle\n    for (const auto& s : sardines) {\n        if (s.x >= x_min && s.x <= x_max && s.y >= y_min && s.y <= y_max) {\n            // Try adjusting x boundaries\n            // Case 1: new_x_max = s.x - 1\n            int new_x_min1 = x_min;\n            int new_x_max1 = s.x - 1;\n            if (new_x_max1 >= new_x_min1) {\n                int count_m = count_points_in_rect(mackerels, new_x_min1, new_x_max1, y_min, y_max);\n                int count_s = count_points_in_rect(sardines, new_x_min1, new_x_max1, y_min, y_max);\n                int new_score = count_m - count_s;\n                if (new_score > best_score) {\n                    best_score = new_score;\n                    best_x_min = new_x_min1;\n                    best_x_max = new_x_max1;\n                    best_y_min = y_min;\n                    best_y_max = y_max;\n                }\n            }\n            // Case 2: new_x_min = s.x + 1\n            int new_x_min2 = s.x + 1;\n            int new_x_max2 = x_max;\n            if (new_x_min2 <= new_x_max2) {\n                int count_m = count_points_in_rect(mackerels, new_x_min2, new_x_max2, y_min, y_max);\n                int count_s = count_points_in_rect(sardines, new_x_min2, new_x_max2, y_min, y_max);\n                int new_score = count_m - count_s;\n                if (new_score > best_score) {\n                    best_score = new_score;\n                    best_x_min = new_x_min2;\n                    best_x_max = new_x_max2;\n                    best_y_min = y_min;\n                    best_y_max = y_max;\n                }\n            }\n            // Try adjusting y boundaries\n            // Case 3: new_y_max = s.y -1\n            int new_y_min3 = y_min;\n            int new_y_max3 = s.y - 1;\n            if (new_y_max3 >= new_y_min3) {\n                int count_m = count_points_in_rect(mackerels, x_min, x_max, new_y_min3, new_y_max3);\n                int count_s = count_points_in_rect(sardines, x_min, x_max, new_y_min3, new_y_max3);\n                int new_score = count_m - count_s;\n                if (new_score > best_score) {\n                    best_score = new_score;\n                    best_x_min = x_min;\n                    best_x_max = x_max;\n                    best_y_min = new_y_min3;\n                    best_y_max = new_y_max3;\n                }\n            }\n            // Case 4: new_y_min = s.y + 1\n            int new_y_min4 = s.y + 1;\n            int new_y_max4 = y_max;\n            if (new_y_min4 <= new_y_max4) {\n                int count_m = count_points_in_rect(mackerels, x_min, x_max, new_y_min4, new_y_max4);\n                int count_s = count_points_in_rect(sardines, x_min, x_max, new_y_min4, new_y_max4);\n                int new_score = count_m - count_s;\n                if (new_score > best_score) {\n                    best_score = new_score;\n                    best_x_min = x_min;\n                    best_x_max = x_max;\n                    best_y_min = new_y_min4;\n                    best_y_max = new_y_max4;\n                }\n            }\n        }\n    }\n\n    // Now, output the best rectangle\n    // The four vertices are:\n    // (x_min, y_min), (x_max, y_min), (x_max, y_max), (x_min, y_max)\n    cout << 4 << endl;\n    cout << best_x_min << \" \" << best_y_min << endl;\n    cout << best_x_max << \" \" << best_y_min << endl;\n    cout << best_x_max << \" \" << best_y_max << endl;\n    cout << best_x_min << \" \" << best_y_max << endl;\n\n    return 0;\n}",
+      "id": "309889e6-dabd-4d6e-9851-2649f746d03f",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "61801af4-8d41-4f30-96fc-9c6bdf2747e0",
+          "timestep": -1
+        }
+      ],
+      "timestep": 24,
+      "type": "AleBenchState",
+      "value": 1525.2933333333333
+    },
+    {
+      "code": "#include <iostream>\n#include <vector>\n#include <algorithm>\n#include <cmath>\n\nusing namespace std;\n\nstruct Point {\n    int x, y;\n};\n\nint main() {\n    ios_base::sync_with_stdio(false);\n    cin.tie(nullptr);\n\n    int N;\n    cin >> N;\n\n    vector<Point> mackerels;\n    vector<Point> sardines;\n\n    for (int i = 0; i < 2 * N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        if (i < N) {\n            mackerels.push_back({x, y});\n        } else {\n            sardines.push_back({x, y});\n        }\n    }\n\n    // Function to check if any sardine is in the rectangle\n    auto has_sardine = [&](int x1, int x2, int y1, int y2) -> bool {\n        for (const auto &s : sardines) {\n            if (s.x >= x1 && s.x <= x2 && s.y >= y1 && s.y <= y2) {\n                return true;\n            }\n        }\n        return false;\n    };\n\n    // Function to count mackerels in a rectangle\n    auto count_mackerels = [&](int x1, int x2, int y1, int y2) -> int {\n        int count = 0;\n        for (const auto &p : mackerels) {\n            if (p.x >= x1 && p.x <= x2 && p.y >= y1 && p.y <= y2) {\n                ++count;\n            }\n        }\n        return count;\n    };\n\n    // Function to count sardines in a rectangle\n    auto count_sardines = [&](int x1, int x2, int y1, int y2) -> int {\n        int count = 0;\n        for (const auto &s : sardines) {\n            if (s.x >= x1 && s.x <= x2 && s.y >= y1 && s.y <= y2) {\n                ++count;\n            }\n        }\n        return count;\n    };\n\n    // Compute initial bounding box for mackerels\n    int min_x = mackerels[0].x;\n    int max_x = mackerels[0].x;\n    int min_y = mackerels[0].y;\n    int max_y = mackerels[0].y;\n\n    for (const auto &p : mackerels) {\n        if (p.x < min_x) min_x = p.x;\n        if (p.x > max_x) max_x = p.x;\n        if (p.y < min_y) min_y = p.y;\n        if (p.y > max_y) max_y = p.y;\n    }\n\n    // Initial candidate rectangle\n    int best_a = count_mackerels(min_x, max_x, min_y, max_y);\n    int best_b = count_sardines(min_x, max_x, min_y, max_y);\n    int best_x1 = min_x, best_x2 = max_x, best_y1 = min_y, best_y2 = max_y;\n\n    if (best_b == 0) {\n        cout << 4 << endl;\n        cout << min_x << \" \" << min_y << endl;\n        cout << max_x << \" \" << min_y << endl;\n        cout << max_x << \" \" << max_y << endl;\n        cout << min_x << \" \" << max_y << endl;\n        return 0;\n    }\n\n    // Try to adjust the initial rectangle to exclude sardines\n    for (const auto &s : sardines) {\n        if (s.x >= min_x && s.x <= max_x && s.y >= min_y && s.y <= max_y) {\n            // Try adjusting x1\n            int new_x1 = s.x + 1;\n            int new_x2_val = max_x;\n            if (new_x1 <= new_x2_val) {\n                int a = count_mackerels(new_x1, new_x2_val, min_y, max_y);\n                int b = count_sardines(new_x1, new_x2_val, min_y, max_y);\n                if (a - b > best_a - best_b) {\n                    best_a = a;\n                    best_b = b;\n                    best_x1 = new_x1;\n                    best_x2 = new_x2_val;\n                    best_y1 = min_y;\n                    best_y2 = max_y;\n                }\n            }\n\n            // Try adjusting x2\n            int new_x2 = s.x - 1;\n            int new_x1_val = min_x;\n            if (new_x1_val <= new_x2) {\n                int a = count_mackerels(new_x1_val, new_x2, min_y, max_y);\n                int b = count_sardines(new_x1_val, new_x2, min_y, max_y);\n                if (a - b > best_a - best_b) {\n                    best_a = a;\n                    best_b = b;\n                    best_x1 = new_x1_val;\n                    best_x2 = new_x2;\n                    best_y1 = min_y;\n                    best_y2 = max_y;\n                }\n            }\n\n            // Try adjusting y1\n            int new_y1 = s.y + 1;\n            int new_y2_val = max_y;\n            if (new_y1 <= new_y2_val) {\n                int a = count_mackerels(min_x, max_x, new_y1, new_y2_val);\n                int b = count_sardines(min_x, max_x, new_y1, new_y2_val);\n                if (a - b > best_a - best_b) {\n                    best_a = a;\n                    best_b = b;\n                    best_x1 = min_x;\n                    best_x2 = max_x;\n                    best_y1 = new_y1;\n                    best_y2 = new_y2_val;\n                }\n            }\n\n            // Try adjusting y2\n            int new_y2 = s.y - 1;\n            int new_y1_val = min_y;\n            if (new_y1_val <= new_y2) {\n                int a = count_mackerels(min_x, max_x, new_y1_val, new_y2);\n                int b = count_sardines(min_x, max_x, new_y1_val, new_y2);\n                if (a - b > best_a - best_b) {\n                    best_a = a;\n                    best_b = b;\n                    best_x1 = min_x;\n                    best_x2 = max_x;\n                    best_y1 = new_y1_val;\n                    best_y2 = new_y2;\n                }\n            }\n        }\n    }\n\n    // Output the best rectangle found\n    cout << 4 << endl;\n    cout << best_x1 << \" \" << best_y1 << endl;\n    cout << best_x2 << \" \" << best_y1 << endl;\n    cout << best_x2 << \" \" << best_y2 << endl;\n    cout << best_x1 << \" \" << best_y2 << endl;\n    return 0;\n}",
+      "id": "ec475a1e-cca9-4615-9c05-e7862ade32b7",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "61801af4-8d41-4f30-96fc-9c6bdf2747e0",
+          "timestep": -1
+        }
+      ],
+      "timestep": 29,
+      "type": "AleBenchState",
+      "value": 1525.2933333333333
+    },
+    {
+      "code": "#include <bits/stdc++.h>\nusing namespace std;\n\nstruct Point {\n    int x, y;\n};\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(0);\n\n    int N;\n    cin >> N;\n\n    vector<Point> mackerels;\n    vector<Point> sardines;\n\n    for (int i = 0; i < 2 * N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        if (i < N) {\n            mackerels.push_back({x, y});\n        } else {\n            sardines.push_back({x, y});\n        }\n    }\n\n    vector<tuple<int, int, int, int>> candidates;\n\n    // Candidate 1: Bounding Box of All Mackerels\n    int xm1 = mackerels[0].x, ym1 = mackerels[0].y, xm2 = mackerels[0].x, ym2 = mackerels[0].y;\n    for (auto p : mackerels) {\n        xm1 = min(xm1, p.x);\n        ym1 = min(ym1, p.y);\n        xm2 = max(xm2, p.x);\n        ym2 = max(ym2, p.y);\n    }\n    candidates.emplace_back(xm1, ym1, xm2, ym2);\n\n    // Candidate 2: Bounding Box of All Sardines\n    int xs1 = sardines[0].x, ys1 = sardines[0].y, xs2 = sardines[0].x, ys2 = sardines[0].y;\n    for (auto p : sardines) {\n        xs1 = min(xs1, p.x);\n        ys1 = min(ys1, p.y);\n        xs2 = max(xs2, p.x);\n        ys2 = max(ys2, p.y);\n    }\n    candidates.emplace_back(xs1, ys1, xs2, ys2);\n\n    // Candidate 3: Bounding Box of All Points\n    int xall1 = mackerels[0].x, yall1 = mackerels[0].y, xall2 = mackerels[0].x, yall2 = mackerels[0].y;\n    for (auto p : mackerels) {\n        xall1 = min(xall1, p.x);\n        yall1 = min(yall1, p.y);\n        xall2 = max(xall2, p.x);\n        yall2 = max(yall2, p.y);\n    }\n    for (auto p : sardines) {\n        xall1 = min(xall1, p.x);\n        yall1 = min(yall1, p.y);\n        xall2 = max(xall2, p.x);\n        yall2 = max(yall2, p.y);\n    }\n    candidates.emplace_back(xall1, yall1, xall2, yall2);\n\n    // Candidate 4: First 500 Mackerels (if available)\n    if (N >= 500) {\n        int xm1 = mackerels[0].x, ym1 = mackerels[0].y, xm2 = mackerels[0].x, ym2 = mackerels[0].y;\n        for (int i = 0; i < 500; ++i) {\n            auto p = mackerels[i];\n            xm1 = min(xm1, p.x);\n            ym1 = min(ym1, p.y);\n            xm2 = max(xm2, p.x);\n            ym2 = max(ym2, p.y);\n        }\n        candidates.emplace_back(xm1, ym1, xm2, ym2);\n    }\n\n    // Candidate 5: Last 500 Mackerels (if available)\n    if (N >= 500) {\n        int xm1 = mackerels[N-1].x, ym1 = mackerels[N-1].y, xm2 = mackerels[N-1].x, ym2 = mackerels[N-1].y;\n        for (int i = N - 500; i < N; ++i) {\n            auto p = mackerels[i];\n            xm1 = min(xm1, p.x);\n            ym1 = min(ym1, p.y);\n            xm2 = max(xm2, p.x);\n            ym2 = max(ym2, p.y);\n        }\n        candidates.emplace_back(xm1, ym1, xm2, ym2);\n    }\n\n    // Candidate 6: First 500 Sardines (if available)\n    if (N >= 500) {\n        int xs1 = sardines[0].x, ys1 = sardines[0].y, xs2 = sardines[0].x, ys2 = sardines[0].y;\n        for (int i = 0; i < 500; ++i) {\n            auto p = sardines[i];\n            xs1 = min(xs1, p.x);\n            ys1 = min(ys1, p.y);\n            xs2 = max(xs2, p.x);\n            ys2 = max(ys2, p.y);\n        }\n        candidates.emplace_back(xs1, ys1, xs2, ys2);\n    }\n\n    // Candidate 7: Last 500 Sardines (if available)\n    if (N >= 500) {\n        int xs1 = sardines[N-1].x, ys1 = sardines[N-1].y, xs2 = sardines[N-1].x, ys2 = sardines[N-1].y;\n        for (int i = N - 500; i < N; ++i) {\n            auto p = sardines[i];\n            xs1 = min(xs1, p.x);\n            ys1 = min(ys1, p.y);\n            xs2 = max(xs2, p.x);\n            ys2 = max(ys2, p.y);\n        }\n        candidates.emplace_back(xs1, ys1, xs2, ys2);\n    }\n\n    int best_score = -1;\n    tuple<int, int, int, int> best_rect;\n\n    for (auto rect : candidates) {\n        int x1, y1, x2, y2;\n        tie(x1, y1, x2, y2) = rect;\n\n        int a = 0;\n        for (auto p : mackerels) {\n            if (p.x >= x1 && p.x <= x2 && p.y >= y1 && p.y <= y2) {\n                a++;\n            }\n        }\n\n        int b = 0;\n        for (auto p : sardines) {\n            if (p.x >= x1 && p.x <= x2 && p.y >= y1 && p.y <= y2) {\n                b++;\n            }\n        }\n\n        if (a - b > best_score) {\n            best_score = a - b;\n            best_rect = rect;\n        }\n    }\n\n    auto [x1, y1, x2, y2] = best_rect;\n\n    cout << 4 << endl;\n    cout << x1 << \" \" << y1 << endl;\n    cout << x2 << \" \" << y1 << endl;\n    cout << x2 << \" \" << y2 << endl;\n    cout << x1 << \" \" << y2 << endl;\n\n    return 0;\n}",
+      "id": "846d7d8e-0b80-4a84-95da-c71e61e0f9d5",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "bf0a4af7-d08c-453f-b695-e77b1dca99dd",
+          "timestep": -1
+        }
+      ],
+      "timestep": 34,
+      "type": "AleBenchState",
+      "value": 299.23333333333335
+    },
+    {
+      "code": "#include <bits/stdc++.h>\nusing namespace std;\nusing ll = long long;\n\nint main() {\n    int N;\n    cin >> N;\n    vector<pair<int, int>> mackerels;\n    vector<pair<int, int>> sardines;\n    for(int i = 0; i < 2 * N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        if(i < N) mackerels.push_back({x, y});\n        else sardines.push_back({x, y});\n    }\n\n    // Compute bounding box of mackerels\n    int x1 = INT_MAX, x2 = INT_MIN, y1 = INT_MAX, y2 = INT_MIN;\n    for(auto &p : mackerels) {\n        x1 = min(x1, p.first);\n        x2 = max(x2, p.first);\n        y1 = min(y1, p.second);\n        y2 = max(y2, p.second);\n    }\n\n    // Count sardines in the bounding box\n    int count_sardines_in_box = 0;\n    for(auto &p : sardines) {\n        if(p.first >= x1 && p.first <= x2 && p.second >= y1 && p.second <= y2) {\n            count_sardines_in_box++;\n        }\n    }\n    int score_box = max(0, (N - count_sardines_in_box) + 1);\n\n    // Check small rectangles around each mackerel\n    int max_score = score_box;\n    int best_x1 = x1, best_x2 = x2, best_y1 = y1, best_y2 = y2;\n\n    const int rect_size = 100;\n\n    for(auto &p : mackerels) {\n        int x_center = p.first;\n        int y_center = p.second;\n\n        int x_left = max(0, x_center - rect_size);\n        int x_right = min(100000, x_center + rect_size);\n        int y_left = max(0, y_center - rect_size);\n        int y_right = min(100000, y_center + rect_size);\n\n        int count_m = 0;\n        int count_s = 0;\n        for(auto &m : mackerels) {\n            if(m.first >= x_left && m.first <= x_right && m.second >= y_left && m.second <= y_right) {\n                count_m++;\n            }\n        }\n        for(auto &s : sardines) {\n            if(s.first >= x_left && s.first <= x_right && s.second >= y_left && s.second <= y_right) {\n                count_s++;\n            }\n        }\n        int current_score = max(0, count_m - count_s + 1);\n        if(current_score > max_score) {\n            max_score = current_score;\n            best_x1 = x_left;\n            best_x2 = x_right;\n            best_y1 = y_left;\n            best_y2 = y_right;\n        }\n    }\n\n    // Decide which rectangle to output\n    if(max_score > score_box) {\n        cout << 4 << endl;\n        cout << best_x1 << \" \" << best_y1 << endl;\n        cout << best_x2 << \" \" << best_y1 << endl;\n        cout << best_x2 << \" \" << best_y2 << endl;\n        cout << best_x1 << \" \" << best_y2 << endl;\n    } else {\n        cout << 4 << endl;\n        cout << x1 << \" \" << y1 << endl;\n        cout << x2 << \" \" << y1 << endl;\n        cout << x2 << \" \" << y2 << endl;\n        cout << x1 << \" \" << y2 << endl;\n    }\n\n    return 0;\n}",
+      "id": "a8f0e569-8433-4e8b-82ec-8dfaa7f69a51",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "bf0a4af7-d08c-453f-b695-e77b1dca99dd",
+          "timestep": -1
+        }
+      ],
+      "timestep": 38,
+      "type": "AleBenchState",
+      "value": 143.12
+    },
+    {
+      "code": "#include <bits/stdc++.h>\nusing namespace std;\n\nstruct Rect {\n    int min_x, min_y, max_x, max_y;\n};\n\nint main() {\n    int N;\n    cin >> N;\n    vector<pair<int, int>> mackerels;\n    vector<pair<int, int>> sardines;\n    for (int i = 0; i < N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        mackerels.push_back({x, y});\n    }\n    for (int i = 0; i < N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        sardines.push_back({x, y});\n    }\n\n    vector<Rect> candidates;\n\n    // Candidate 1: bounding box of all mackerels\n    int min_mx = mackerels[0].first;\n    int max_mx = mackerels[0].first;\n    int min_my = mackerels[0].second;\n    int max_my = mackerels[0].second;\n    for (auto p : mackerels) {\n        if (p.first < min_mx) min_mx = p.first;\n        if (p.first > max_mx) max_mx = p.first;\n        if (p.second < min_my) min_my = p.second;\n        if (p.second > max_my) max_my = p.second;\n    }\n    int w = max_mx - min_mx;\n    int h = max_my - min_my;\n    int perimeter = 2 * (w + h);\n    if (perimeter <= 400000 && w > 0 && h > 0) {\n        candidates.push_back({ min_mx, min_my, max_mx, max_my });\n    }\n\n    // Candidate 2: pairs from first 100 mackerels\n    const int K = 100;\n    for (int i = 0; i < K && i < N; ++i) {\n        for (int j = i + 1; j < K && j < N; ++j) {\n            int x1 = mackerels[i].first;\n            int y1 = mackerels[i].second;\n            int x2 = mackerels[j].first;\n            int y2 = mackerels[j].second;\n            int min_x = min(x1, x2);\n            int max_x = max(x1, x2);\n            int min_y = min(y1, y2);\n            int max_y = max(y1, y2);\n            int w = max_x - min_x;\n            int h = max_y - min_y;\n            int perimeter = 2 * (w + h);\n            if (perimeter <= 400000 && w > 0 && h > 0) {\n                candidates.push_back({ min_x, min_y, max_x, max_y });\n            }\n        }\n    }\n\n    // Now, find the best candidate\n    int best_diff = -1;\n    Rect best_rect;\n    for (auto rect : candidates) {\n        int count_m = 0;\n        int count_s = 0;\n        for (auto p : mackerels) {\n            if (p.first >= rect.min_x && p.first <= rect.max_x && p.second >= rect.min_y && p.second <= rect.max_y) {\n                count_m++;\n            }\n        }\n        for (auto p : sardines) {\n            if (p.first >= rect.min_x && p.first <= rect.max_x && p.second >= rect.min_y && p.second <= rect.max_y) {\n                count_s++;\n            }\n        }\n        int current_diff = count_m - count_s;\n        if (current_diff > best_diff) {\n            best_diff = current_diff;\n            best_rect = rect;\n        }\n    }\n\n    // Output the best_rect\n    if (!candidates.empty()) {\n        cout << 4 << endl;\n        cout << best_rect.min_x << \" \" << best_rect.min_y << endl;\n        cout << best_rect.max_x << \" \" << best_rect.min_y << endl;\n        cout << best_rect.max_x << \" \" << best_rect.max_y << endl;\n        cout << best_rect.min_x << \" \" << best_rect.max_y << endl;\n    } else {\n        // fallback: output a small rectangle\n        cout << 4 << endl;\n        cout << 0 << \" \" << 0 << endl;\n        cout << 1 << \" \" << 0 << endl;\n        cout << 1 << \" \" << 1 << endl;\n        cout << 0 << \" \" << 1 << endl;\n    }\n\n    return 0;\n}",
+      "id": "8befc3aa-0e5d-4bc8-b622-659c9b89dc83",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "ce006659-167f-4710-b526-f324251438e9",
+          "timestep": -1
+        }
+      ],
+      "timestep": 43,
+      "type": "AleBenchState",
+      "value": 1576.1466666666668
+    },
+    {
+      "code": "#include <iostream>\n#include <vector>\n#include <algorithm>\n#include <climits>\n\nusing namespace std;\n\nstruct Point {\n    int x, y;\n};\n\nint main() {\n    int N;\n    cin >> N;\n    vector<Point> points(2 * N);\n    for (int i = 0; i < 2 * N; ++i) {\n        cin >> points[i].x >> points[i].y;\n    }\n\n    vector<Point> mackerels(points.begin(), points.begin() + N);\n    vector<Point> sardines(points.begin() + N, points.end());\n\n    int x_min_m = INT_MAX, x_max_m = 0;\n    int y_min_m = INT_MAX, y_max_m = 0;\n\n    for (const auto& p : mackerels) {\n        x_min_m = min(x_min_m, p.x);\n        x_max_m = max(x_max_m, p.x);\n        y_min_m = min(y_min_m, p.y);\n        y_max_m = max(y_max_m, p.y);\n    }\n\n    int sardines_in_rectangle = 0;\n    for (const auto& s : sardines) {\n        if (s.x >= x_min_m && s.x <= x_max_m && s.y >= y_min_m && s.y <= y_max_m) {\n            ++sardines_in_rectangle;\n        }\n    }\n\n    // Output the rectangle\n    cout << 4 << endl;\n    cout << x_min_m << \" \" << y_min_m << endl;\n    cout << x_max_m << \" \" << y_min_m << endl;\n    cout << x_max_m << \" \" << y_max_m << endl;\n    cout << x_min_m << \" \" << y_max_m << endl;\n\n    return 0;\n}",
+      "id": "e5dceb28-c025-437e-80ba-039937d16c23",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "ce006659-167f-4710-b526-f324251438e9",
+          "timestep": -1
+        }
+      ],
+      "timestep": 40,
+      "type": "AleBenchState",
+      "value": 142.02666666666667
+    },
+    {
+      "code": "#include <bits/stdc++.h>\nusing namespace std;\n\nstruct Point {\n    int x, y;\n    bool is_mackerel;\n    Point(int _x, int _y, bool _is) : x(_x), y(_y), is_mackerel(_is) {}\n};\n\nint main() {\n    int N;\n    cin >> N;\n    vector<Point> all_points;\n    for (int i = 0; i < 2 * N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        bool is_mackerel = (i < N);\n        all_points.emplace_back(x, y, is_mackerel);\n    }\n\n    // Sort all points by x, then by y\n    sort(all_points.begin(), all_points.end(), [](const Point &a, const Point &b) {\n        if (a.x != b.x) return a.x < b.x;\n        return a.y < b.y;\n    });\n\n    // Step 1: Kadane's algorithm on x\n    vector<int> contrib_x;\n    for (const auto &p : all_points) {\n        contrib_x.push_back(p.is_mackerel ? 1 : -1);\n    }\n\n    int x_start = 0, x_end = 0;\n    int max_x_sum = -1e9;\n    int current_sum = 0;\n    int temp_start = 0;\n    for (int i = 0; i < contrib_x.size(); ++i) {\n        if (current_sum + contrib_x[i] > contrib_x[i]) {\n            current_sum += contrib_x[i];\n        } else {\n            current_sum = contrib_x[i];\n            temp_start = i;\n        }\n        if (current_sum > max_x_sum) {\n            max_x_sum = current_sum;\n            x_start = temp_start;\n            x_end = i;\n        }\n    }\n\n    // Now, extract the x_subarray\n    vector<Point> x_subarray(all_points.begin() + x_start, all_points.begin() + x_end + 1);\n\n    // Step 2: sort by y and apply Kadane's algorithm on y\n    sort(x_subarray.begin(), x_subarray.end(), [](const Point &a, const Point &b) {\n        if (a.y != b.y) return a.y < b.y;\n        return a.x < b.x;\n    });\n\n    vector<int> contrib_y;\n    for (const auto &p : x_subarray) {\n        contrib_y.push_back(p.is_mackerel ? 1 : -1);\n    }\n\n    int y_start = 0, y_end = 0;\n    int max_y_sum = -1e9;\n    current_sum = 0;\n    temp_start = 0;\n    for (int i = 0; i < contrib_y.size(); ++i) {\n        if (current_sum + contrib_y[i] > contrib_y[i]) {\n            current_sum += contrib_y[i];\n        } else {\n            current_sum = contrib_y[i];\n            temp_start = i;\n        }\n        if (current_sum > max_y_sum) {\n            max_y_sum = current_sum;\n            y_start = temp_start;\n            y_end = i;\n        }\n    }\n\n    // Now, get the x_min, x_max, y_min, y_max\n    int x_min = all_points[x_start].x;\n    int x_max = all_points[x_end].x;\n    int y_min = x_subarray[y_start].y;\n    int y_max = x_subarray[y_end].y;\n\n    // Check if x_min == x_max or y_min == y_max\n    if (x_min == x_max || y_min == y_max) {\n        // Expand x\n        if (x_min == x_max) {\n            // Find the next x in x_subarray that is different\n            int new_x = x_min;\n            for (auto &p : x_subarray) {\n                if (p.x != x_min) {\n                    new_x = p.x;\n                    break;\n                }\n            }\n            if (new_x == x_min) {\n                new_x = x_min + 1;\n            }\n            x_max = new_x;\n        }\n        // Expand y\n        if (y_min == y_max) {\n            int new_y = y_min;\n            for (auto &p : x_subarray) {\n                if (p.y != y_min) {\n                    new_y = p.y;\n                    break;\n                }\n            }\n            if (new_y == y_min) {\n                new_y = y_min + 1;\n            }\n            y_max = new_y;\n        }\n    }\n\n    // Output the rectangle\n    cout << 4 << endl;\n    cout << x_min << \" \" << y_min << endl;\n    cout << x_max << \" \" << y_min << endl;\n    cout << x_max << \" \" << y_max << endl;\n    cout << x_min << \" \" << y_max << endl;\n\n    return 0;\n}",
+      "id": "1f910d59-c0aa-4143-8f17-e19f3801afcf",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "2dbd3d20-b262-4223-a7e0-add9b91b3a76",
+          "timestep": -1
+        }
+      ],
+      "timestep": 50,
+      "type": "AleBenchState",
+      "value": 1696.8066666666666
+    },
+    {
+      "code": "#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    int N;\n    cin >> N;\n    vector<pair<int, int>> mackerels;\n    vector<pair<int, int>> sardines;\n    for (int i = 0; i < N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        mackerels.push_back({x, y});\n    }\n    for (int i = 0; i < N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        sardines.push_back({x, y});\n    }\n\n    // Compute initial rectangle for mackerels\n    int xlow_m = INT_MAX, xhigh_m = INT_MIN;\n    int ylow_m = INT_MAX, yhigh_m = INT_MIN;\n    for (const auto& p : mackerels) {\n        xlow_m = min(xlow_m, p.first);\n        xhigh_m = max(xhigh_m, p.first);\n        ylow_m = min(ylow_m, p.second);\n        yhigh_m = max(yhigh_m, p.second);\n    }\n\n    // Count sardines in initial rectangle\n    int count_s = 0;\n    for (const auto& p : sardines) {\n        if (p.first >= xlow_m && p.first <= xhigh_m && p.second >= ylow_m && p.second <= yhigh_m) {\n            count_s++;\n        }\n    }\n\n    if (count_s == 0) {\n        cout << 4 << endl;\n        cout << xlow_m << \" \" << ylow_m << endl;\n        cout << xhigh_m << \" \" << ylow_m << endl;\n        cout << xhigh_m << \" \" << yhigh_m << endl;\n        cout << xlow_m << \" \" << yhigh_m << endl;\n        return 0;\n    }\n\n    int best_score = 0;\n    int best_xlow = xlow_m, best_xhigh = xhigh_m;\n    int best_ylow = ylow_m, best_yhigh = yhigh_m;\n\n    vector<pair<int, int>> s_in_rect;\n    for (const auto& p : sardines) {\n        if (p.first >= xlow_m && p.first <= xhigh_m && p.second >= ylow_m && p.second <= yhigh_m) {\n            s_in_rect.push_back(p);\n        }\n    }\n\n    for (const auto& s : s_in_rect) {\n        int sx = s.first, sy = s.second;\n\n        vector<vector<int>> candidates;\n        // New_rect1: xlow to sx-1\n        if (sx - 1 >= xlow_m) {\n            candidates.push_back({xlow_m, sx - 1, ylow_m, yhigh_m});\n        }\n        // New_rect2: sx+1 to xhigh\n        if (sx + 1 <= xhigh_m) {\n            candidates.push_back({sx + 1, xhigh_m, ylow_m, yhigh_m});\n        }\n        // New_rect3: ylow to sy-1\n        if (sy - 1 >= ylow_m) {\n            candidates.push_back({xlow_m, xhigh_m, ylow_m, sy - 1});\n        }\n        // New_rect4: sy+1 to yhigh\n        if (sy + 1 <= yhigh_m) {\n            candidates.push_back({xlow_m, xhigh_m, sy + 1, yhigh_m});\n        }\n\n        for (const auto& candidate : candidates) {\n            int cxlow = candidate[0], cxhigh = candidate[1];\n            int cylow = candidate[2], cyhigh = candidate[3];\n\n            // Count mackerels in this rectangle\n            int a = 0;\n            for (const auto& p : mackerels) {\n                if (p.first >= cxlow && p.first <= cxhigh && p.second >= cylow && p.second <= cyhigh) {\n                    a++;\n                }\n            }\n\n            // Count sardines in this rectangle\n            int b = 0;\n            for (const auto& p : sardines) {\n                if (p.first >= cxlow && p.first <= cxhigh && p.second >= cylow && p.second <= cyhigh) {\n                    b++;\n                }\n            }\n\n            int current_score = a - b;\n            if (current_score > best_score) {\n                best_score = current_score;\n                best_xlow = cxlow;\n                best_xhigh = cxhigh;\n                best_ylow = cylow;\n                best_yhigh = cyhigh;\n            }\n        }\n    }\n\n    // Also consider the initial rectangle\n    int initial_score = N - count_s;\n    if (initial_score > best_score) {\n        best_score = initial_score;\n        best_xlow = xlow_m;\n        best_xhigh = xhigh_m;\n        best_ylow = ylow_m;\n        best_yhigh = yhigh_m;\n    }\n\n    // Output the best rectangle\n    cout << 4 << endl;\n    cout << best_xlow << \" \" << best_ylow << endl;\n    cout << best_xhigh << \" \" << best_ylow << endl;\n    cout << best_xhigh << \" \" << best_yhigh << endl;\n    cout << best_xlow << \" \" << best_yhigh << endl;\n    return 0;\n}",
+      "id": "9ea4ab06-c79c-4fc8-8fe7-f0094d399a68",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "2dbd3d20-b262-4223-a7e0-add9b91b3a76",
+          "timestep": -1
+        }
+      ],
+      "timestep": 51,
+      "type": "AleBenchState",
+      "value": 1525.2933333333333
+    },
+    {
+      "code": "#include <iostream>\n#include <vector>\n#include <algorithm>\n#include <limits>\nusing namespace std;\n\nvector<pair<int, int>> mackerels;\nvector<pair<int, int>> sardines;\n\nint count_points_in_rect(const vector<pair<int, int>>& points, int x_low, int x_high, int y_low, int y_high) {\n    int count = 0;\n    for (const auto& p : points) {\n        if (p.first >= x_low && p.first <= x_high && p.second >= y_low && p.second <= y_high) {\n            ++count;\n        }\n    }\n    return count;\n}\n\nint main() {\n    int N;\n    cin >> N;\n    mackerels.resize(N);\n    sardines.resize(N);\n    for (int i = 0; i < 2*N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        if (i < N) {\n            mackerels[i] = {x, y};\n        } else {\n            sardines[i - N] = {x, y};\n        }\n    }\n\n    // Initial rectangle for mackerels\n    int min_x_m = numeric_limits<int>::max();\n    int max_x_m = numeric_limits<int>::min();\n    int min_y_m = numeric_limits<int>::max();\n    int max_y_m = numeric_limits<int>::min();\n\n    for (const auto& p : mackerels) {\n        min_x_m = min(min_x_m, p.first);\n        max_x_m = max(max_x_m, p.first);\n        min_y_m = min(min_y_m, p.second);\n        max_y_m = max(max_y_m, p.second);\n    }\n\n    int best_x_low = min_x_m;\n    int best_x_high = max_x_m;\n    int best_y_low = min_y_m;\n    int best_y_high = max_y_m;\n    int best_score = N - count_points_in_rect(sardines, best_x_low, best_x_high, best_y_low, best_y_high);\n\n    // Check if initial rectangle is valid\n    if (best_x_low >= best_x_high || best_y_low >= best_y_high) {\n        // Need to adjust to valid rectangle\n        int delta = 1;\n        int new_x_low, new_x_high;\n        int new_y_low, new_y_high;\n        // Try expanding x range\n        new_x_low = best_x_low - delta;\n        new_x_high = best_x_high + delta;\n        if (new_x_low < new_x_high) {\n            best_x_low = new_x_low;\n            best_x_high = new_x_high;\n            best_y_low = best_y_low;\n            best_y_high = best_y_high;\n        } else {\n            // Try expanding y range\n            new_y_low = best_y_low - delta;\n            new_y_high = best_y_high + delta;\n            best_y_low = new_y_low;\n            best_y_high = new_y_high;\n            best_x_low = best_x_low;\n            best_x_high = best_x_high;\n        }\n    }\n\n    // Now, process each sardine to find better rectangle\n    for (int i = 0; i < N; ++i) {\n        auto s = sardines[i];\n        int s_x = s.first;\n        int s_y = s.second;\n\n        // Case 1: adjust x_high to s.x - 1\n        int new_x_high = s_x - 1;\n        if (new_x_high > best_x_low) {\n            int a = count_points_in_rect(mackerels, best_x_low, new_x_high, best_y_low, best_y_high);\n            int b = count_points_in_rect(sardines, best_x_low, new_x_high, best_y_low, best_y_high);\n            int current_score = a - b;\n            if (current_score > best_score) {\n                best_score = current_score;\n                best_x_high = new_x_high;\n            }\n        }\n\n        // Case 2: adjust x_low to s.x + 1\n        int new_x_low = s_x + 1;\n        if (new_x_low < best_x_high) {\n            int a = count_points_in_rect(mackerels, new_x_low, best_x_high, best_y_low, best_y_high);\n            int b = count_points_in_rect(sardines, new_x_low, best_x_high, best_y_low, best_y_high);\n            int current_score = a - b;\n            if (current_score > best_score) {\n                best_score = current_score;\n                best_x_low = new_x_low;\n            }\n        }\n\n        // Case 3: adjust y_high to s.y - 1\n        int new_y_high = s_y - 1;\n        if (new_y_high > best_y_low) {\n            int a = count_points_in_rect(mackerels, best_x_low, best_x_high, best_y_low, new_y_high);\n            int b = count_points_in_rect(sardines, best_x_low, best_x_high, best_y_low, new_y_high);\n            int current_score = a - b;\n            if (current_score > best_score) {\n                best_score = current_score;\n                best_y_high = new_y_high;\n            }\n        }\n\n        // Case 4: adjust y_low to s.y + 1\n        int new_y_low = s_y + 1;\n        if (new_y_low < best_y_high) {\n            int a = count_points_in_rect(mackerels, best_x_low, best_x_high, new_y_low, best_y_high);\n            int b = count_points_in_rect(sardines, best_x_low, best_x_high, new_y_low, best_y_high);\n            int current_score = a - b;\n            if (current_score > best_score) {\n                best_score = current_score;\n                best_y_low = new_y_low;\n            }\n        }\n    }\n\n    // Output the best rectangle\n    cout << 4 << endl;\n    cout << best_x_low << \" \" << best_y_low << endl;\n    cout << best_x_high << \" \" << best_y_low << endl;\n    cout << best_x_high << \" \" << best_y_high << endl;\n    cout << best_x_low << \" \" << best_y_high << endl;\n\n    return 0;\n}",
+      "id": "e70702f1-77ab-4749-b357-6c7d7e188ffd",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "d24707ca-77fb-4fa4-a550-b4b4e4578e44",
+          "timestep": -1
+        }
+      ],
+      "timestep": 60,
+      "type": "AleBenchState",
+      "value": 1854.3466666666666
+    },
+    {
+      "code": "#include <bits/stdc++.h>\nusing namespace std;\nusing pii = pair<int, int>;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(0);\n    int N;\n    cin >> N;\n    vector<pii> mackerels;\n    vector<pii> sardines;\n    for (int i = 0; i < 2 * N; ++i) {\n        int x, y;\n        cin >> x >> y;\n        if (i < N) {\n            mackerels.push_back({x, y});\n        } else {\n            sardines.push_back({x, y});\n        }\n    }\n\n    // Compute initial rectangle\n    int x_min_m = mackerels[0].first;\n    int x_max_m = mackerels[0].first;\n    int y_min_m = mackerels[0].second;\n    int y_max_m = mackerels[0].second;\n    for (const auto& p : mackerels) {\n        if (p.first < x_min_m) x_min_m = p.first;\n        if (p.first > x_max_m) x_max_m = p.first;\n        if (p.second < y_min_m) y_min_m = p.second;\n        if (p.second > y_max_m) y_max_m = p.second;\n    }\n\n    // Function to count points inside rectangle\n    auto countInside = [&](const vector<pii>& points, int x1, int x2, int y1, int y2) {\n        int cnt = 0;\n        for (const auto& p : points) {\n            if (p.first >= x1 && p.first <= x2 && p.second >= y1 && p.second <= y2) {\n                cnt++;\n            }\n        }\n        return cnt;\n    };\n\n    int best_a = N;\n    int best_b = countInside(sardines, x_min_m, x_max_m, y_min_m, y_max_m);\n    int best_score = best_a - best_b;\n    int best_x1 = x_min_m, best_x2 = x_max_m, best_y1 = y_min_m, best_y2 = y_max_m;\n\n    // Generate other candidates\n    for (const auto& s : sardines) {\n        int s_x = s.first;\n        int s_y = s.second;\n        // Check if s is inside the initial rectangle\n        if (s_x >= x_min_m && s_x <= x_max_m && s_y >= y_min_m && s_y <= y_max_m) {\n            // Case 1: adjust x_right to s.x - 1\n            int new_x2 = s_x - 1;\n            if (new_x2 > x_min_m) {\n                int current_a = countInside(mackerels, x_min_m, new_x2, y_min_m, y_max_m);\n                int current_b = countInside(sardines, x_min_m, new_x2, y_min_m, y_max_m);\n                int current_score = current_a - current_b;\n                if (current_score > best_score) {\n                    best_score = current_score;\n                    best_x1 = x_min_m;\n                    best_x2 = new_x2;\n                    best_y1 = y_min_m;\n                    best_y2 = y_max_m;\n                }\n            }\n\n            // Case 2: adjust x_left to s.x + 1\n            int new_x1 = s_x + 1;\n            if (new_x1 < x_max_m) {\n                int current_a = countInside(mackerels, new_x1, x_max_m, y_min_m, y_max_m);\n                int current_b = countInside(sardines, new_x1, x_max_m, y_min_m, y_max_m);\n                int current_score = current_a - current_b;\n                if (current_score > best_score) {\n                    best_score = current_score;\n                    best_x1 = new_x1;\n                    best_x2 = x_max_m;\n                    best_y1 = y_min_m;\n                    best_y2 = y_max_m;\n                }\n            }\n\n            // Case 3: adjust y_top to s.y - 1\n            int new_y2 = s_y - 1;\n            if (new_y2 > y_min_m) {\n                int current_a = countInside(mackerels, x_min_m, x_max_m, y_min_m, new_y2);\n                int current_b = countInside(sardines, x_min_m, x_max_m, y_min_m, new_y2);\n                int current_score = current_a - current_b;\n                if (current_score > best_score) {\n                    best_score = current_score;\n                    best_x1 = x_min_m;\n                    best_x2 = x_max_m;\n                    best_y1 = y_min_m;\n                    best_y2 = new_y2;\n                }\n            }\n\n            // Case 4: adjust y_bottom to s.y + 1\n            int new_y1 = s_y + 1;\n            if (new_y1 < y_max_m) {\n                int current_a = countInside(mackerels, x_min_m, x_max_m, new_y1, y_max_m);\n                int current_b = countInside(sardines, x_min_m, x_max_m, new_y1, y_max_m);\n                int current_score = current_a - current_b;\n                if (current_score > best_score) {\n                    best_score = current_score;\n                    best_x1 = x_min_m;\n                    best_x2 = x_max_m;\n                    best_y1 = new_y1;\n                    best_y2 = y_max_m;\n                }\n            }\n        }\n    }\n\n    // Ensure the best rectangle is valid\n    if (best_x1 >= best_x2 || best_y1 >= best_y2) {\n        best_x1 = x_min_m;\n        best_x2 = x_max_m;\n        best_y1 = y_min_m;\n        best_y2 = y_max_m;\n    }\n\n    // Output the best rectangle\n    cout << 4 << endl;\n    cout << best_x1 << \" \" << best_y1 << endl;\n    cout << best_x2 << \" \" << best_y1 << endl;\n    cout << best_x2 << \" \" << best_y2 << endl;\n    cout << best_x1 << \" \" << best_y2 << endl;\n\n    return 0;\n}",
+      "id": "9d914c67-f183-4c7b-a0bf-c7f5f764e7ed",
+      "parent_values": [
+        0.0
+      ],
+      "parents": [
+        {
+          "id": "d24707ca-77fb-4fa4-a550-b4b4e4578e44",
+          "timestep": -1
+        }
+      ],
+      "timestep": 56,
+      "type": "AleBenchState",
+      "value": 1525.2933333333333
+    }
+  ],
+  "step": 0
+}

@@ -1,0 +1,874 @@
+{
+  "initial_states": [
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "ec7301b1-79ec-4f79-a1a3-a1242371aa46",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    },
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "d31222fd-d297-4fe5-8487-d2ef6dd69885",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    },
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "e1ac9f27-692f-4e58-a394-e2ed3309c78a",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    },
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "051cbd6e-6838-4b0a-8247-fa90db3368b6",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    },
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "eb7155ba-7896-4164-b54c-7866c3deb7b9",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    },
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "1a39669b-c84a-413c-8759-68f341dae8d2",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    },
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "ca327f23-70b3-4336-903c-c3da7c64a442",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    },
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "2836c5a9-b93c-40b0-97bf-cd6c7aefc5e5",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    }
+  ],
+  "puct_T": 16,
+  "puct_m": {
+    "051cbd6e-6838-4b0a-8247-fa90db3368b6": -10000.0,
+    "0e8c30c3-ae81-4077-a715-536288374a08": 0.23770847775223913,
+    "108ce9f7-15b0-4d4d-a92c-2a1bdd7c560c": -10000.0,
+    "119dbc55-c6d0-4e42-8485-b334e180757a": 0.28819020498151865,
+    "1a39669b-c84a-413c-8759-68f341dae8d2": -10000.0,
+    "1db77db2-dd4d-40d5-8d73-6b9f7c821126": -10000.0,
+    "2836c5a9-b93c-40b0-97bf-cd6c7aefc5e5": 0.28606933832565834,
+    "2f673980-84c0-4ce7-ba89-d4608dae7adf": 0.28606933832565834,
+    "4ee02d33-1138-45f1-b95f-c75eec54349c": 0.28606933832565834,
+    "58fdd032-320f-4a5a-9870-f79af1ec4d23": 0.28606933832565834,
+    "ca327f23-70b3-4336-903c-c3da7c64a442": 0.24115693174945538,
+    "d31222fd-d297-4fe5-8487-d2ef6dd69885": 0.28606933832565834,
+    "e1ac9f27-692f-4e58-a394-e2ed3309c78a": 0.2866195547023515,
+    "eb7155ba-7896-4164-b54c-7866c3deb7b9": 0.28606933832565834,
+    "ec7301b1-79ec-4f79-a1a3-a1242371aa46": -10000.0
+  },
+  "puct_n": {
+    "051cbd6e-6838-4b0a-8247-fa90db3368b6": 1,
+    "0e8c30c3-ae81-4077-a715-536288374a08": 1,
+    "108ce9f7-15b0-4d4d-a92c-2a1bdd7c560c": 1,
+    "119dbc55-c6d0-4e42-8485-b334e180757a": 1,
+    "1a39669b-c84a-413c-8759-68f341dae8d2": 1,
+    "1db77db2-dd4d-40d5-8d73-6b9f7c821126": 1,
+    "2836c5a9-b93c-40b0-97bf-cd6c7aefc5e5": 3,
+    "2f673980-84c0-4ce7-ba89-d4608dae7adf": 1,
+    "4ee02d33-1138-45f1-b95f-c75eec54349c": 1,
+    "58fdd032-320f-4a5a-9870-f79af1ec4d23": 1,
+    "ca327f23-70b3-4336-903c-c3da7c64a442": 2,
+    "d31222fd-d297-4fe5-8487-d2ef6dd69885": 3,
+    "e1ac9f27-692f-4e58-a394-e2ed3309c78a": 3,
+    "eb7155ba-7896-4164-b54c-7866c3deb7b9": 2,
+    "ec7301b1-79ec-4f79-a1a3-a1242371aa46": 1
+  },
+  "states": [
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "ec7301b1-79ec-4f79-a1a3-a1242371aa46",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    },
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "d31222fd-d297-4fe5-8487-d2ef6dd69885",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    },
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "e1ac9f27-692f-4e58-a394-e2ed3309c78a",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    },
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "051cbd6e-6838-4b0a-8247-fa90db3368b6",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    },
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "eb7155ba-7896-4164-b54c-7866c3deb7b9",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    },
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "1a39669b-c84a-413c-8759-68f341dae8d2",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    },
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "ca327f23-70b3-4336-903c-c3da7c64a442",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    },
+    {
+      "code": "def magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n",
+      "id": "2836c5a9-b93c-40b0-97bf-cd6c7aefc5e5",
+      "mse": 0.2316,
+      "observation": "",
+      "parent_values": [],
+      "parents": [],
+      "poisson": 0.037,
+      "timestep": -1,
+      "type": "DenoisingState",
+      "value": 0.24
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    # Apply sqrt to stabilize variance\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n    \n    # Build graph without normalization\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    # Apply diffusion\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Normalize to target_sum=10000 (matching the evaluate_mse normalization)\n    data_imputed_normalized = scprep.normalize.total(data_imputed, target_sum=10000)\n\n    # Apply soft thresholding to mitigate impact of low values\n    data_imputed_final = np.maximum(data_imputed_normalized, 0.1)\n\n    # Square to revert sqrt\n    data_imputed_final = np.square(data_imputed_final)\n\n    return data_imputed_final\n```",
+      "id": "41a4afb2-3c4b-4678-a6b9-35b977765433",
+      "mse": null,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "ec7301b1-79ec-4f79-a1a3-a1242371aa46",
+          "timestep": -1
+        }
+      ],
+      "poisson": null,
+      "timestep": 0,
+      "type": "DenoisingState",
+      "value": -10000
+    },
+    {
+      "code": "```python\nimport numpy as np\nimport graphtools\nimport scprep\n\ndef magic_denoise(X, knn=20, t=5, n_pca=50, solver=\"exact\", decay=0.5, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    \"\"\"\n    Denoise single-cell RNA-seq data using a refined MAGIC-like approach.\n\n    Parameters:\n    - X: Input numpy array of shape (n_cells, n_genes), raw count data\n    - knn: Number of nearest neighbors (default: 20)\n    - t: Number of diffusion iterations (default: 5)\n    - n_pca: Number of PCA components (default: 50)\n    - solver: 'exact' or 'approximate' (default: 'exact')\n    - decay: Weighting coefficient of the graph (default: 0.5)\n    - knn_max: Maximum number of neighbors to consider (default: 3\u00d7knn)\n    - random_state: Seed for reproducibility\n    - n_jobs: Number of parallel jobs (default: 1)\n    - verbose: Enable detailed logging (default: False)\n\n    Returns:\n    - numpy array of same shape as X, denoised counts\n    \"\"\"\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Revert square root\n    data_imputed = np.square(data_imputed)\n\n    # Normalization to match evaluation metric\n    data_imputed = scprep.normalize.library_size_normalize(data_imputed, rescale=10000)\n\n    # Clip very low values to avoid negative artifacts or unrealistic counts\n    data_imputed = np.clip(data_imputed, 0, 10000)\n\n    return data_imputed\n```",
+      "id": "7c99d530-dc76-4aa4-adca-78ec6fd4bdcb",
+      "mse": null,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "ec7301b1-79ec-4f79-a1a3-a1242371aa46",
+          "timestep": -1
+        }
+      ],
+      "poisson": null,
+      "timestep": 1,
+      "type": "DenoisingState",
+      "value": -10000
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=10, t=5, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    \"\"\"\n    Denoise single-cell RNA-seq count data using an enhanced MAGIC algorithm.\n\n    This function implements a denoising algorithm that combines parametric adjustments,\n    post-processing clipping, and optimized parameters to improve both MSE and Poisson\n    loss with minimal overfitting. The method follows key insights from benchmarking,\n    including reversed normalization order and variance-stabilizing transformations.\n    \"\"\"\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    # Transform raw counts using square root for variance stabilization\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n\n    # Normalize library size first (reversed normalization)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    # Construct the graph using optimized parameters\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    # Select initial data representation based on solver\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    # Choose diffusion method based on t and diff_op shape\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    # Apply inverse transform for final scaling\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Post-processing: clip values below 1 to zero to minimize Poisson loss\n    data_imputed = np.maximum(data_imputed, 0)\n    data_imputed = np.where(data_imputed < 1, 0, data_imputed)\n\n    # Square the transformed values and scale back to original library size\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n```",
+      "id": "2f673980-84c0-4ce7-ba89-d4608dae7adf",
+      "mse": 0.21754966515606708,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "d31222fd-d297-4fe5-8487-d2ef6dd69885",
+          "timestep": -1
+        }
+      ],
+      "poisson": 0.03688785612012908,
+      "timestep": 8,
+      "type": "DenoisingState",
+      "value": 0.28606933832565834
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    # Convert input to numpy and ensure data type\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n\n    # Normalize library size first (standardized for evaluation)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, target_sum=10000, return_library_size=True)\n\n    # Apply square-root transform (variance-stabilizing for Poisson)\n    X_work = np.sqrt(X_work)\n\n    # Build the graph to construct the diffusion operator\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    # Retrieve the diffusion operator\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    # Apply diffusion to data (optional set to t iterations)\n    data_imputed = scprep.utils.toarray(data)\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    # If using approximate solver, reverse the transform\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Apply inverse transformation: square to remove sqrt\n    data_imputed = np.square(data_imputed)\n\n    # No need to multiply by libsize (aligned with test normalization)\n    # data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n```",
+      "id": "1db77db2-dd4d-40d5-8d73-6b9f7c821126",
+      "mse": null,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "d31222fd-d297-4fe5-8487-d2ef6dd69885",
+          "timestep": -1
+        }
+      ],
+      "poisson": null,
+      "timestep": 9,
+      "type": "DenoisingState",
+      "value": -10000
+    },
+    {
+      "code": "```python\nimport numpy as np\nimport graphtools\nimport scprep\n\ndef magic_denoise(X, knn=5, t=5, n_pca=100, solver=\"iteration\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    if knn_max is None:\n        knn_max = knn * 2  # Adjusted for better performance\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)  # Variance-stabilizing transform\n\n    # Normalize library size (reversed normalization order: denoise first, then normalize)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    # Construct the graph\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    data = graph.data_nu if solver == \"approximate\" else scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    # Apply diffusion\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t @ data_imputed\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op @ data_imputed\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    # Apply inverse transform if using approximate solver\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Revert sqrt and scale back to original library size\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    # Threshold values < 1 to 0, to reduce Poisson loss for low-noise estimates\n    data_imputed[data_imputed < 1] = 0\n\n    return data_imputed\n```",
+      "id": "119dbc55-c6d0-4e42-8485-b334e180757a",
+      "mse": 0.21738200267154476,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "e1ac9f27-692f-4e58-a394-e2ed3309c78a",
+          "timestep": -1
+        }
+      ],
+      "poisson": 0.03688612865724605,
+      "timestep": 23,
+      "type": "DenoisingState",
+      "value": 0.2866195547023515
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n\n    # Apply log1p + sqrt\n    X_work = np.log1p(X_work)\n    X_work = np.sqrt(X_work + 1e-10)\n\n    # Normalize library sizes\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Apply thresholding to suppress low-unlikely predictions\n    data_imputed = np.square(data_imputed)\n    data_imputed = np.where(data_imputed < 1, 0, data_imputed)\n\n    # Re-scale to original library size\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n```",
+      "id": "58fdd032-320f-4a5a-9870-f79af1ec4d23",
+      "mse": 0.21754966515606708,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "e1ac9f27-692f-4e58-a394-e2ed3309c78a",
+          "timestep": -1
+        }
+      ],
+      "poisson": 0.03688785612012908,
+      "timestep": 16,
+      "type": "DenoisingState",
+      "value": 0.28606933832565834
+    },
+    {
+      "code": "```python\nimport numpy as np\nimport graphtools\nimport scprep\n\ndef magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    # Convert to numpy array and cast to float64\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    \n    # Apply square root to stabilize variance (variance-stabilizing transformation for Poisson)\n    X_work = np.sqrt(X_work)\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    # Build graph representation using graphtools\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    # Apply the diffusion operation\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        # Use matrix power for efficiency\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        # Use iterative method\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Square the result (undoing the sqrt) and threshold low counts (values < 1)\n    data_imputed = np.square(data_imputed)\n    data_imputed[data_imputed < 1] = 0\n\n    return data_imputed\n```",
+      "id": "69d52f63-ba89-4e25-aa3f-1f1e60b0550a",
+      "mse": null,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "051cbd6e-6838-4b0a-8247-fa90db3368b6",
+          "timestep": -1
+        }
+      ],
+      "poisson": null,
+      "timestep": 24,
+      "type": "DenoisingState",
+      "value": -10000
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n\n    # Reverse sqrt and apply normalization\n    data_imputed = np.square(data_imputed)\n\n    # Normalize to target_sum=10000\n    target_sum = 10000\n    cell_sums = data_imputed.sum(axis=1)\n    cell_sums = np.maximum(cell_sums, 1)  # Prevent division by zero\n    data_imputed = data_imputed * (target_sum / cell_sums.reshape(-1, 1))\n\n    # Threshold low values to zero (helping Poisson loss)\n    data_imputed = np.where(data_imputed < 0.5, 0, data_imputed)\n\n    return data_imputed\n```",
+      "id": "f7e68c2f-111f-4137-bcb4-368e5df34a6c",
+      "mse": null,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "051cbd6e-6838-4b0a-8247-fa90db3368b6",
+          "timestep": -1
+        }
+      ],
+      "poisson": null,
+      "timestep": 25,
+      "type": "DenoisingState",
+      "value": -10000
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=5, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    # Normalize library size first, then apply square root transformation\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n    X_work = np.sqrt(X_work)\n\n    # Construct graph using normalized and sqrt-transformed data\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    # Apply diffusion steps\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    # Invert transform to recover data in sqrt space\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Clamp values below 1 to zero to reduce Poisson loss\n    data_imputed = np.where(data_imputed < 1, 0, data_imputed)\n\n    # Convert back to original scale and scale to match library size\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n```",
+      "id": "e01a8956-0f9d-4da5-ab0a-c22b07c8ffff",
+      "mse": 0.21754966515606708,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "eb7155ba-7896-4164-b54c-7866c3deb7b9",
+          "timestep": -1
+        }
+      ],
+      "poisson": 0.03688785612012908,
+      "timestep": 1059,
+      "type": "DenoisingState",
+      "value": 0.28606933832565834
+    },
+    {
+      "code": "```python\nimport numpy as np\nimport graphtools\nimport scprep\n\ndef magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    if knn_max is None:\n        knn_max = knn * 3\n\n    # Convert input to numpy array\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)  # Variance-stabilizing transformation\n\n    # Build graph without normalization (denoise first)\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    # Diffusion step\n    diff_op = graph.diff_op\n\n    # Prepare data for diffusion\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    # Apply diffusion\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Invert sqrt and normalize\n    data_imputed = np.square(data_imputed)\n\n    # Compute library sizes from original data\n    libsize = np.sum(X, axis=1)\n\n    # Normalize by library size\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    # Soft thresholding to suppress low values\n    # This reduces Poisson loss by controlling low-count genes\n    data_imputed = np.maximum(data_imputed, 0.01)\n\n    return data_imputed\n```",
+      "id": "3a019ffd-e6b3-47b0-869d-e31213ebbede",
+      "mse": null,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "eb7155ba-7896-4164-b54c-7866c3deb7b9",
+          "timestep": -1
+        }
+      ],
+      "poisson": null,
+      "timestep": 32,
+      "type": "DenoisingState",
+      "value": -10000
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n\n    # Apply thresholding to suppress very low-count contributions\n    data_imputed[data_imputed < 1] = 0\n\n    return data_imputed\n```",
+      "id": "e0ae3965-1789-4b7c-b6ec-e78cfb9a563d",
+      "mse": null,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "1a39669b-c84a-413c-8759-68f341dae8d2",
+          "timestep": -1
+        }
+      ],
+      "poisson": null,
+      "timestep": 40,
+      "type": "DenoisingState",
+      "value": -10000
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=10, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n\n    # Set threshold to clip very low values (helps Poisson loss)\n    threshold = 0.1\n\n    # Original library sizes (raw counts sum per cell)\n    original_library_sizes = np.sum(X, axis=1)\n\n    # Construct graph\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Normalize denoised data to match original library sizes (based on raw counts)\n    current_library_sizes = np.sum(data_imputed, axis=1)\n    scale_factor = np.divide(original_library_sizes, current_library_sizes, out=np.zeros_like(original_library_sizes), where=current_library_sizes != 0)\n\n    data_imputed_normalized = data_imputed * scale_factor[:, np.newaxis]\n\n    # Square to return to original scale\n    denoised_data = data_imputed_normalized ** 2\n\n    # Threshold low counts to zero to reduce Poisson noise\n    denoised_data[denoised_data < threshold] = 0\n\n    return denoised_data\n```",
+      "id": "34ae5115-e5dc-40c6-947c-5ee381ac52f4",
+      "mse": null,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "1a39669b-c84a-413c-8759-68f341dae8d2",
+          "timestep": -1
+        }
+      ],
+      "poisson": null,
+      "timestep": 41,
+      "type": "DenoisingState",
+      "value": -10000
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    libsize = X_work.sum(axis=1)  # Original library size from raw counts\n    X_work = np.sqrt(X_work)  # Apply sqrt after computing library size\n\n    # Build graph and denoise\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Normalize the denoised data by original library size\n    data_imputed_normalized = data_imputed / libsize[:, np.newaxis]\n\n    # Square and multiply by original library size to get back to original scale\n    data_imputed_final = (data_imputed_normalized ** 2) * libsize[:, np.newaxis]\n\n    # Cap values below 1 to 0 to better handle Poisson loss\n    data_imputed_final = np.clip(data_imputed_final, a_min=0, a_max=None)\n\n    return data_imputed_final\n```",
+      "id": "0e8c30c3-ae81-4077-a715-536288374a08",
+      "mse": 0.23123541860037422,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "ca327f23-70b3-4336-903c-c3da7c64a442",
+          "timestep": -1
+        }
+      ],
+      "poisson": 0.03690722827102182,
+      "timestep": 54,
+      "type": "DenoisingState",
+      "value": 0.24115693174945538
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    \n    # Normalize first, then apply square root (as per MAGIC paper and key insights)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1e4, return_library_size=True)\n    X_work = np.sqrt(X_work)\n\n    # Construct graph using denoised (sqrt-normalized) data\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Revert square root and rescale to original library sizes\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n```",
+      "id": "c7b3ab2c-f344-4b28-a30a-52143b2607ea",
+      "mse": null,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "ca327f23-70b3-4336-903c-c3da7c64a442",
+          "timestep": -1
+        }
+      ],
+      "poisson": null,
+      "timestep": 48,
+      "type": "DenoisingState",
+      "value": -10000
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n    X_work = np.sqrt(X_work)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize / 10000, axis=0)\n\n    # Apply value clipping to suppress low-count artifacts\n    data_imputed[data_imputed < 1] = 0\n\n    return data_imputed\n```",
+      "id": "4ee02d33-1138-45f1-b95f-c75eec54349c",
+      "mse": 0.21754966515606708,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "2836c5a9-b93c-40b0-97bf-cd6c7aefc5e5",
+          "timestep": -1
+        }
+      ],
+      "poisson": 0.03688785612012908,
+      "timestep": 56,
+      "type": "DenoisingState",
+      "value": 0.28606933832565834
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=3, n_pca=200, solver=\"exact\", decay=0.5, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n    from scipy.sparse import csr_matrix, coo_matrix\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n\n    # Apply square root for variance stabilization\n    X_work = np.sqrt(X_work)\n\n    # Normalize, but not yet: preserve signal in diffusion\n    X_work = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=False)\n\n    # Build graph\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    # Apply diffusion\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    # No inverse transform unless using approximate solver\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Square to reverse sqrt and bring back to count scale\n    data_imputed = np.square(data_imputed)\n\n    # Multiply by library size to restore raw scale\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, X_work.sum(axis=1), axis=0)\n\n    # Apply thresholding to non-zero counts below 1\n    data_imputed[data_imputed < 1] = 0  # Push low values toward zero\n\n    return data_imputed\n```",
+      "id": "108ce9f7-15b0-4d4d-a92c-2a1bdd7c560c",
+      "mse": 0.21754966515606708,
+      "observation": "",
+      "parent_values": [
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "2836c5a9-b93c-40b0-97bf-cd6c7aefc5e5",
+          "timestep": -1
+        }
+      ],
+      "poisson": 0.03688785612012908,
+      "timestep": 63,
+      "type": "DenoisingState",
+      "value": 0.28606933832565834
+    },
+    {
+      "code": "```python\nimport numpy as np\nimport graphtools\nimport scprep\n\ndef magic_denoise(X, knn=10, t=10, n_pca=50, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=2, verbose=False):\n    if knn_max is None:\n        knn_max = knn * 2  # Double knn for more robust neighborhood construction\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)  # Variance-stabilizing square root transform\n\n    # Normalize library size (reversed normalization order: denoise first, then normalize)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    # Construct graph with optimized hyperparameters\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n    data = graph.data_nu if solver == \"approximate\" else scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"[magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"[magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    # Apply diffusion (either matrix power or iterative steps based on t)\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t @ data_imputed\n        if verbose:\n            print(f\"[magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op @ data_imputed\n        if verbose:\n            print(f\"[magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"[magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    # Apply inverse transform if using approximate solver\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"[magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Revert sqrt and scale back to original library size\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    # Apply aggressive thresholding to reduce Poisson loss for low non-zero values\n    data_imputed[data_imputed < 0.5] = 0\n\n    return data_imputed\n```",
+      "id": "78b76c3c-3b75-4094-95bd-9940ddbd8212",
+      "mse": 0.21690339254782667,
+      "observation": "",
+      "parent_values": [
+        0.2866195547023515,
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "119dbc55-c6d0-4e42-8485-b334e180757a",
+          "timestep": 23
+        },
+        {
+          "id": "e1ac9f27-692f-4e58-a394-e2ed3309c78a",
+          "timestep": -1
+        }
+      ],
+      "poisson": 0.03688303441117406,
+      "timestep": 1005,
+      "type": "DenoisingState",
+      "value": 0.28819020498151865
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=10, t=10, n_pca=100, solver=\"approximate\", decay=0.5, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    if knn_max is None:\n        knn_max = knn * 2  # Extend maximum neighbors for better graph connectivity\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)  # Variance-stabilizing transform for Poisson\n\n    # Reversed normalization order: denoise (sqrt) first, then normalize\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    # Construct graph with improved parameters\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    data = graph.data_nu if solver == \"approximate\" else scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    # Apply diffusion using matrix power (more efficient for large t)\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t @ data_imputed\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op @ data_imputed\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    # Apply inverse transformation if using approximate solver\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Revert sqrt and scale back to original library size\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    # Threshold values < 0.5 to 0 \u2014 reduces Poisson loss for noisy low counts\n    data_imputed[data_imputed < 0.5] = 0\n\n    return data_imputed\n```",
+      "id": "a0d4f422-0b65-459f-a9df-6ae0fdac53b2",
+      "mse": 0.21691782476906407,
+      "observation": "",
+      "parent_values": [
+        0.2866195547023515,
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "119dbc55-c6d0-4e42-8485-b334e180757a",
+          "timestep": 23
+        },
+        {
+          "id": "e1ac9f27-692f-4e58-a394-e2ed3309c78a",
+          "timestep": -1
+        }
+      ],
+      "poisson": 0.03688316603336738,
+      "timestep": 1001,
+      "type": "DenoisingState",
+      "value": 0.2881428428987039
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=10, t=5, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    \"\"\"\n    Denoise single-cell RNA-seq count data using an enhanced MAGIC algorithm.\n\n    This function implements a denoising algorithm that combines parametric adjustments,\n    post-processing clipping, and optimized parameters to improve both MSE and Poisson\n    loss with minimal overfitting. The method follows key insights from benchmarking,\n    including reversed normalization order and variance-stabilizing transformations.\n    \"\"\"\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    # Transform raw counts using square root for variance stabilization\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n\n    # Normalize library size first (reversed normalization)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    # Construct the graph using optimized parameters\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    # Select initial data representation based on solver\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    # Choose diffusion method based on t and diff_op shape\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    # Apply inverse transform for final scaling\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Post-processing: clip values below 1 to zero to minimize Poisson loss\n    data_imputed = np.maximum(data_imputed, 0)\n    data_imputed = np.where(data_imputed < 1, 0, data_imputed)\n\n    # Square the transformed values and scale back to original library size\n    target_sum = 10000.0\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize / target_sum, axis=0)\n\n    # Optionally adjust threshold and apply soft clipping\n    min_threshold = 0.1\n    data_imputed = np.where(data_imputed < min_threshold, 0, data_imputed)\n\n    return data_imputed\n```",
+      "id": "252af5d9-92a0-4aab-ab62-3715e9243bbe",
+      "mse": 0.21754966515606708,
+      "observation": "",
+      "parent_values": [
+        0.28606933832565834,
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "2f673980-84c0-4ce7-ba89-d4608dae7adf",
+          "timestep": 8
+        },
+        {
+          "id": "d31222fd-d297-4fe5-8487-d2ef6dd69885",
+          "timestep": -1
+        }
+      ],
+      "poisson": 0.03688785612012908,
+      "timestep": 1009,
+      "type": "DenoisingState",
+      "value": 0.28606933832565834
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=10, t=20, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    \"\"\"\n    Denoise single-cell RNA-seq count data using an enhanced MAGIC algorithm.\n\n    This function implements a denoising algorithm that combines parametric adjustments,\n    post-processing clipping with epsilon handling, and optimized parameters to improve both\n    MSE and Poisson loss while avoiding overfitting. Key steps include:\n    - Variance-stabilizing square root transformation.\n    - Reversed normalization for Poisson loss alignment.\n    - Optimized diffusion steps and solver.\n\n    Args:\n        X: (n_cells, n_genes) - raw count data.\n        knn: Number of nearest neighbors.\n        t: Number of diffusion steps.\n        n_pca: Number of PCA components.\n        solver: Algorithm type.\n        decay: Parameter for graph construction.\n        knn_max: Maximum number of neighbors for graph construction.\n        random_state: Random number generator state.\n        n_jobs: Number of parallel jobs.\n        verbose: Enable verbose output.\n\n    Returns:\n        Denoised data with same shape as input.\n    \"\"\"\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    # Transform raw counts using sqrt for variance stabilization\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work = np.sqrt(X_work)\n\n    # Reversed normalization: Normalize library size first\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    # Construct the graph using optimized parameters\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    # Select initial data representation based on solver\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    # Choose diffusion method based on t and diff_op shape\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        # Use matrix exponentiation for faster diffusion (inplace diff_op)\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    # Apply inverse transform for final scaling\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Post-processing: clip to non-negative and add small epsilon to avoid zero prediction\n    data_imputed = np.maximum(data_imputed, 0)\n    data_imputed += 1e-5  # small epsilon to prevent log(0) issues in Poisson loss\n\n    # Square the transformed values and scale back to original library size\n    data_imputed = np.square(data_imputed)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n```",
+      "id": "5090a940-7849-44ef-a9a0-b91f4c2ffa71",
+      "mse": 0.2369396494029588,
+      "observation": "",
+      "parent_values": [
+        0.28606933832565834,
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "2f673980-84c0-4ce7-ba89-d4608dae7adf",
+          "timestep": 8
+        },
+        {
+          "id": "d31222fd-d297-4fe5-8487-d2ef6dd69885",
+          "timestep": -1
+        }
+      ],
+      "poisson": 0.036926828128983326,
+      "timestep": 1010,
+      "type": "DenoisingState",
+      "value": 0.22243741191792232
+    },
+    {
+      "code": "```python\nimport numpy as np\nimport graphtools\nimport scprep\nfrom sklearn.metrics.pairwise import cosine_similarity\nfrom sklearn.decomposition import PCA\nfrom scipy.sparse import csr_matrix\n\ndef magic_denoise(X, knn=5, t=5, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n\n    # Apply log1p + sqrt for variance stabilization\n    X_work = np.log1p(X_work)\n    X_work = np.sqrt(X_work + 1e-10)\n\n    # Normalize library size (important for MSE evaluation)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    # Build the graph using trained parameters\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0\n    )\n\n    diff_op = graph.diff_op\n\n    # Project data into the graph space\n    data = graph.data_nu if solver == \"approximate\" else scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"[magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"[magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    # Apply diffusion\n    data_imputed = scprep.utils.toarray(data)\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"[magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"[magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"[magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    # Inverse transform for approximate solver (contains normalization)\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"[magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Soft thresholding to suppress low count predictions\n    data_imputed = np.square(data_imputed)\n    data_imputed = np.where(data_imputed < 0.5, 0, data_imputed)\n\n    # Rescale to original library size\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n```",
+      "id": "b779710f-b37a-4fee-a51f-93d131c782af",
+      "mse": 0.21754966515606708,
+      "observation": "",
+      "parent_values": [
+        0.28606933832565834,
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "58fdd032-320f-4a5a-9870-f79af1ec4d23",
+          "timestep": 16
+        },
+        {
+          "id": "e1ac9f27-692f-4e58-a394-e2ed3309c78a",
+          "timestep": -1
+        }
+      ],
+      "poisson": 0.03688785612012908,
+      "timestep": 1019,
+      "type": "DenoisingState",
+      "value": 0.28606933832565834
+    },
+    {
+      "code": "```python\nimport numpy as np\nimport graphtools\nimport scprep\n\ndef magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    # Step 1: Normalize library sizes first (reversed normalization)\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    # Step 2: Apply log1p and sqrt for variance stabilization\n    X_work = np.log1p(X_work)\n    X_work = np.sqrt(X_work + 1e-10)\n\n    # Step 3: Build graph and perform diffusion\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    # Step 4: Apply diffusion (matrix power or iterative)\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t @ data_imputed\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op @ data_imputed\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Step 5: Square and threshold (low values are kept as zero)\n    data_imputed = np.square(data_imputed)\n    data_imputed = np.where(data_imputed < 1, 0, data_imputed)\n\n    # Step 6: Convert back to original counts\n    data_imputed = np.exp(data_imputed) - 1\n\n    # Step 7: Rescale to match original library size\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize, axis=0)\n\n    return data_imputed\n```",
+      "id": "57aaa06b-273c-4248-a5d6-6be74b1b76c5",
+      "mse": 0.21754966515606708,
+      "observation": "",
+      "parent_values": [
+        0.28606933832565834,
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "58fdd032-320f-4a5a-9870-f79af1ec4d23",
+          "timestep": 16
+        },
+        {
+          "id": "e1ac9f27-692f-4e58-a394-e2ed3309c78a",
+          "timestep": -1
+        }
+      ],
+      "poisson": 0.03688785612012908,
+      "timestep": 1020,
+      "type": "DenoisingState",
+      "value": 0.28606933832565834
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=5, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n    from scipy.sparse import csr_matrix\n\n    # Ensure inputs are properly handled\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    \n    # Apply square root transformation first (variance-stabilizing)\n    X_work = np.sqrt(X_work)\n    \n    # Normalize after sqrt transformation (reversed normalization order)\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n    \n    # Graph construction with enhanced parameters\n    if knn_max is None:\n        knn_max = knn * 3\n    \n    # Use sparse matrix representation for memory efficiency\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n    \n    # Diffusion operator preparation\n    diff_op = graph.diff_op\n    \n    # Data preparation\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n    \n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n    \n    data_imputed = scprep.utils.toarray(data)\n    \n    # Diffusion process\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        # Matrix power method for faster diffusion\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        # Iterative diffusion method\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n    \n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n    \n    # Optional: Apply inverse transform if using approximate solver\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n    \n    # Back to original count scale\n    # First square to recover from sqrt transformation\n    data_imputed = np.square(data_imputed)\n    \n    # Scale back to original library sizes using the same normalization\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, libsize / 10000, axis=0)\n    \n    # Apply soft clipping to suppress low-count artifacts\n    # We use a more nuanced threshold to preserve biological signals\n    data_imputed[data_imputed < 0.5] = 0\n    data_imputed[data_imputed < 1e-6] = 0\n    \n    return data_imputed\n```",
+      "id": "982c2115-e3a7-4a29-b4f3-a421c3e2e8cd",
+      "mse": 0.21754966515606708,
+      "observation": "",
+      "parent_values": [
+        0.28606933832565834,
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "4ee02d33-1138-45f1-b95f-c75eec54349c",
+          "timestep": 56
+        },
+        {
+          "id": "2836c5a9-b93c-40b0-97bf-cd6c7aefc5e5",
+          "timestep": -1
+        }
+      ],
+      "poisson": 0.03688785612012908,
+      "timestep": 1024,
+      "type": "DenoisingState",
+      "value": 0.28606933832565834
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"exact\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n\n    # Apply square root transform first (variance stabilization for Poisson)\n    X_work = np.sqrt(X_work)\n\n    # Normalize library size after sqrt for improved Poisson loss\n    X_work, libsize = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=True)\n\n    # Create the graph using the normalized and sqrt-transformed data\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"exact\":\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n    else:\n        data = graph.data_nu\n\n    if verbose:\n        print(f\"[magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"[magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(\"[magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(\"[magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"[magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"exact\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"[magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Square to reverse the sqrt transform\n    data_imputed = np.square(data_imputed)\n\n    # Scale back to original library size and apply normalization for evaluation\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(\n        data_imputed, libsize / 10000, axis=0\n    )\n\n    # Apply clipping to suppress low-count artifacts\n    data_imputed[data_imputed < 0.1] = 0\n\n    return data_imputed\n```",
+      "id": "5a84e775-febc-4d24-8f05-55caa5d9ecb6",
+      "mse": null,
+      "observation": "",
+      "parent_values": [
+        0.28606933832565834,
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "4ee02d33-1138-45f1-b95f-c75eec54349c",
+          "timestep": 56
+        },
+        {
+          "id": "2836c5a9-b93c-40b0-97bf-cd6c7aefc5e5",
+          "timestep": -1
+        }
+      ],
+      "poisson": null,
+      "timestep": 1025,
+      "type": "DenoisingState",
+      "value": -10000
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=3, n_pca=200, solver=\"exact\", decay=0.5, knn_max=None,\n                  random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n    from scipy.sparse import csr_matrix, coo_matrix\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n\n    # Apply square root for variance stabilization\n    X_work = np.sqrt(X_work)\n\n    # Build graph on raw (sqrt) data\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    # Apply diffusion in matrix power form if possible and faster\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    # Apply inverse transform if approximation is used\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Square to reverse sqrt and bring back to count scale\n    data_imputed = np.square(data_imputed)\n\n    # Threshold low values\n    data_imputed[data_imputed < 1] = 0  # Push low values toward zero\n\n    return data_imputed\n```",
+      "id": "2bbd3d5a-b633-40a2-a2f2-4bbb0c1890a9",
+      "mse": null,
+      "observation": "",
+      "parent_values": [
+        0.28606933832565834,
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "108ce9f7-15b0-4d4d-a92c-2a1bdd7c560c",
+          "timestep": 63
+        },
+        {
+          "id": "2836c5a9-b93c-40b0-97bf-cd6c7aefc5e5",
+          "timestep": -1
+        }
+      ],
+      "poisson": null,
+      "timestep": 1032,
+      "type": "DenoisingState",
+      "value": -10000
+    },
+    {
+      "code": "```python\nimport numpy as np\nimport graphtools\nimport scprep\nfrom scipy.sparse import csr_matrix, coo_matrix\n\ndef magic_denoise(X, knn=5, t=3, n_pca=200, solver=\"exact\", decay=0.5, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    \"\"\"\n    Returns denoised single-cell RNA-seq counts using the MAGIC algorithm with reversed normalization.\n    \"\"\"\n    if knn_max is None:\n        knn_max = knn * 3\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n\n    # Apply square root for variance stabilization\n    X_work = np.sqrt(X_work)\n\n    # Remove normalization before graph construction\n    # X_work = scprep.normalize.library_size_normalize(X_work, rescale=1, return_library_size=False)\n\n    # Build graph\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    # Apply diffusion\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t @ data_imputed\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op @ data_imputed\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    # Optional inverse transform for approximate solver\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Square to reverse sqrt and bring back to original count scale\n    data_imputed = np.square(data_imputed)\n\n    # Scale back to original cell library sizes\n    original_sum = X_work.sum(axis=1)\n    data_imputed = scprep.utils.matrix_vector_elementwise_multiply(data_imputed, original_sum, axis=0)\n\n    # Threshold values below 1 to zero to improve Poisson loss\n    data_imputed[data_imputed < 1] = 0\n\n    return data_imputed\n```",
+      "id": "cca5e93a-457e-4d5a-96de-ac9b193bf4ba",
+      "mse": null,
+      "observation": "",
+      "parent_values": [
+        0.28606933832565834,
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "108ce9f7-15b0-4d4d-a92c-2a1bdd7c560c",
+          "timestep": 63
+        },
+        {
+          "id": "2836c5a9-b93c-40b0-97bf-cd6c7aefc5e5",
+          "timestep": -1
+        }
+      ],
+      "poisson": null,
+      "timestep": 1033,
+      "type": "DenoisingState",
+      "value": -10000
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=5, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    libsize = X_work.sum(axis=1)\n    X_work = np.sqrt(X_work)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Normalize the denoised data\n    data_imputed_normalized = data_imputed / libsize[:, np.newaxis]\n\n    # Square and return to original scale\n    data_imputed_final = (data_imputed_normalized ** 2) * libsize[:, np.newaxis]\n\n    # Apply soft thresholding for low values to control Poisson loss\n    data_imputed_final = np.clip(data_imputed_final, a_min=0, a_max=None)\n    data_imputed_final = np.where(data_imputed_final < 1, data_imputed_final * 0.5, data_imputed_final)\n\n    return data_imputed_final\n```",
+      "id": "b219d3bd-58bb-4db0-96ea-c40404423c96",
+      "mse": 0.23228623495085995,
+      "observation": "",
+      "parent_values": [
+        0.24115693174945538,
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "0e8c30c3-ae81-4077-a715-536288374a08",
+          "timestep": 54
+        },
+        {
+          "id": "ca327f23-70b3-4336-903c-c3da7c64a442",
+          "timestep": -1
+        }
+      ],
+      "poisson": 0.03689773244176257,
+      "timestep": 1047,
+      "type": "DenoisingState",
+      "value": 0.23770847775223913
+    },
+    {
+      "code": "```python\nimport numpy as np\nimport graphtools\nimport scprep\n\ndef magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    \"\"\"\n    Denoises single-cell RNA-seq count data using MAGIC, with improved alignment with evaluation pipelines.\n\n    Parameters:\n        X: (n_cells, n_genes) Raw count matrix.\n        knn: Number of neighbors for graph construction.\n        t: Diffusion steps.\n        n_pca: Number of PCA components.\n        solver: 'approximate' or 'exact' diffusion method.\n        decay: Weighting for diffusion steps.\n        knn_max: Upper limit on neighbors for graph.\n        random_state: Random state for reproducibility.\n        n_jobs: Number of parallel jobs.\n        verbose: Output detailed steps.\n\n    Returns:\n        denoised_X: (n_cells, n_genes) Denoised count matrix.\n    \"\"\"\n    if knn_max is None:\n        knn_max = knn * 3\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n    libsize_original = X_work.sum(axis=1)  # Original library size for normalization\n\n    # Apply normalization and log1p to align with evaluation metrics\n    scprep.pp.normalize_total(X_work, target_sum=10000)\n    scprep.pp.log1p(X_work)\n\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    data_imputed = scprep.utils.toarray(data)\n\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n\n    # Invert log1p and target_sum normalization\n    data_imputed_log = np.exp(data_imputed) - 1\n    data_imputed_final = data_imputed_log * (libsize_original[:, np.newaxis] / 10000)\n\n    # Cap values below 1 to 0 to handle Poisson loss effectively\n    data_imputed_final = np.clip(data_imputed_final, 0, None)\n\n    return data_imputed_final\n```",
+      "id": "612233a0-2a4a-4c25-92e7-39c2645ad28b",
+      "mse": null,
+      "observation": "",
+      "parent_values": [
+        0.24115693174945538,
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "0e8c30c3-ae81-4077-a715-536288374a08",
+          "timestep": 54
+        },
+        {
+          "id": "ca327f23-70b3-4336-903c-c3da7c64a442",
+          "timestep": -1
+        }
+      ],
+      "poisson": null,
+      "timestep": 1040,
+      "type": "DenoisingState",
+      "value": -10000
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    # Convert input to numpy array\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n\n    # Apply square root for variance-stabilization\n    X_work = np.sqrt(X_work)\n\n    # Build the graph to construct the diffusion operator\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    # Retrieve diffusion operator\n    diff_op = graph.diff_op\n\n    # Prepare data for diffusion\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    # Apply diffusion to the data\n    data_imputed = scprep.utils.toarray(data)\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    # If using approximate solver, apply inverse transform\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Inverse square root (square the data) to get back raw counts\n    data_imputed = np.square(data_imputed)\n\n    # Apply 0 threshold to lower values\n    data_imputed = np.maximum(data_imputed, 0)\n    data_imputed[data_imputed < 1] = 0\n\n    return data_imputed\n```",
+      "id": "effe608a-c279-48a2-a8b5-8255fbdd0a86",
+      "mse": null,
+      "observation": "",
+      "parent_values": [
+        -10000,
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "1db77db2-dd4d-40d5-8d73-6b9f7c821126",
+          "timestep": 9
+        },
+        {
+          "id": "d31222fd-d297-4fe5-8487-d2ef6dd69885",
+          "timestep": -1
+        }
+      ],
+      "poisson": null,
+      "timestep": 1048,
+      "type": "DenoisingState",
+      "value": -10000
+    },
+    {
+      "code": "```python\ndef magic_denoise(X, knn=5, t=3, n_pca=100, solver=\"approximate\", decay=1, knn_max=None, random_state=None, n_jobs=1, verbose=False):\n    import numpy as np\n    import graphtools\n    import scprep\n\n    if knn_max is None:\n        knn_max = knn * 3\n\n    # Convert input to numpy and ensure data type\n    X_work = scprep.utils.toarray(X).astype(np.float64)\n\n    # Apply square-root transform (variance-stabilizing for Poisson)\n    X_work = np.sqrt(X_work)\n\n    # Build the graph to construct the diffusion operator\n    graph = graphtools.Graph(\n        X_work,\n        n_pca=n_pca if X_work.shape[1] > n_pca else None,\n        knn=knn,\n        knn_max=knn_max,\n        decay=decay,\n        thresh=1e-4,\n        random_state=random_state,\n        n_jobs=n_jobs,\n        verbose=0,\n    )\n\n    # Retrieve the diffusion operator\n    diff_op = graph.diff_op\n\n    if solver == \"approximate\":\n        data = graph.data_nu\n    else:\n        data = scprep.utils.to_array_or_spmatrix(graph.data)\n\n    if verbose:\n        print(f\"    [magic_denoise] data shape: {data.shape}, sum: {data.sum():.6f}\")\n        print(f\"    [magic_denoise] diff_op sum: {diff_op.sum():.6f}\")\n\n    # Apply diffusion to data (optional set to t iterations)\n    data_imputed = scprep.utils.toarray(data)\n    if t > 0 and diff_op.shape[1] < data_imputed.shape[1]:\n        diff_op_t = np.linalg.matrix_power(scprep.utils.toarray(diff_op), t)\n        data_imputed = diff_op_t.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used matrix_power path\")\n    else:\n        for _ in range(t):\n            data_imputed = diff_op.dot(data_imputed)\n        if verbose:\n            print(f\"    [magic_denoise] used iteration path\")\n\n    if verbose:\n        print(f\"    [magic_denoise] after diffusion sum: {data_imputed.sum():.6f}\")\n\n    # If using approximate solver, reverse the transform\n    if solver == \"approximate\":\n        data_imputed = graph.inverse_transform(data_imputed, columns=None)\n        if verbose:\n            print(f\"    [magic_denoise] after inverse_transform sum: {data_imputed.sum():.6f}\")\n\n    # Apply inverse transformation: square to remove sqrt\n    data_imputed = np.square(data_imputed)\n\n    # Optional: soft thresholding to suppress low non-zero values\n    data_imputed = np.where(data_imputed < 0.5, 0, data_imputed)\n\n    return data_imputed\n```",
+      "id": "f3f5b6fb-36d8-402c-bb4c-d73fdc594e36",
+      "mse": null,
+      "observation": "",
+      "parent_values": [
+        -10000,
+        0.24
+      ],
+      "parents": [
+        {
+          "id": "1db77db2-dd4d-40d5-8d73-6b9f7c821126",
+          "timestep": 9
+        },
+        {
+          "id": "d31222fd-d297-4fe5-8487-d2ef6dd69885",
+          "timestep": -1
+        }
+      ],
+      "poisson": null,
+      "timestep": 1049,
+      "type": "DenoisingState",
+      "value": -10000
+    }
+  ],
+  "step": 1
+}

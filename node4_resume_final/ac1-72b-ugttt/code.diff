@@ -1,0 +1,40 @@
+### repo: /home/greenland-user/Uncertainty-Guided-Exploration-For-Discovery @ 786f7a07696a0d510624075c616e714c153b441c
+modules: tinker_cookbook
+-- repo-wide (vs HEAD, staged+unstaged) --
+diff --git a/scripts/aws/launch_scaling_wave.sh b/scripts/aws/launch_scaling_wave.sh
+index 4abe7a9..a777c16 100644
+--- a/scripts/aws/launch_scaling_wave.sh
++++ b/scripts/aws/launch_scaling_wave.sh
+@@ -26,7 +26,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ cd "${SCRIPT_DIR}/../.."
+ 
+ export TOKENIZERS_PARALLELISM=false
+-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
++unset PYTORCH_CUDA_ALLOC_CONF
+ export RAY_DEDUP_LOGS=0
+ # ONE shared Ray head per node — same contract as launch_wave.sh: the task layer
+ # hardcodes ray.init("auto") and base_reward_task.py get-or-creates a detached
+@@ -89,8 +89,8 @@ M72="Qwen/Qwen2.5-72B-Instruct"
+ 
+ # Both arms of the long pole together: 4 + 4 = 8.
+ WAVE_scale72=(
+-  "ac1-72b-ugttt|ac1|improvement|UGTTT|4|--base_model $M72"
+-  "ac1-72b-base|ac1|improvement|BASELINE|4|--base_model $M72"
++  "ac1-72b-ugttt|ac1|improvement|UGTTT|8|--base_model $M72"
++  # DEFERRED: "ac1-72b-base|ac1|improvement|BASELINE|4|--base_model $M72"
+ )
+ 
+ # 14B and 32B pairs together: 2 + 2 + 2 + 2 = 8. 32B on 2 GPUs is ~84% full —
+diff --git a/tinker_cookbook/rl/mlora_train.py b/tinker_cookbook/rl/mlora_train.py
+index 96e9731..4f78c58 100644
+--- a/tinker_cookbook/rl/mlora_train.py
++++ b/tinker_cookbook/rl/mlora_train.py
+@@ -1455,6 +1455,8 @@ def train_step(
+     # When kl_penalty_coef == 0, advantages are scalars (float).
+     trainable_rollouts: List[Tuple["Rollout", "Union[float, torch.Tensor]"]] = []
+ 
++    kl_metrics: Dict[str, float] = {}
++
+     for group in rollout_groups:
+         # β sees R_exec ONLY — preserves max-reward-seeking gradient
+         scalar_advantages, adv_meta = compute_advantages(
