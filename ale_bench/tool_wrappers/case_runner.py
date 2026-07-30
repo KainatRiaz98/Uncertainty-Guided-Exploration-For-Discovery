@@ -39,6 +39,40 @@ from ale_bench.utils import read_svg, run_command_remote, run_command_direct, ge
 import ray
 
 
+# Large ephemeral volumes to fall back to, most preferred first. These dirs are
+# never cleaned up by ale_bench, so they must NOT land on a small root volume.
+_SCRATCH_FALLBACK_VOLUMES = ("/opt/dlami/nvme",)
+
+
+def get_local_scratch_root() -> str:
+    """Root for per-case scratch dirs, local to the node to avoid NFS I/O latency.
+
+    Overridable via ALE_BENCH_LOCAL_TMPDIR (falling back to TMPDIR).
+
+    The env vars are frequently ABSENT here, which is why the fallback matters:
+    evaluation runs inside Ray workers, and the raylet forks those workers, so
+    they inherit the raylet's environment rather than the training driver's.
+    Exporting the vars before launching a run therefore does NOT reach the code
+    that actually creates these dirs unless the Ray head was also started from
+    that same environment.
+
+    Defaulting to /tmp filled the 29GB root volume twice on 2026-07-30 (~128KB
+    per evaluated case, never reclaimed), killing a wave mid-run and truncating
+    a checkpoint. So when no override is set, prefer a large ephemeral volume if
+    one is mounted, and only use /tmp as a last resort.
+    """
+    root = os.environ.get("ALE_BENCH_LOCAL_TMPDIR") or os.environ.get("TMPDIR")
+    if not root:
+        for vol in _SCRATCH_FALLBACK_VOLUMES:
+            if os.path.isdir(vol):
+                root = os.path.join(vol, "scratch", "ale_bench")
+                break
+        else:
+            root = "/tmp"
+    os.makedirs(root, exist_ok=True)
+    return root
+
+
 class HostPathsCompile(BaseModel):
     """Paths on the host for the compilation step of the submission."""
 
@@ -190,8 +224,8 @@ def setup_paths_batch_run(
         )
     
     # Create local temp directory for input/output files to avoid NFS I/O latency
-    # Use /tmp which is typically local to each node
-    local_temp_dir = Path(tempfile.mkdtemp(prefix=f"ale_bench_local_{problem_id}_{case_idx}_", dir="/tmp"))
+    # Use a node-local root (see get_local_scratch_root) rather than hardcoding /tmp
+    local_temp_dir = Path(tempfile.mkdtemp(prefix=f"ale_bench_local_{problem_id}_{case_idx}_", dir=get_local_scratch_root()))
     local_temp_dir.mkdir(parents=True, exist_ok=True)
     
     # Copy cached input file to local temp with proper synchronization
@@ -477,8 +511,8 @@ def setup_paths_reactive_judge(
         )
     
     # Create local temp directory for input/output files to avoid NFS I/O latency
-    # Use /tmp which is typically local to each node
-    local_temp_dir = Path(tempfile.mkdtemp(prefix=f"ale_bench_local_{problem_id}_{case_idx}_", dir="/tmp"))
+    # Use a node-local root (see get_local_scratch_root) rather than hardcoding /tmp
+    local_temp_dir = Path(tempfile.mkdtemp(prefix=f"ale_bench_local_{problem_id}_{case_idx}_", dir=get_local_scratch_root()))
     local_temp_dir.mkdir(parents=True, exist_ok=True)
     
     # Copy cached input file to local temp with proper synchronization
@@ -1652,7 +1686,27 @@ def run_cases(
         else:
             # Multiple cases - use Ray workers launched via ThreadPoolExecutor
             # Create Ray remote function for single case execution
-            _case_exec_fn = ray.remote(num_cpus=2, max_calls=0)(run_single_case_remote)
+            #
+            # num_cpus here is the ONLY effective bound on how many cases run at
+            # once: `num_workers` throttles the rate of .remote() submissions, not
+            # execution, so Ray's CPU accounting decides real concurrency
+            # (cluster_cpus / num_cpus). At the stock value of 2 that is ~48 cases
+            # in parallel on a 96-vCPU box, and this harness is NOT safe at that
+            # level — a known-good solution (results/algorithm-design/ahc039.cpp,
+            # 1.94s/case standalone, well under the 2.0s limit) comes back with
+            # spurious TIME_LIMIT_EXCEEDED (host wall-clock of 8-9s, because GNU
+            # Time never flushes /tmp/profiles.json before the kill, so
+            # parse_profiles falls back to the inflated host timing) and spurious
+            # WRONG_ANSWER. Measured on this host, full 150 cases:
+            #   ~48 concurrent -> 48 ACCEPTED, then TLE early-stop  (score 0.13)
+            #   ~6  concurrent -> 13 ACCEPTED, then WRONG_ANSWER
+            #   ~3  concurrent -> 150 ACCEPTED, 154s  (also clean with two
+            #                     evaluations running at the same time)
+            # Rewards are only trustworthy in the last regime, so default to it.
+            # Raise ALE_BENCH_CASE_CPUS for more isolation, lower it for speed —
+            # but re-verify against a known-good solution before trusting numbers.
+            _case_cpus = int(os.environ.get("ALE_BENCH_CASE_CPUS", "32"))
+            _case_exec_fn = ray.remote(num_cpus=_case_cpus, max_calls=0)(run_single_case_remote)
             
             case_results = [
                 CaseResult(

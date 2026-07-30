@@ -24,16 +24,76 @@ export RAY_DEDUP_LOGS=0
 # — the scheduler does the CPU partitioning; taskset would fight it.
 export RAY_ADDRESS=auto
 
+# Keep ALL scratch off the 29GB root volume. On 2026-07-30 a wave died when
+# root hit 0 bytes: ale_bench leaks one ~128KB dir per evaluated case (82,283 of
+# them, ~10.6GB) and Ray spills objects + writes session logs under /tmp/ray.
+# The first casualty was a torch.save of an adapter, which left a truncated
+# checkpoint. NVME_SCRATCH has 6.5TB; point everything there.
+NVME_SCRATCH="${NVME_SCRATCH:-/opt/dlami/nvme/scratch}"
+# Consumed by ale_bench/tool_wrappers/case_runner.py:get_local_scratch_root.
+export ALE_BENCH_LOCAL_TMPDIR="${ALE_BENCH_LOCAL_TMPDIR:-${NVME_SCRATCH}/ale_bench}"
+# Catch-all for tempfile/mkdtemp elsewhere (compile dirs, HF, C++ builds).
+export TMPDIR="${TMPDIR:-${NVME_SCRATCH}/tmp}"
+# Ray session dir: holds worker logs AND the object-spilling directory.
+RAY_TEMP_DIR="${RAY_TEMP_DIR:-/opt/dlami/nvme/ray}"
+# Backstop: --temp-dir only covers the head we start. Any code path that calls
+# ray.init() WITHOUT RAY_ADDRESS=auto spins up its own local cluster at Ray's
+# default /tmp/ray; RAY_TMPDIR redirects those too. Verified 2026-07-30.
+export RAY_TMPDIR="${RAY_TMPDIR:-${RAY_TEMP_DIR}}"
+mkdir -p "$ALE_BENCH_LOCAL_TMPDIR" "$TMPDIR" "$RAY_TEMP_DIR"
+
 NUM_GPUS="${NUM_GPUS:-8}"
 TOTAL_CPUS="${TOTAL_CPUS:-$(nproc)}"
+
+# First GPU index to use. Set this when part of the node is already busy so a
+# launch does not land on GPUs another wave already took (e.g. GPU_START=2).
+GPU_START="${GPU_START:-0}"
+# Substring filter on the run name: launch only the matching subset of a wave.
+# Lets a wave be split across nodes/times (e.g. ONLY=ahc039 for just that pair).
+ONLY="${ONLY:-}"
+# Interpreter for these runs. Must be the training venv — a bare `python3` is
+# /usr/bin/python3 here, which has none of the deps.
+PYTHON="${PYTHON:-python3}"
+# `ray` lives next to the interpreter inside a venv, and is NOT on PATH.
+RAY_BIN="$(dirname "$PYTHON")/ray"
+[[ -x "$RAY_BIN" ]] || RAY_BIN="ray"
 
 # Ensure a Ray head exists on this node, sized to the whole box so the
 # cpu_scheduler pool covers all cores. Idempotent: skip if one is already up.
 # Defined here, invoked only on a real launch (not on --list/usage).
 ensure_ray_head() {
-  if ! ray status >/dev/null 2>&1; then
-    echo "No Ray head found — starting one (--num-cpus ${TOTAL_CPUS})."
-    ray start --head --num-cpus="${TOTAL_CPUS}" --disable-usage-stats >/dev/null
+  if ! "$RAY_BIN" status >/dev/null 2>&1; then
+    echo "No Ray head found — starting one (--num-cpus ${TOTAL_CPUS}, temp-dir ${RAY_TEMP_DIR})."
+    "$RAY_BIN" start --head --num-cpus="${TOTAL_CPUS}" --disable-usage-stats \
+      --temp-dir="${RAY_TEMP_DIR}" >/dev/null
+    return
+  fi
+  # A head is already up. If it was started WITHOUT --temp-dir it is spilling
+  # objects and writing worker logs to /tmp on the root volume — the exact
+  # condition that filled the disk and killed wave4. Refuse to pile onto it:
+  # --temp-dir cannot be changed on a live cluster, it needs a restart.
+  if [[ -e /tmp/ray/ray_current_cluster ]]; then
+    echo "error: the running Ray head is rooted at /tmp (root volume), not ${RAY_TEMP_DIR}." >&2
+    echo "       This is what filled the disk on 2026-07-30. Recycle it first:" >&2
+    echo "         ${RAY_BIN} stop --force" >&2
+    echo "         rm -rf /tmp/ray" >&2
+    echo "       then re-run this script (it will start the head on nvme)." >&2
+    exit 1
+  fi
+  # A head on nvme is still not enough. ale_bench evaluation runs inside RAY
+  # WORKERS, which the raylet forks — so they inherit the RAYLET's environment,
+  # not this script's. A head started from a shell without ALE_BENCH_LOCAL_TMPDIR
+  # (e.g. a bare `ray start`) silently sends every case dir back to /tmp. That
+  # happened on 2026-07-30 and leaked ~270MB/h until a janitor was added.
+  local rl
+  rl="$(pgrep -f 'raylet/raylet' | head -1)"
+  if [[ -n "$rl" ]] && ! grep -qz "ALE_BENCH_LOCAL_TMPDIR=" "/proc/${rl}/environ" 2>/dev/null; then
+    echo "warning: the running Ray head's raylet (pid ${rl}) has no ALE_BENCH_LOCAL_TMPDIR." >&2
+    echo "         Workers it ALREADY forked keep writing case scratch to /tmp." >&2
+    echo "         Newly forked workers are safe: get_local_scratch_root() now" >&2
+    echo "         defaults to /opt/dlami/nvme when no override is set." >&2
+    echo "         To clear the tail, recycle the head once training is idle:" >&2
+    echo "           ${RAY_BIN} stop --force   # then relaunch from this script" >&2
   fi
 }
 
@@ -149,18 +209,37 @@ declare -a WAVE3=(
 declare -a WAVE4=(
   "denoise-ugttt|denoising|improvement|UGTTT|"
   "denoise-base|denoising|improvement|BASELINE|"
-  "ahc039-ugttt|ahc039|ahc039|UGTTT|"
-  "ahc039-base|ahc039|ahc039|BASELINE|"
+  "ahc039-ugttt|ahc039|ahc039|UGTTT|--save_every 1"
+  "ahc039-base|ahc039|ahc039|BASELINE|--save_every 1"
+  # Second seed for the ahc039 pair, so the new-domain claim is not itself n=1
+  # (vGzb W1). Identical to the two runs above in every respect except --seed;
+  # the pair above takes the argparse default of 42, matching the published
+  # runs, so together they give n=2 per arm. Select with ONLY=seed2.
+  "ahc039-ugttt-seed2|ahc039|ahc039|UGTTT|--save_every 1 --seed 2"
+  "ahc039-base-seed2|ahc039|ahc039|BASELINE|--save_every 1 --seed 2"
+  # Third seed, added 2026-07-30 to take the ahc039 pair to n=3 while the
+  # seed-42 pair finishes on GPUs 0-1. Select with ONLY=seed3 (a substring that
+  # matches ONLY these two, unlike ONLY=ahc039 which matches all six).
+  "ahc039-ugttt-seed3|ahc039|ahc039|UGTTT|--save_every 1 --seed 3"
+  "ahc039-base-seed3|ahc039|ahc039|BASELINE|--save_every 1 --seed 3"
 )
 
-usage() { echo "usage: $0 [--list] <wave1|wave2|wave3|wave4>"; exit 1; }
+usage() {
+  echo "usage: $0 [--list] <wave1|wave2|wave3|wave4>"
+  echo "  env: GPU_START=<n>  ONLY=<run-name-substring>  PYTHON=<interpreter>"
+  exit 1
+}
 
 list_runs() {
   local -n arr=$1
   printf '%-20s %-11s %-12s %-9s %s\n' RUN ENV PROBLEM ARM EXTRA
   for spec in "${arr[@]}"; do
     IFS='|' read -r name env pidx arm extra <<< "$spec"
-    printf '%-20s %-11s %-12s %-9s %s\n' "$name" "$env" "$pidx" "$arm" "$extra"
+    # --list must show exactly what a launch with these env vars would start,
+    # so it honours ONLY rather than always printing the full wave.
+    if [[ -z "$ONLY" || "$name" == *"$ONLY"* ]]; then
+      printf '%-20s %-11s %-12s %-9s %s\n' "$name" "$env" "$pidx" "$arm" "$extra"
+    fi
   done
 }
 
@@ -183,18 +262,38 @@ case "$WAVE_NAME" in
   *) usage ;;
 esac
 
-[[ ${#RUNS[@]} -le $NUM_GPUS ]] || { echo "error: ${#RUNS[@]} runs > $NUM_GPUS GPUs" >&2; exit 1; }
+# Keep only the runs whose name matches ONLY. Written as a full if/fi because
+# under `set -e` a false test as the last statement in a loop body exits.
+if [[ -n "$ONLY" ]]; then
+  declare -a FILTERED=()
+  for spec in "${RUNS[@]}"; do
+    IFS='|' read -r spec_name _ _ _ _ <<< "$spec"
+    if [[ "$spec_name" == *"$ONLY"* ]]; then
+      FILTERED+=( "$spec" )
+    fi
+  done
+  # Only expand FILTERED once known non-empty: "${FILTERED[@]-}" on an empty
+  # array yields one empty element, which would then launch a garbage run.
+  if [[ ${#FILTERED[@]} -eq 0 ]]; then
+    echo "error: no runs in ${WAVE_NAME} match ONLY=${ONLY}" >&2; exit 1
+  fi
+  RUNS=("${FILTERED[@]}")
+fi
+
+[[ $(( GPU_START + ${#RUNS[@]} )) -le $NUM_GPUS ]] || {
+  echo "error: ${#RUNS[@]} runs starting at GPU $GPU_START exceeds $NUM_GPUS GPUs" >&2; exit 1; }
 
 ensure_ray_head
 
 LOG_DIR="logs/aws/${WAVE_NAME}"
 mkdir -p "$LOG_DIR"
 
-echo "Launching ${#RUNS[@]} runs on $NUM_GPUS GPUs (shared Ray head, cpu_scheduler partitions ${TOTAL_CPUS} vCPUs)"
+echo "Launching ${#RUNS[@]} runs on GPUs ${GPU_START}..$(( GPU_START + ${#RUNS[@]} - 1 )) (shared Ray head, cpu_scheduler partitions ${TOTAL_CPUS} vCPUs)"
+echo "Python: $PYTHON"
 echo "Logs: $LOG_DIR"
 echo
 
-gpu=0
+gpu=$GPU_START
 for spec in "${RUNS[@]}"; do
   IFS='|' read -r name env pidx arm extra <<< "$spec"
   declare -n arm_flags="$arm"
@@ -215,7 +314,7 @@ for spec in "${RUNS[@]}"; do
   CUDA_VISIBLE_DEVICES="$gpu" \
   PYTHONPATH="mLoRA:${PYTHONPATH:-}" \
   setsid \
-    python3 -m tinker_cookbook.rl.mlora_train \
+    "$PYTHON" -m tinker_cookbook.rl.mlora_train \
       "${COMMON[@]}" \
       "${arm_flags[@]}" \
       "${extra_flags[@]}" \
