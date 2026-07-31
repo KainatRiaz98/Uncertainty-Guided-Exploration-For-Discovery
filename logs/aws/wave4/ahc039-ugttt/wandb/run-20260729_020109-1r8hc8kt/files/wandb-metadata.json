@@ -1,0 +1,116 @@
+{
+  "os": "Linux-6.17.0-1019-aws-x86_64-with-glibc2.39",
+  "python": "CPython 3.12.3",
+  "startedAt": "2026-07-29T02:01:09.250009Z",
+  "args": [
+    "--base_model",
+    "Qwen/Qwen3-8B",
+    "--precision",
+    "fp16",
+    "--adv_estimator",
+    "entropic_adaptive_beta",
+    "--kl_penalty_coef",
+    "0.01",
+    "--lora_rank",
+    "16",
+    "--lora_alpha",
+    "32",
+    "--learning_rate",
+    "4e-5",
+    "--group_size",
+    "8",
+    "--groups_per_batch",
+    "8",
+    "--num_epochs",
+    "6",
+    "--max_tokens",
+    "260000",
+    "--two_phase_sampling",
+    "--phase1_max_tokens",
+    "26000",
+    "--temperature",
+    "1.0",
+    "--sampler_type",
+    "puct_backprop",
+    "--initial_exp_type",
+    "random",
+    "--num_cpus_per_task",
+    "2",
+    "--save_every",
+    "2",
+    "--num_ensemble_members",
+    "5",
+    "--rmi_coef",
+    "0.1",
+    "--nnm_coef",
+    "0.075",
+    "--uncertainty_metric",
+    "true_mi",
+    "--save_every",
+    "1",
+    "--env",
+    "ahc039",
+    "--problem_idx",
+    "ahc039",
+    "--log_path",
+    "./logs/aws/wave4/ahc039-ugttt",
+    "--wandb_project",
+    "ugttt-rebuttal",
+    "--wandb_name",
+    "ahc039-ugttt"
+  ],
+  "program": "-m tinker_cookbook.rl.mlora_train",
+  "git": {
+    "remote": "https://github.com/KainatRiaz98/Uncertainty-Guided-Exploration-For-Discovery.git",
+    "commit": "3ed0ce41f51b7aeb4f9f4756f90d49bb29c91152"
+  },
+  "email": "kriaz.msee20seecs@seecs.edu.pk",
+  "root": "./logs/aws/wave4/ahc039-ugttt",
+  "host": "ip-172-31-86-150",
+  "executable": "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/.venv/bin/python3",
+  "cpu_count": 48,
+  "cpu_count_logical": 96,
+  "gpu": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+  "gpu_count": 4,
+  "disk": {
+    "/": {
+      "total": "30083776512",
+      "used": "17209597952"
+    }
+  },
+  "memory": {
+    "total": "1073245913088"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+      "memoryTotal": "102641958912",
+      "cudaCores": 24064,
+      "architecture": "Blackwell",
+      "uuid": "GPU-157668f4-cc85-67e0-3a58-8dc867af2344"
+    },
+    {
+      "name": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+      "memoryTotal": "102641958912",
+      "cudaCores": 24064,
+      "architecture": "Blackwell",
+      "uuid": "GPU-0d65bf9f-a6f2-462f-d9e8-7ce0190d8139"
+    },
+    {
+      "name": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+      "memoryTotal": "102641958912",
+      "cudaCores": 24064,
+      "architecture": "Blackwell",
+      "uuid": "GPU-37467814-9d86-2ebd-0c65-6785ecf3d481"
+    },
+    {
+      "name": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+      "memoryTotal": "102641958912",
+      "cudaCores": 24064,
+      "architecture": "Blackwell",
+      "uuid": "GPU-364c4338-7afe-d2b2-0485-fcbd2844b9ae"
+    }
+  ],
+  "cudaVersion": "13.2",
+  "writerId": "cli9xokyu11c9seaseg1hmfsdbvutdmg"
+}

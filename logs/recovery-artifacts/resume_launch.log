@@ -1,0 +1,17 @@
+repo:        /opt/dlami/nvme/experiments/Uncertainty-Guided-Exploration-For-Discovery
+python:      /opt/dlami/nvme/ugttt-venv/bin/python3
+ale_bench scratch: /opt/dlami/nvme/scratch/ale_bench
+TMPDIR:      /opt/dlami/nvme/scratch/tmp
+ray temp:    /opt/dlami/nvme/ray
+root volume: 9.7G available
+
+Resume preflight:
+  ahc039-ugttt   last_epoch=1 -> resumes at epoch 2, loads step_1 (5/5 members OK)
+  ahc039-base    last_epoch=2 -> resumes at epoch 3, loads step_2 (1/1 members OK)
+
+  GPU 0  ahc039-ugttt  (pid 889827)  -> logs/aws/wave4/ahc039-ugttt.resume_20260730_122737.log
+  GPU 1  ahc039-base  (pid 889829)  -> logs/aws/wave4/ahc039-base.resume_20260730_122737.log
+
+Resumed. The prior stdout logs are preserved; resumes write *.resume_<ts>.log.
+Confirm each log shows 'Resumed from epoch N' before walking away.
+Watch the root volume — it must stay flat now:  watch -n60 'df -h /'

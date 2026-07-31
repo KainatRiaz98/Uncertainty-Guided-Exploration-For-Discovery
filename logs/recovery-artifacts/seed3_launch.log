@@ -1,0 +1,19 @@
+warning: the running Ray head's raylet (pid 876884) has no ALE_BENCH_LOCAL_TMPDIR.
+         Workers it ALREADY forked keep writing case scratch to /tmp.
+         Newly forked workers are safe: get_local_scratch_root() now
+         defaults to /opt/dlami/nvme when no override is set.
+         To clear the tail, recycle the head once training is idle:
+           /opt/dlami/nvme/ugttt-venv/bin/ray stop --force   # then relaunch from this script
+Launching 2 runs on GPUs 2..3 (shared Ray head, cpu_scheduler partitions 96 vCPUs)
+Python: /opt/dlami/nvme/ugttt-venv/bin/python3
+Logs: logs/aws/wave4
+
+  GPU 2  ahc039-ugttt-seed3  (pid 958712)
+  GPU 3  ahc039-base-seed3  (pid 958713)
+
+All runs detached. Follow one with:
+  tail -f logs/aws/wave4/<run-name>.log
+Check placement:  nvidia-smi   (one python process per GPU)
+Check the CPU pool: ray status   (cpu_scheduler should own 96 CPUs)
+Load average should settle near 96; much higher means the
+cpu_scheduler didn't bound the pool (check --num_cpus_per_task is uniform).

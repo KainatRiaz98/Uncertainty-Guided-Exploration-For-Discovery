@@ -1,0 +1,7 @@
+2026-07-30T15:38:56+00:00 janitor started (age>60min, every 600s)
+2026-07-30T15:38:57+00:00 reaped 3600 dirs (6300 -> 2700); root avail 9.4G
+2026-07-30T15:48:57+00:00 reaped 1050 dirs (2700 -> 1650); root avail 9.5G
+2026-07-30T15:54:54+00:00 janitor started (age>30min, every 300s, emergency<5G)
+2026-07-30T15:54:54+00:00 reaped 1385 dirs (2250 -> 865); root avail 10G
+2026-07-30T15:59:54+00:00 reaped 265 dirs (865 -> 600); root avail 10G
+2026-07-30T16:24:55+00:00 reaped 600 dirs (600 -> 0); root avail 10G
