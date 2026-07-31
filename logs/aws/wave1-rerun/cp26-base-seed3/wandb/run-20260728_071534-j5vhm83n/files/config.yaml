@@ -1,0 +1,301 @@
+_wandb:
+    value:
+        cli_version: 0.23.0
+        e:
+            hahzqaimd30vys3aozw535o0mwt4wwmz:
+                args:
+                    - --base_model
+                    - Qwen/Qwen3-8B
+                    - --precision
+                    - fp16
+                    - --adv_estimator
+                    - entropic_adaptive_beta
+                    - --kl_penalty_coef
+                    - "0.01"
+                    - --lora_rank
+                    - "16"
+                    - --lora_alpha
+                    - "32"
+                    - --learning_rate
+                    - "4e-5"
+                    - --group_size
+                    - "8"
+                    - --groups_per_batch
+                    - "8"
+                    - --num_epochs
+                    - "6"
+                    - --max_tokens
+                    - "260000"
+                    - --two_phase_sampling
+                    - --phase1_max_tokens
+                    - "26000"
+                    - --temperature
+                    - "1.0"
+                    - --sampler_type
+                    - puct_backprop
+                    - --initial_exp_type
+                    - random
+                    - --num_cpus_per_task
+                    - "2"
+                    - --save_every
+                    - "2"
+                    - --num_ensemble_members
+                    - "1"
+                    - --rmi_coef
+                    - "0.0"
+                    - --nnm_coef
+                    - "0.0"
+                    - --seed
+                    - "3"
+                    - --env
+                    - cp
+                    - --problem_idx
+                    - "26"
+                    - --log_path
+                    - ./logs/aws/wave1-rerun/cp26-base-seed3
+                    - --wandb_project
+                    - ugttt-rebuttal
+                    - --wandb_name
+                    - cp26-base-seed3
+                cpu_count: 48
+                cpu_count_logical: 96
+                cudaVersion: "13.2"
+                disk:
+                    /:
+                        total: "30083776512"
+                        used: "14893948928"
+                email: kriaz.msee20seecs@seecs.edu.pk
+                executable: /home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/.venv/bin/python3
+                git:
+                    commit: 3ed0ce41f51b7aeb4f9f4756f90d49bb29c91152
+                    remote: https://github.com/KainatRiaz98/Uncertainty-Guided-Exploration-For-Discovery.git
+                gpu: NVIDIA RTX PRO 6000 Blackwell Server Edition
+                gpu_count: 4
+                gpu_nvidia:
+                    - architecture: Blackwell
+                      cudaCores: 24064
+                      memoryTotal: "102641958912"
+                      name: NVIDIA RTX PRO 6000 Blackwell Server Edition
+                      uuid: GPU-157668f4-cc85-67e0-3a58-8dc867af2344
+                    - architecture: Blackwell
+                      cudaCores: 24064
+                      memoryTotal: "102641958912"
+                      name: NVIDIA RTX PRO 6000 Blackwell Server Edition
+                      uuid: GPU-0d65bf9f-a6f2-462f-d9e8-7ce0190d8139
+                    - architecture: Blackwell
+                      cudaCores: 24064
+                      memoryTotal: "102641958912"
+                      name: NVIDIA RTX PRO 6000 Blackwell Server Edition
+                      uuid: GPU-37467814-9d86-2ebd-0c65-6785ecf3d481
+                    - architecture: Blackwell
+                      cudaCores: 24064
+                      memoryTotal: "102641958912"
+                      name: NVIDIA RTX PRO 6000 Blackwell Server Edition
+                      uuid: GPU-364c4338-7afe-d2b2-0485-fcbd2844b9ae
+                host: ip-172-31-86-150
+                memory:
+                    total: "1073245913088"
+                os: Linux-6.17.0-1019-aws-x86_64-with-glibc2.39
+                program: -m tinker_cookbook.rl.mlora_train
+                python: CPython 3.12.3
+                root: ./logs/aws/wave1-rerun/cp26-base-seed3
+                startedAt: "2026-07-28T07:15:34.886322Z"
+                writerId: hahzqaimd30vys3aozw535o0mwt4wwmz
+        m:
+            - "1": kl_policy_base
+              "5": 2
+              "6":
+                - 1
+                - 3
+              "7": []
+            - "1": progress/epoch
+              "6": []
+              "7": []
+            - "2": rollout/*
+              "5": 4
+              "6":
+                - 1
+              "7": []
+            - "1": rollout/_global_step
+              "6": []
+              "7": []
+            - "2": rollout_group/*
+              "5": 6
+              "6":
+                - 1
+              "7": []
+            - "1": rollout_group/_global_step
+              "6": []
+              "7": []
+            - "2": train/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": progress/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": time/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": gpu/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+            - "2": optim/*
+              "5": 2
+              "6":
+                - 1
+              "7": []
+        python_version: 3.12.3
+        t:
+            "1":
+                - 1
+                - 11
+                - 30
+                - 49
+                - 51
+                - 71
+            "2":
+                - 1
+                - 11
+                - 30
+                - 49
+                - 51
+                - 71
+            "3":
+                - 2
+                - 5
+                - 7
+                - 13
+                - 14
+                - 16
+                - 62
+            "4": 3.12.3
+            "5": 0.23.0
+            "6": 4.57.1
+            "12": 0.23.0
+            "13": linux-x86_64
+adv_estimator:
+    value: entropic_adaptive_beta
+adv_estimator_beta:
+    value: 2
+base_model:
+    value: Qwen/Qwen3-8B
+budget_s:
+    value: 1000
+compute_post_kl:
+    value: false
+context_buffer:
+    value: 50
+context_window:
+    value: 32768
+dataset_builder:
+    value: null
+dataset_timeout:
+    value: 1000
+device:
+    value: cuda
+dynamic_max_tokens:
+    value: true
+env:
+    value: cp
+eval_every:
+    value: 3
+eval_timeout:
+    value: 1000
+gamma_max_ratio:
+    value: 10
+gpu_mode_score_scale:
+    value: 3000
+group_size:
+    value: 8
+groups_per_batch:
+    value: 8
+initial_exp_type:
+    value: random
+kl_discount_factor:
+    value: 0
+kl_penalty_coef:
+    value: 0.01
+kv_quantize:
+    value: false
+learning_rate:
+    value: 4e-05
+log_path:
+    value: ./logs/aws/wave1-rerun/cp26-base-seed3
+lora_alpha:
+    value: 32
+lora_dropout:
+    value: 0.05
+lora_rank:
+    value: 16
+loss_fn:
+    value: importance_sampling
+max_tokens:
+    value: 260000
+nnm_coef:
+    value: 0
+nnm_use_fro_norm:
+    value: false
+num_cpus_per_task:
+    value: 2
+num_ensemble_members:
+    value: 1
+num_epochs:
+    value: 6
+num_substeps:
+    value: 1
+phase1_max_tokens:
+    value: 26000
+ppo_clip:
+    value: 0.2
+precision:
+    value: fp16
+problem_idx:
+    value: "26"
+remove_constant_reward_groups:
+    value: true
+rmi_coef:
+    value: 0
+sampler_type:
+    value: puct_backprop
+save_every:
+    value: 2
+seed:
+    value: 3
+streaming_mi_check_interval:
+    value: 2048
+streaming_mi_enabled:
+    value: false
+streaming_mi_min_gen:
+    value: 4096
+streaming_mi_threshold_percentile:
+    value: 25
+streaming_mi_warmup_epochs:
+    value: 3
+streaming_mi_window_size:
+    value: 4096
+streaming_mi_wrap_budget:
+    value: 6000
+target_modules:
+    value:
+        k_proj: true
+        o_proj: true
+        q_proj: true
+        v_proj: true
+temperature:
+    value: 1
+two_phase_sampling:
+    value: true
+uncertainty_metric:
+    value: true_mi
+wandb_name:
+    value: cp26-base-seed3
+wandb_project:
+    value: ugttt-rebuttal
