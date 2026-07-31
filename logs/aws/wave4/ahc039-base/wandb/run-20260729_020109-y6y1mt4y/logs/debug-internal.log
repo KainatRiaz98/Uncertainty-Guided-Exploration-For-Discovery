@@ -1,0 +1,21 @@
+{"time":"2026-07-29T02:01:09.824757789Z","level":"INFO","msg":"stream: starting","core version":"0.23.0"}
+{"time":"2026-07-29T02:01:10.047778931Z","level":"INFO","msg":"stream: created new stream","id":"y6y1mt4y"}
+{"time":"2026-07-29T02:01:10.047827032Z","level":"INFO","msg":"handler: started","stream_id":"y6y1mt4y"}
+{"time":"2026-07-29T02:01:10.047889352Z","level":"INFO","msg":"stream: started","id":"y6y1mt4y"}
+{"time":"2026-07-29T02:01:10.047895081Z","level":"INFO","msg":"writer: started","stream_id":"y6y1mt4y"}
+{"time":"2026-07-29T02:01:10.047905213Z","level":"INFO","msg":"sender: started","stream_id":"y6y1mt4y"}
+{"time":"2026-07-29T07:05:34.636075307Z","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":3222}
+{"time":"2026-07-29T07:05:34.636928762Z","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":63}
+{"time":"2026-07-29T13:01:21.032695253Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-29T13:16:51.067807641Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-29T14:12:53.497797434Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-29T15:14:51.318776027Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-29T16:42:40.189059582Z","level":"INFO","msg":"api: retrying HTTP error","status":429,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"rate limit exceeded: filestream at capacity, retry after 9s\"}"}
+{"time":"2026-07-29T17:12:42.61111515Z","level":"INFO","msg":"api: retrying HTTP error","status":429,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"rate limit exceeded: filestream at capacity, retry after 5s\"}"}
+{"time":"2026-07-29T17:34:17.1570762Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-29T18:09:53.797878172Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-29T20:38:11.485681176Z","level":"INFO","msg":"api: retrying HTTP error","status":429,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"rate limit exceeded: filestream at capacity, retry after 7s\"}"}
+{"time":"2026-07-29T21:55:11.448565634Z","level":"INFO","msg":"api: retrying HTTP error","status":429,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"rate limit exceeded: filestream at capacity, retry after 6s\"}"}
+{"time":"2026-07-30T01:03:39.867487125Z","level":"ERROR","msg":"runconsolelogs: failed to write to file: failed to write to chunk: failed to append: write logs/aws/wave4/ahc039-base/wandb/run-20260729_020109-y6y1mt4y/files/output.log: no space left on device"}
+{"time":"2026-07-30T01:03:39.902513569Z","level":"ERROR","msg":"writer: failed to save record: transactionlog: error writing: write ./logs/aws/wave4/ahc039-base/wandb/run-20260729_020109-y6y1mt4y/run-y6y1mt4y.wandb: no space left on device"}
+{"time":"2026-07-30T01:03:39.902908093Z","level":"ERROR","msg":"writer: failed to save record: transactionlog: error sta

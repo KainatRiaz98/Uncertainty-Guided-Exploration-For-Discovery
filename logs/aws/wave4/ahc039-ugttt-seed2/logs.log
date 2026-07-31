@@ -1,0 +1,564 @@
+tinker_cookbook.utils.ml_log:525 [INFO] Logging to: logs/aws/wave4/ahc039-ugttt-seed2
+__main__:1657 [INFO] Active loggers: ['JsonLogger', 'PrettyPrintLogger', 'WandbLogger']
+__main__:1690 [INFO] Loading base model: Qwen/Qwen3-8B (fp16)
+root:227 [INFO] Loading model with precision - fp16
+root:255 [INFO] loading llama compatible model - qwen3
+root:49 [INFO] Adapter ensemble_0 without lr_scheduler.
+root:49 [INFO] Adapter ensemble_1 without lr_scheduler.
+root:49 [INFO] Adapter ensemble_2 without lr_scheduler.
+root:49 [INFO] Adapter ensemble_3 without lr_scheduler.
+root:49 [INFO] Adapter ensemble_4 without lr_scheduler.
+tinker_cookbook.rl.ensemble:123 [INFO] Initialized 5 LoRA ensemble members (rank=16)
+__main__:1779 [INFO] Training: 6 epochs, 8 groups/batch × 8 rollouts/group, K=5 adapters, γ=0.1
+__main__:1784 [INFO] Parallelism: batched generation (8 seqs/batch), threaded rewards (8 workers), batched ensemble scoring
+__main__:1807 [INFO] Two-phase sampling enabled: phase1_max=26000, context_window=32768, prefill_len=22, stop_ids=[151645]
+__main__:1836 [INFO] [Epoch 0/6] Starting rollout phase: 8 groups × 8 rollouts
+tinker_cookbook.rl.ensemble:1082 [INFO]   generate_batch_multi_adapter_two_phase: N=8 phase1_max=26000 streaming_mi=False kv_q=False
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=2048/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=4096/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=6144/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=8192/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=10240/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=12288/24800 active=7/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=14336/24800 active=5/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=16384/24800 active=4/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=18432/24800 active=2/8 mi_stopped=0
+__main__:1078 [INFO]   Group 0: multi-adapter generation 8 seqs in 2501.5s
+__main__:1096 [INFO]   Group 0: batched ensemble scoring in 71.3s
+__main__:1108 [INFO]   Group 0: rewards computed in 79.9s
+__main__:1150 [INFO]     [g0][r1/8] adapter=0 R_exec=1.0169 true_MI=0.01107 RMI=0.0111 R_total=1.0180 correct=1 tokens=20155
+__main__:1150 [INFO]     [g0][r2/8] adapter=1 R_exec=1.0999 true_MI=0.01161 RMI=0.0116 R_total=1.1011 correct=1 tokens=13791
+__main__:1150 [INFO]     [g0][r3/8] adapter=2 R_exec=0.0947 true_MI=0.01189 RMI=0.0119 R_total=0.0959 correct=1 tokens=11535
+__main__:1150 [INFO]     [g0][r4/8] adapter=3 R_exec=0.0948 true_MI=0.01095 RMI=0.0109 R_total=0.0959 correct=1 tokens=15837
+__main__:1150 [INFO]     [g0][r5/8] adapter=4 R_exec=0.0947 true_MI=0.01182 RMI=0.0118 R_total=0.0959 correct=1 tokens=16718
+__main__:1150 [INFO]     [g0][r6/8] adapter=0 R_exec=0.0000 true_MI=0.01167 RMI=0.0117 R_total=0.0012 correct=0 tokens=19131
+__main__:1150 [INFO]     [g0][r7/8] adapter=1 R_exec=0.0947 true_MI=0.01213 RMI=0.0121 R_total=0.0959 correct=1 tokens=16765
+__main__:1150 [INFO]     [g0][r8/8] adapter=2 R_exec=0.0947 true_MI=0.01181 RMI=0.0118 R_total=0.0959 correct=1 tokens=14310
+__main__:1167 [INFO]   [g0] group true_MI: mean=0.01162 std=0.00041 max=0.01213 normalized=[0.95 1.00 1.02 0.94 1.02 1.00 1.04 1.02]
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+__main__:1949 [INFO]   [0][1/8] KEPT | R_exec=0.3238 (max=1.0999) RMI=0.0116 R_total=0.3249 | 2581.5s | GPU: 18.2/18.9GB
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.rl.ensemble:1082 [INFO]   generate_batch_multi_adapter_two_phase: N=8 phase1_max=26000 streaming_mi=False kv_q=False
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=2048/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=4096/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=6144/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=8192/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=10240/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=12288/24800 active=7/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=14336/24800 active=7/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=16384/24800 active=5/8 mi_stopped=0
+__main__:1078 [INFO]   Group 1: multi-adapter generation 8 seqs in 2100.6s
+__main__:1096 [INFO]   Group 1: batched ensemble scoring in 72.2s
+__main__:1108 [INFO]   Group 1: rewards computed in 89.2s
+__main__:1150 [INFO]     [g1][r1/8] adapter=0 R_exec=0.0947 true_MI=0.01111 RMI=0.0111 R_total=0.0958 correct=1 tokens=16633
+__main__:1150 [INFO]     [g1][r2/8] adapter=1 R_exec=1.0169 true_MI=0.01115 RMI=0.0111 R_total=1.0180 correct=1 tokens=16354
+__main__:1150 [INFO]     [g1][r3/8] adapter=2 R_exec=0.0947 true_MI=0.01129 RMI=0.0113 R_total=0.0958 correct=1 tokens=17590
+__main__:1150 [INFO]     [g1][r4/8] adapter=3 R_exec=0.0948 true_MI=0.01177 RMI=0.0118 R_total=0.0960 correct=1 tokens=15791
+__main__:1150 [INFO]     [g1][r5/8] adapter=4 R_exec=0.8379 true_MI=0.01156 RMI=0.0116 R_total=0.8391 correct=1 tokens=16585
+__main__:1150 [INFO]     [g1][r6/8] adapter=0 R_exec=1.0169 true_MI=0.01190 RMI=0.0119 R_total=1.0181 correct=1 tokens=17652
+__main__:1150 [INFO]     [g1][r7/8] adapter=1 R_exec=0.0947 true_MI=0.01167 RMI=0.0117 R_total=0.0959 correct=1 tokens=11596
+__main__:1150 [INFO]     [g1][r8/8] adapter=2 R_exec=0.0000 true_MI=0.01175 RMI=0.0118 R_total=0.0012 correct=0 tokens=17897
+__main__:1167 [INFO]   [g1] group true_MI: mean=0.01153 std=0.00030 max=0.01190 normalized=[0.96 0.97 0.98 1.02 1.00 1.03 1.01 1.02]
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+__main__:1949 [INFO]   [0][2/8] KEPT | R_exec=0.4063 (max=1.0169) RMI=0.0115 R_total=0.4075 | 2189.8s | GPU: 18.2/19.0GB
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.rl.ensemble:1082 [INFO]   generate_batch_multi_adapter_two_phase: N=8 phase1_max=26000 streaming_mi=False kv_q=False
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=2048/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=4096/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=6144/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=8192/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=10240/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=12288/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=14336/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=16384/24800 active=6/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=18432/24800 active=4/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=20480/24800 active=2/8 mi_stopped=0
+__main__:1078 [INFO]   Group 2: multi-adapter generation 8 seqs in 2860.1s
+__main__:1096 [INFO]   Group 2: batched ensemble scoring in 83.7s
+__main__:1108 [INFO]   Group 2: rewards computed in 141.1s
+__main__:1150 [INFO]     [g2][r1/8] adapter=0 R_exec=0.0000 true_MI=0.01045 RMI=0.0104 R_total=0.0010 correct=0 tokens=21521
+__main__:1150 [INFO]     [g2][r2/8] adapter=1 R_exec=0.9108 true_MI=0.01142 RMI=0.0114 R_total=0.9119 correct=1 tokens=19065
+__main__:1150 [INFO]     [g2][r3/8] adapter=2 R_exec=0.9512 true_MI=0.01124 RMI=0.0112 R_total=0.9524 correct=1 tokens=18097
+__main__:1150 [INFO]     [g2][r4/8] adapter=3 R_exec=1.0169 true_MI=0.01062 RMI=0.0106 R_total=1.0179 correct=1 tokens=17416
+__main__:1150 [INFO]     [g2][r5/8] adapter=4 R_exec=0.0947 true_MI=0.01132 RMI=0.0113 R_total=0.0958 correct=1 tokens=15323
+__main__:1150 [INFO]     [g2][r6/8] adapter=0 R_exec=1.0169 true_MI=0.01015 RMI=0.0102 R_total=1.0179 correct=1 tokens=21935
+__main__:1150 [INFO]     [g2][r7/8] adapter=1 R_exec=0.0947 true_MI=0.01178 RMI=0.0118 R_total=0.0959 correct=1 tokens=15443
+__main__:1150 [INFO]     [g2][r8/8] adapter=2 R_exec=0.0948 true_MI=0.01114 RMI=0.0111 R_total=0.0959 correct=1 tokens=20324
+__main__:1167 [INFO]   [g2] group true_MI: mean=0.01102 std=0.00055 max=0.01178 normalized=[0.95 1.04 1.02 0.96 1.03 0.92 1.07 1.01]
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+__main__:1949 [INFO]   [0][3/8] KEPT | R_exec=0.5225 (max=1.0169) RMI=0.0110 R_total=0.5236 | 3001.3s | GPU: 18.2/19.1GB
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.rl.ensemble:1082 [INFO]   generate_batch_multi_adapter_two_phase: N=8 phase1_max=26000 streaming_mi=False kv_q=False
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=2048/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=4096/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=6144/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=8192/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=10240/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=12288/24800 active=7/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=14336/24800 active=7/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=16384/24800 active=6/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=18432/24800 active=2/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=20480/24800 active=1/8 mi_stopped=0
+__main__:1078 [INFO]   Group 3: multi-adapter generation 8 seqs in 2804.7s
+__main__:1096 [INFO]   Group 3: batched ensemble scoring in 77.4s
+__main__:1108 [INFO]   Group 3: rewards computed in 144.2s
+__main__:1150 [INFO]     [g3][r1/8] adapter=0 R_exec=0.0947 true_MI=0.01206 RMI=0.0121 R_total=0.0959 correct=1 tokens=12177
+__main__:1150 [INFO]     [g3][r2/8] adapter=1 R_exec=1.0169 true_MI=0.01172 RMI=0.0117 R_total=1.0180 correct=1 tokens=17582
+__main__:1150 [INFO]     [g3][r3/8] adapter=2 R_exec=0.0030 true_MI=0.01124 RMI=0.0112 R_total=0.0041 correct=1 tokens=15217
+__main__:1150 [INFO]     [g3][r4/8] adapter=3 R_exec=0.4974 true_MI=0.01186 RMI=0.0119 R_total=0.4986 correct=1 tokens=21773
+__main__:1150 [INFO]     [g3][r5/8] adapter=4 R_exec=1.0169 true_MI=0.01073 RMI=0.0107 R_total=1.0179 correct=1 tokens=19503
+__main__:1150 [INFO]     [g3][r6/8] adapter=0 R_exec=0.0049 true_MI=0.01163 RMI=0.0116 R_total=0.0060 correct=1 tokens=17815
+__main__:1150 [INFO]     [g3][r7/8] adapter=1 R_exec=0.0948 true_MI=0.01168 RMI=0.0117 R_total=0.0959 correct=1 tokens=16446
+__main__:1150 [INFO]     [g3][r8/8] adapter=2 R_exec=0.0000 true_MI=0.01074 RMI=0.0107 R_total=0.0011 correct=0 tokens=18060
+__main__:1167 [INFO]   [g3] group true_MI: mean=0.01146 std=0.00050 max=0.01206 normalized=[1.05 1.02 0.98 1.03 0.94 1.01 1.02 0.94]
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+__main__:1949 [INFO]   [0][4/8] KEPT | R_exec=0.3410 (max=1.0169) RMI=0.0115 R_total=0.3422 | 2949.0s | GPU: 18.2/19.0GB
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.rl.ensemble:1082 [INFO]   generate_batch_multi_adapter_two_phase: N=8 phase1_max=26000 streaming_mi=False kv_q=False
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=2048/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=4096/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=6144/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=8192/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=10240/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=12288/24800 active=7/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=14336/24800 active=7/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=16384/24800 active=6/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=18432/24800 active=5/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=20480/24800 active=1/8 mi_stopped=0
+__main__:1078 [INFO]   Group 4: multi-adapter generation 8 seqs in 2729.6s
+__main__:1096 [INFO]   Group 4: batched ensemble scoring in 79.4s
+__main__:1108 [INFO]   Group 4: rewards computed in 131.5s
+__main__:1150 [INFO]     [g4][r1/8] adapter=0 R_exec=1.0169 true_MI=0.01040 RMI=0.0104 R_total=1.0179 correct=1 tokens=19603
+__main__:1150 [INFO]     [g4][r2/8] adapter=1 R_exec=0.0013 true_MI=0.01195 RMI=0.0119 R_total=0.0025 correct=1 tokens=21322
+__main__:1150 [INFO]     [g4][r3/8] adapter=2 R_exec=1.0169 true_MI=0.01170 RMI=0.0117 R_total=1.0180 correct=1 tokens=18787
+__main__:1150 [INFO]     [g4][r4/8] adapter=3 R_exec=0.0947 true_MI=0.01164 RMI=0.0116 R_total=0.0958 correct=1 tokens=11630
+__main__:1150 [INFO]     [g4][r5/8] adapter=4 R_exec=1.0452 true_MI=0.01093 RMI=0.0109 R_total=1.0463 correct=1 tokens=19750
+__main__:1150 [INFO]     [g4][r6/8] adapter=0 R_exec=1.0169 true_MI=0.01217 RMI=0.0122 R_total=1.0181 correct=1 tokens=19015
+__main__:1150 [INFO]     [g4][r7/8] adapter=1 R_exec=0.0947 true_MI=0.01170 RMI=0.0117 R_total=0.0959 correct=1 tokens=16930
+__main__:1150 [INFO]     [g4][r8/8] adapter=2 R_exec=0.0947 true_MI=0.01152 RMI=0.0115 R_total=0.0958 correct=1 tokens=14694
+__main__:1167 [INFO]   [g4] group true_MI: mean=0.01150 std=0.00057 max=0.01217 normalized=[0.90 1.04 1.02 1.01 0.95 1.06 1.02 1.00]
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+__main__:1949 [INFO]   [0][5/8] KEPT | R_exec=0.5476 (max=1.0452) RMI=0.0115 R_total=0.5488 | 2861.2s | GPU: 18.2/18.9GB
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.rl.ensemble:1082 [INFO]   generate_batch_multi_adapter_two_phase: N=8 phase1_max=26000 streaming_mi=False kv_q=False
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=2048/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=4096/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=6144/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=8192/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=10240/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=12288/24800 active=7/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=14336/24800 active=5/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=16384/24800 active=5/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=18432/24800 active=3/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=20480/24800 active=1/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=22528/24800 active=1/8 mi_stopped=0
+__main__:1078 [INFO]   Group 5: multi-adapter generation 8 seqs in 3199.6s
+__main__:1096 [INFO]   Group 5: batched ensemble scoring in 77.3s
+__main__:1108 [INFO]   Group 5: rewards computed in 134.3s
+__main__:1150 [INFO]     [g5][r1/8] adapter=0 R_exec=0.0954 true_MI=0.01094 RMI=0.0109 R_total=0.0965 correct=1 tokens=18377
+__main__:1150 [INFO]     [g5][r2/8] adapter=1 R_exec=0.0947 true_MI=0.01182 RMI=0.0118 R_total=0.0959 correct=1 tokens=11500
+__main__:1150 [INFO]     [g5][r3/8] adapter=2 R_exec=0.0000 true_MI=0.01145 RMI=0.0115 R_total=0.0011 correct=0 tokens=20075
+__main__:1150 [INFO]     [g5][r4/8] adapter=3 R_exec=0.0947 true_MI=0.01180 RMI=0.0118 R_total=0.0959 correct=1 tokens=14321
+__main__:1150 [INFO]     [g5][r5/8] adapter=4 R_exec=0.0947 true_MI=0.01136 RMI=0.0114 R_total=0.0958 correct=1 tokens=16631
+__main__:1150 [INFO]     [g5][r6/8] adapter=0 R_exec=1.1893 true_MI=0.01097 RMI=0.0110 R_total=1.1904 correct=1 tokens=23530
+__main__:1150 [INFO]     [g5][r7/8] adapter=1 R_exec=0.0947 true_MI=0.01069 RMI=0.0107 R_total=0.0958 correct=1 tokens=19568
+__main__:1150 [INFO]     [g5][r8/8] adapter=2 R_exec=0.0947 true_MI=0.01115 RMI=0.0112 R_total=0.0958 correct=1 tokens=13611
+__main__:1167 [INFO]   [g5] group true_MI: mean=0.01127 std=0.00041 max=0.01182 normalized=[0.97 1.05 1.02 1.05 1.01 0.97 0.95 0.99]
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+__main__:1949 [INFO]   [0][6/8] KEPT | R_exec=0.2198 (max=1.1893) RMI=0.0113 R_total=0.2209 | 3334.0s | GPU: 18.2/18.9GB
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.rl.ensemble:1082 [INFO]   generate_batch_multi_adapter_two_phase: N=8 phase1_max=26000 streaming_mi=False kv_q=False
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=2048/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=4096/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=6144/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=8192/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=10240/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=12288/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=14336/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=16384/24800 active=4/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=18432/24800 active=2/8 mi_stopped=0
+__main__:1078 [INFO]   Group 6: multi-adapter generation 8 seqs in 2435.4s
+__main__:1096 [INFO]   Group 6: batched ensemble scoring in 75.7s
+__main__:1108 [INFO]   Group 6: rewards computed in 80.9s
+__main__:1150 [INFO]     [g6][r1/8] adapter=0 R_exec=0.0948 true_MI=0.01136 RMI=0.0114 R_total=0.0959 correct=1 tokens=15077
+__main__:1150 [INFO]     [g6][r2/8] adapter=1 R_exec=0.0947 true_MI=0.01101 RMI=0.0110 R_total=0.0958 correct=1 tokens=16119
+__main__:1150 [INFO]     [g6][r3/8] adapter=2 R_exec=0.0947 true_MI=0.01101 RMI=0.0110 R_total=0.0958 correct=1 tokens=15044
+__main__:1150 [INFO]     [g6][r4/8] adapter=3 R_exec=0.0000 true_MI=0.01129 RMI=0.0113 R_total=0.0011 correct=0 tokens=17656
+__main__:1150 [INFO]     [g6][r5/8] adapter=4 R_exec=0.0014 true_MI=0.01166 RMI=0.0117 R_total=0.0026 correct=1 tokens=15065
+__main__:1150 [INFO]     [g6][r6/8] adapter=0 R_exec=1.0395 true_MI=0.01147 RMI=0.0115 R_total=1.0406 correct=1 tokens=17780
+__main__:1150 [INFO]     [g6][r7/8] adapter=1 R_exec=1.0169 true_MI=0.01148 RMI=0.0115 R_total=1.0180 correct=1 tokens=19550
+__main__:1150 [INFO]     [g6][r8/8] adapter=2 R_exec=0.0000 true_MI=0.01154 RMI=0.0115 R_total=0.0012 correct=0 tokens=19758
+__main__:1167 [INFO]   [g6] group true_MI: mean=0.01135 std=0.00024 max=0.01166 normalized=[1.00 0.97 0.97 0.99 1.03 1.01 1.01 1.02]
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+__main__:1949 [INFO]   [0][7/8] KEPT | R_exec=0.2927 (max=1.0395) RMI=0.0114 R_total=0.2939 | 2516.3s | GPU: 18.2/19.1GB
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.rl.ensemble:1082 [INFO]   generate_batch_multi_adapter_two_phase: N=8 phase1_max=26000 streaming_mi=False kv_q=False
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=2048/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=4096/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=6144/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=8192/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=10240/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=12288/24800 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=14336/24800 active=6/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=16384/24800 active=5/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=18432/24800 active=2/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=20480/24800 active=2/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=22528/24800 active=1/8 mi_stopped=0
+__main__:1078 [INFO]   Group 7: multi-adapter generation 8 seqs in 3216.5s
+__main__:1096 [INFO]   Group 7: batched ensemble scoring in 79.8s
+__main__:1108 [INFO]   Group 7: rewards computed in 181.1s
+__main__:1150 [INFO]     [g7][r1/8] adapter=0 R_exec=0.0947 true_MI=0.01089 RMI=0.0109 R_total=0.0958 correct=1 tokens=16337
+__main__:1150 [INFO]     [g7][r2/8] adapter=1 R_exec=0.0947 true_MI=0.01174 RMI=0.0117 R_total=0.0959 correct=1 tokens=13432
+__main__:1150 [INFO]     [g7][r3/8] adapter=2 R_exec=0.0000 true_MI=0.01100 RMI=0.0110 R_total=0.0011 correct=0 tokens=18067
+__main__:1150 [INFO]     [g7][r4/8] adapter=3 R_exec=0.0000 true_MI=0.01075 RMI=0.0107 R_total=0.0011 correct=0 tokens=23666
+__main__:1150 [INFO]     [g7][r5/8] adapter=4 R_exec=0.0947 true_MI=0.01128 RMI=0.0113 R_total=0.0958 correct=1 tokens=14153
+__main__:1150 [INFO]     [g7][r6/8] adapter=0 R_exec=0.0109 true_MI=0.01103 RMI=0.0110 R_total=0.0120 correct=1 tokens=17337
+__main__:1150 [INFO]     [g7][r7/8] adapter=1 R_exec=0.0000 true_MI=0.01062 RMI=0.0106 R_total=0.0011 correct=0 tokens=22122
+__main__:1150 [INFO]     [g7][r8/8] adapter=2 R_exec=0.0000 true_MI=0.01123 RMI=0.0112 R_total=0.0011 correct=0 tokens=17052
+__main__:1167 [INFO]   [g7] group true_MI: mean=0.01107 std=0.00035 max=0.01174 normalized=[0.98 1.06 0.99 0.97 1.02 1.00 0.96 1.01]
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+__main__:1949 [INFO]   [0][8/8] KEPT | R_exec=0.0369 (max=0.0947) RMI=0.0111 R_total=0.0380 | 3397.7s | GPU: 18.2/19.0GB
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+__main__:1988 [INFO] [Epoch 0] Rollout phase done in 22830.7s. Training on 8/8 groups...
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:195 [INFO] 
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┓
+┃ Metric                         ┃ Value        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━┩
+│ gpu/memory_allocated_gb        │ 18.828612    │
+│ gpu/memory_peak_gb             │ 64.738417    │
+│ gpu/memory_reserved_gb         │ 18.863882    │
+│ kl_policy_base                 │ 0.002009     │
+│ optim/entropy                  │ 0.485371     │
+│ optim/kl_sample_train_v1       │ 0.003079     │
+│ optim/kl_sample_train_v2       │ 0.003115     │
+│ progress/done_frac             │ 0.166667     │
+│ progress/epoch                 │ 0            │
+│ rollout/groups_attempted       │ 8.000000     │
+│ rollout/groups_filtered        │ 0.000000     │
+│ rollout/groups_kept            │ 8.000000     │
+│ rollout/intra_group_reward_std │ 0.380672     │
+│ time/rollout                   │ 22830.737472 │
+│ time/total                     │ 24940.781639 │
+│ time/train                     │ 2109.936436  │
+│ train/advantage/max            │ 10.594052    │
+│ train/advantage/mean           │ 0.347719     │
+│ train/advantage/min            │ -2.647435    │
+│ train/advantage/std            │ 2.123141     │
+│ train/beta/mean                │ 7.621731     │
+│ train/beta/std                 │ 10.007309    │
+│ train/correctness/mean         │ 0.828125     │
+│ train/correctness/rate         │ 0.828125     │
+│ train/ensemble/frac_high_disa… │ 0.499988     │
+│ train/ensemble/max_token_disa… │ 7.398256     │
+│ train/ensemble/member_logprob… │ 0.004303     │
+│ train/ensemble/member_logprob… │ 0.001706     │
+│ train/gamma_eff/mean           │ 0.295761     │
+│ train/gen/num_tokens/max       │ 23666.000000 │
+│ train/gen/num_tokens/mean      │ 17243.687500 │
+│ train/gen/num_tokens/std       │ 2854.953781  │
+│ train/group/rmi_exec_corr/mean │ -0.090855    │
+│ train/group/rmi_exec_corr/std  │ 0.323689     │
+│ train/loss                     │ -0.347606    │
+│ train/nnm_loss                 │ -0.053990    │
+│ train/nnm_nuclear_norm         │ 46.071360    │
+│ train/num_groups               │ 8.000000     │
+│ train/num_rollouts             │ 64.000000    │
+│ train/num_rollouts_total       │ 64.000000    │
+│ train/reward/exec/best         │ 1.189276     │
+│ train/reward/exec/max          │ 1.189276     │
+│ train/reward/exec/mean         │ 0.336330     │
+│ train/reward/exec/min          │ 0.000000     │
+│ train/reward/exec/std          │ 0.430766     │
+│ train/reward/rmi/max           │ 0.012170     │
+│ train/reward/rmi/mean          │ 0.011351     │
+│ train/reward/rmi/min           │ 0.010150     │
+│ train/reward/rmi/std           │ 0.000453     │
+│ train/reward/total/best        │ 1.190373     │
+│ train/reward/total/max         │ 1.190373     │
+│ train/reward/total/mean        │ 0.337465     │
+│ train/reward/total/min         │ 0.001045     │
+│ train/reward/total/std         │ 0.430761     │
+│ train/streaming_mi/stop_rate   │ 0.000000     │
+│ train/streaming_mi/tokens_sav… │ 0.000000     │
+│ train/streaming_mi/tokens_sav… │ 0.000000     │
+│ train/two_phase/phase1_tokens… │ 17243.687500 │
+│ train/two_phase/phase2_tokens… │ 0.000000     │
+│ train/two_phase/prefill_rate   │ 0.000000     │
+│ train/uncertainty/predictive_… │ 0.138667     │
+│ train/uncertainty/predictive_… │ 0.122359     │
+│ train/uncertainty/predictive_… │ 0.097735     │
+│ train/uncertainty/predictive_… │ 0.009301     │
+│ train/uncertainty/predictive_… │ 0.365810     │
+│ train/uncertainty/predictive_… │ 0.364843     │
+│ train/uncertainty/predictive_… │ 0.362878     │
+│ train/uncertainty/predictive_… │ 0.000571     │
+│ train/uncertainty/rmi/max      │ 0.002556     │
+│ train/uncertainty/rmi/mean     │ 0.002226     │
+│ train/uncertainty/rmi/min      │ 0.001746     │
+│ train/uncertainty/rmi/std      │ 0.000169     │
+│ train/uncertainty/rmi_top7/max │ 0.027948     │
+│ train/uncertainty/rmi_top7/me… │ 0.024059     │
+│ train/uncertainty/rmi_top7/min │ 0.019953     │
+│ train/uncertainty/rmi_top7/std │ 0.001621     │
+│ train/uncertainty/top7_mi_cod… │ 0.000000     │
+│ train/uncertainty/top7_mi_cod… │ 0.000000     │
+│ train/uncertainty/top7_mi_thi… │ 0.009695     │
+│ train/uncertainty/top7_mi_thi… │ 0.000416     │
+│ train/uncertainty/top7_pct_co… │ 0.000000     │
+│ train/uncertainty/top7_pct_co… │ 0.000000     │
+│ train/uncertainty/top7_pct_th… │ 0.914213     │
+│ train/uncertainty/top7_pct_th… │ 0.015121     │
+│ train/uncertainty/true_mi/max  │ 0.012170     │
+│ train/uncertainty/true_mi/mean │ 0.011351     │
+│ train/uncertainty/true_mi/min  │ 0.010150     │
+│ train/uncertainty/true_mi/std  │ 0.000453     │
+│ train/uncertainty/variance/max │ 0.006961     │
+│ train/uncertainty/variance/me… │ 0.006005     │
+│ train/uncertainty/variance/min │ 0.004745     │
+│ train/uncertainty/variance/std │ 0.000488     │
+│ train/uncertainty/variance_to… │ 0.077957     │
+│ train/uncertainty/variance_to… │ 0.066378     │
+│ train/uncertainty/variance_to… │ 0.055288     │
+│ train/uncertainty/variance_to… │ 0.005156     │
+└────────────────────────────────┴──────────────┘
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+__main__:2062 [INFO] [Epoch 0] R_exec=0.3363 (max=1.1893 best=1.1893) RMI=0.0114 beta=7.62 corr=82.8% loss=-0.3476 nuc=46.071 groups=8/8 time=24940.8s
+__main__:2073 [INFO] Checkpoint saved at epoch 0
+__main__:1836 [INFO] [Epoch 1/6] Starting rollout phase: 8 groups × 8 rollouts
+tinker_cookbook.rl.ensemble:1082 [INFO]   generate_batch_multi_adapter_two_phase: N=8 phase1_max=26000 streaming_mi=False kv_q=False
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=2048/22678 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=4096/22678 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=6144/22678 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=8192/22678 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=10240/22678 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=12288/22678 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=14336/22678 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=16384/22678 active=6/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=18432/22678 active=6/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=20480/22678 active=2/8 mi_stopped=0
+__main__:1078 [INFO]   Group 0: multi-adapter generation 8 seqs in 2952.1s
+__main__:1096 [INFO]   Group 0: batched ensemble scoring in 93.8s
+__main__:1108 [INFO]   Group 0: rewards computed in 427.7s
+__main__:1150 [INFO]     [g0][r1/8] adapter=3 R_exec=1.1893 true_MI=0.01077 RMI=0.0108 R_total=1.1904 correct=1 tokens=18684
+__main__:1150 [INFO]     [g0][r2/8] adapter=4 R_exec=1.1893 true_MI=0.01064 RMI=0.0106 R_total=1.1903 correct=1 tokens=21224
+__main__:1150 [INFO]     [g0][r3/8] adapter=0 R_exec=1.1893 true_MI=0.01092 RMI=0.0109 R_total=1.1904 correct=1 tokens=15639
+__main__:1150 [INFO]     [g0][r4/8] adapter=1 R_exec=0.0000 true_MI=0.01128 RMI=0.0113 R_total=0.0011 correct=0 tokens=18977
+__main__:1150 [INFO]     [g0][r5/8] adapter=2 R_exec=0.0000 true_MI=0.01018 RMI=0.0102 R_total=0.0010 correct=0 tokens=18908
+__main__:1150 [INFO]     [g0][r6/8] adapter=3 R_exec=0.0000 true_MI=0.01073 RMI=0.0107 R_total=0.0011 correct=0 tokens=18978
+__main__:1150 [INFO]     [g0][r7/8] adapter=4 R_exec=0.0000 true_MI=0.01177 RMI=0.0118 R_total=0.0012 correct=0 tokens=20663
+__main__:1150 [INFO]     [g0][r8/8] adapter=0 R_exec=1.1893 true_MI=0.01136 RMI=0.0114 R_total=1.1904 correct=1 tokens=15502
+__main__:1167 [INFO]   [g0] group true_MI: mean=0.01096 std=0.00049 max=0.01177 normalized=[0.98 0.97 1.00 1.03 0.93 0.98 1.07 1.04]
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+__main__:1949 [INFO]   [1][1/8] KEPT | R_exec=0.5946 (max=1.1893) RMI=0.0110 R_total=0.5957 | 3379.8s | GPU: 18.8/19.7GB
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.rl.ensemble:1082 [INFO]   generate_batch_multi_adapter_two_phase: N=8 phase1_max=26000 streaming_mi=False kv_q=False
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=2048/23678 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=4096/23678 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=6144/23678 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=8192/23678 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=10240/23678 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=12288/23678 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=14336/23678 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=16384/23678 active=6/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=18432/23678 active=4/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=20480/23678 active=2/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=22528/23678 active=1/8 mi_stopped=0
+__main__:1078 [INFO]   Group 1: multi-adapter generation 8 seqs in 3157.1s
+__main__:1096 [INFO]   Group 1: batched ensemble scoring in 89.5s
+__main__:1108 [INFO]   Group 1: rewards computed in 274.8s
+__main__:1150 [INFO]     [g1][r1/8] adapter=3 R_exec=1.0472 true_MI=0.01233 RMI=0.0123 R_total=1.0485 correct=1 tokens=18386
+__main__:1150 [INFO]     [g1][r2/8] adapter=4 R_exec=0.0000 true_MI=0.01163 RMI=0.0116 R_total=0.0012 correct=0 tokens=19447
+__main__:1150 [INFO]     [g1][r3/8] adapter=0 R_exec=1.1874 true_MI=0.01156 RMI=0.0116 R_total=1.1885 correct=1 tokens=14911
+__main__:1150 [INFO]     [g1][r4/8] adapter=1 R_exec=1.0999 true_MI=0.01223 RMI=0.0122 R_total=1.1011 correct=1 tokens=17498
+__main__:1150 [INFO]     [g1][r5/8] adapter=2 R_exec=1.0452 true_MI=0.01144 RMI=0.0114 R_total=1.0463 correct=1 tokens=21250
+__main__:1150 [INFO]     [g1][r6/8] adapter=3 R_exec=0.0000 true_MI=0.01181 RMI=0.0118 R_total=0.0012 correct=0 tokens=19312
+__main__:1150 [INFO]     [g1][r7/8] adapter=4 R_exec=1.0169 true_MI=0.01284 RMI=0.0128 R_total=1.0181 correct=1 tokens=15824
+__main__:1150 [INFO]     [g1][r8/8] adapter=0 R_exec=0.0000 true_MI=0.01222 RMI=0.0122 R_total=0.0012 correct=0 tokens=22823
+__main__:1167 [INFO]   [g1] group true_MI: mean=0.01201 std=0.00048 max=0.01284 normalized=[1.03 0.97 0.96 1.02 0.95 0.98 1.07 1.02]
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+__main__:1949 [INFO]   [1][2/8] KEPT | R_exec=0.6746 (max=1.1874) RMI=0.0120 R_total=0.6758 | 3432.0s | GPU: 18.8/19.9GB
+tinker_cookbook.utils.ml_log:143 [INFO] Wrote metrics to logs/aws/wave4/ahc039-ugttt-seed2/metrics.jsonl
+tinker_cookbook.utils.ml_log:240 [INFO] Logging to: https://wandb.ai/kriaz-msee20seecs-nust/ugttt-rebuttal/runs/g8dw353t
+tinker_cookbook.rl.ensemble:1082 [INFO]   generate_batch_multi_adapter_two_phase: N=8 phase1_max=26000 streaming_mi=False kv_q=False
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=2048/23385 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=4096/23385 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=6144/23385 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=8192/23385 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=10240/23385 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=12288/23385 active=8/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=14336/23385 active=6/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=16384/23385 active=3/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=18432/23385 active=2/8 mi_stopped=0
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=20480/23385 active=1/8 mi_stopped=0
+__main__:1078 [INFO]   Group 2: multi-adapter generation 8 seqs in 2873.4s
+__main__:1096 [INFO]   Group 2: batched ensemble scoring in 79.7s
+__main__:1108 [INFO]   Group 2: rewards computed in 79.7s
+__main__:1150 [INFO]     [g2][r1/8] adapter=3 R_exec=0.0000 true_MI=0.01157 RMI=0.0116 R_total=0.0012 correct=0 tokens=17455
+__main__:1150 [INFO]     [g2][r2/8] adapter=4 R_exec=0.0000 true_MI=0.01174 RMI=0.0117 R_total=0.0012 correct=0 tokens=21240
+__main__:1150 [INFO]     [g2][r3/8] adapter=0 R_exec=0.0000 true_MI=0.01139 RMI=0.0114 R_total=0.0011 correct=0 tokens=16071
+__main__:1150 [INFO]     [g2][r4/8] adapter=1 R_exec=0.0000 true_MI=0.01218 RMI=0.0122 R_total=0.0012 correct=0 tokens=13699
+__main__:1150 [INFO]     [g2][r5/8] adapter=2 R_exec=0.0000 true_MI=0.01251 RMI=0.0125 R_total=0.0013 correct=0 tokens=13334
+__main__:1150 [INFO]     [g2][r6/8] adapter=3 R_exec=0.0000 true_MI=0.01198 RMI=0.0120 R_total=0.0012 correct=0 tokens=16261
+__main__:1150 [INFO]     [g2][r7/8] adapter=4 R_exec=0.0000 true_MI=0.01129 RMI=0.0113 R_total=0.0011 correct=0 tokens=18985
+__main__:1150 [INFO]     [g2][r8/8] adapter=0 R_exec=0.0000 true_MI=0.01130 RMI=0.0113 R_total=0.0011 correct=0 tokens=14411
+__main__:1167 [INFO]   [g2] group true_MI: mean=0.01174 std=0.00044 max=0.01251 normalized=[0.99 1.00 0.97 1.04 1.06 1.02 0.96 0.96]

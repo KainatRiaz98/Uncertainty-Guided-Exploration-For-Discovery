@@ -1,0 +1,17 @@
+tinker_cookbook.utils.ml_log:525 [INFO] Logging to: logs/aws/wave4/ahc039-ugttt-seed3
+__main__:1657 [INFO] Active loggers: ['JsonLogger', 'PrettyPrintLogger', 'WandbLogger']
+__main__:1690 [INFO] Loading base model: Qwen/Qwen3-8B (fp16)
+root:227 [INFO] Loading model with precision - fp16
+root:255 [INFO] loading llama compatible model - qwen3
+root:49 [INFO] Adapter ensemble_0 without lr_scheduler.
+root:49 [INFO] Adapter ensemble_1 without lr_scheduler.
+root:49 [INFO] Adapter ensemble_2 without lr_scheduler.
+root:49 [INFO] Adapter ensemble_3 without lr_scheduler.
+root:49 [INFO] Adapter ensemble_4 without lr_scheduler.
+tinker_cookbook.rl.ensemble:123 [INFO] Initialized 5 LoRA ensemble members (rank=16)
+__main__:1779 [INFO] Training: 6 epochs, 8 groups/batch × 8 rollouts/group, K=5 adapters, γ=0.1
+__main__:1784 [INFO] Parallelism: batched generation (8 seqs/batch), threaded rewards (8 workers), batched ensemble scoring
+__main__:1807 [INFO] Two-phase sampling enabled: phase1_max=26000, context_window=32768, prefill_len=22, stop_ids=[151645]
+__main__:1836 [INFO] [Epoch 0/6] Starting rollout phase: 8 groups × 8 rollouts
+tinker_cookbook.rl.ensemble:1082 [INFO]   generate_batch_multi_adapter_two_phase: N=8 phase1_max=26000 streaming_mi=False kv_q=False
+tinker_cookbook.rl.ensemble:1270 [INFO]     [gen/p1] step=2048/24800 active=8/8 mi_stopped=0

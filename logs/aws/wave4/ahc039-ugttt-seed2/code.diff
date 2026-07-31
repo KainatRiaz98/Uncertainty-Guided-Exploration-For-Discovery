@@ -1,0 +1,157 @@
+### repo: /home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery @ 3ed0ce41f51b7aeb4f9f4756f90d49bb29c91152
+modules: tinker_cookbook
+-- repo-wide (vs HEAD, staged+unstaged) --
+diff --git a/ale_bench/tool_wrappers/case_runner.py b/ale_bench/tool_wrappers/case_runner.py
+index 9ac6082..4a67d79 100644
+--- a/ale_bench/tool_wrappers/case_runner.py
++++ b/ale_bench/tool_wrappers/case_runner.py
+@@ -1652,7 +1652,27 @@ def run_cases(
+         else:
+             # Multiple cases - use Ray workers launched via ThreadPoolExecutor
+             # Create Ray remote function for single case execution
+-            _case_exec_fn = ray.remote(num_cpus=2, max_calls=0)(run_single_case_remote)
++            #
++            # num_cpus here is the ONLY effective bound on how many cases run at
++            # once: `num_workers` throttles the rate of .remote() submissions, not
++            # execution, so Ray's CPU accounting decides real concurrency
++            # (cluster_cpus / num_cpus). At the stock value of 2 that is ~48 cases
++            # in parallel on a 96-vCPU box, and this harness is NOT safe at that
++            # level — a known-good solution (results/algorithm-design/ahc039.cpp,
++            # 1.94s/case standalone, well under the 2.0s limit) comes back with
++            # spurious TIME_LIMIT_EXCEEDED (host wall-clock of 8-9s, because GNU
++            # Time never flushes /tmp/profiles.json before the kill, so
++            # parse_profiles falls back to the inflated host timing) and spurious
++            # WRONG_ANSWER. Measured on this host, full 150 cases:
++            #   ~48 concurrent -> 48 ACCEPTED, then TLE early-stop  (score 0.13)
++            #   ~6  concurrent -> 13 ACCEPTED, then WRONG_ANSWER
++            #   ~3  concurrent -> 150 ACCEPTED, 154s  (also clean with two
++            #                     evaluations running at the same time)
++            # Rewards are only trustworthy in the last regime, so default to it.
++            # Raise ALE_BENCH_CASE_CPUS for more isolation, lower it for speed —
++            # but re-verify against a known-good solution before trusting numbers.
++            _case_cpus = int(os.environ.get("ALE_BENCH_CASE_CPUS", "32"))
++            _case_exec_fn = ray.remote(num_cpus=_case_cpus, max_calls=0)(run_single_case_remote)
+             
+             case_results = [
+                 CaseResult(
+diff --git a/scripts/aws/launch_wave.sh b/scripts/aws/launch_wave.sh
+index 1701a02..c92d0b6 100755
+--- a/scripts/aws/launch_wave.sh
++++ b/scripts/aws/launch_wave.sh
+@@ -27,13 +27,26 @@ export RAY_ADDRESS=auto
+ NUM_GPUS="${NUM_GPUS:-8}"
+ TOTAL_CPUS="${TOTAL_CPUS:-$(nproc)}"
+ 
++# First GPU index to use. Set this when part of the node is already busy so a
++# launch does not land on GPUs another wave already took (e.g. GPU_START=2).
++GPU_START="${GPU_START:-0}"
++# Substring filter on the run name: launch only the matching subset of a wave.
++# Lets a wave be split across nodes/times (e.g. ONLY=ahc039 for just that pair).
++ONLY="${ONLY:-}"
++# Interpreter for these runs. Must be the training venv — a bare `python3` is
++# /usr/bin/python3 here, which has none of the deps.
++PYTHON="${PYTHON:-python3}"
++# `ray` lives next to the interpreter inside a venv, and is NOT on PATH.
++RAY_BIN="$(dirname "$PYTHON")/ray"
++[[ -x "$RAY_BIN" ]] || RAY_BIN="ray"
++
+ # Ensure a Ray head exists on this node, sized to the whole box so the
+ # cpu_scheduler pool covers all cores. Idempotent: skip if one is already up.
+ # Defined here, invoked only on a real launch (not on --list/usage).
+ ensure_ray_head() {
+-  if ! ray status >/dev/null 2>&1; then
++  if ! "$RAY_BIN" status >/dev/null 2>&1; then
+     echo "No Ray head found — starting one (--num-cpus ${TOTAL_CPUS})."
+-    ray start --head --num-cpus="${TOTAL_CPUS}" --disable-usage-stats >/dev/null
++    "$RAY_BIN" start --head --num-cpus="${TOTAL_CPUS}" --disable-usage-stats >/dev/null
+   fi
+ }
+ 
+@@ -149,18 +162,32 @@ declare -a WAVE3=(
+ declare -a WAVE4=(
+   "denoise-ugttt|denoising|improvement|UGTTT|"
+   "denoise-base|denoising|improvement|BASELINE|"
+-  "ahc039-ugttt|ahc039|ahc039|UGTTT|"
+-  "ahc039-base|ahc039|ahc039|BASELINE|"
++  "ahc039-ugttt|ahc039|ahc039|UGTTT|--save_every 1"
++  "ahc039-base|ahc039|ahc039|BASELINE|--save_every 1"
++  # Second seed for the ahc039 pair, so the new-domain claim is not itself n=1
++  # (vGzb W1). Identical to the two runs above in every respect except --seed;
++  # the pair above takes the argparse default of 42, matching the published
++  # runs, so together they give n=2 per arm. Select with ONLY=seed2.
++  "ahc039-ugttt-seed2|ahc039|ahc039|UGTTT|--save_every 1 --seed 2"
++  "ahc039-base-seed2|ahc039|ahc039|BASELINE|--save_every 1 --seed 2"
+ )
+ 
+-usage() { echo "usage: $0 [--list] <wave1|wave2|wave3|wave4>"; exit 1; }
++usage() {
++  echo "usage: $0 [--list] <wave1|wave2|wave3|wave4>"
++  echo "  env: GPU_START=<n>  ONLY=<run-name-substring>  PYTHON=<interpreter>"
++  exit 1
++}
+ 
+ list_runs() {
+   local -n arr=$1
+   printf '%-20s %-11s %-12s %-9s %s\n' RUN ENV PROBLEM ARM EXTRA
+   for spec in "${arr[@]}"; do
+     IFS='|' read -r name env pidx arm extra <<< "$spec"
+-    printf '%-20s %-11s %-12s %-9s %s\n' "$name" "$env" "$pidx" "$arm" "$extra"
++    # --list must show exactly what a launch with these env vars would start,
++    # so it honours ONLY rather than always printing the full wave.
++    if [[ -z "$ONLY" || "$name" == *"$ONLY"* ]]; then
++      printf '%-20s %-11s %-12s %-9s %s\n' "$name" "$env" "$pidx" "$arm" "$extra"
++    fi
+   done
+ }
+ 
+@@ -183,18 +210,38 @@ case "$WAVE_NAME" in
+   *) usage ;;
+ esac
+ 
+-[[ ${#RUNS[@]} -le $NUM_GPUS ]] || { echo "error: ${#RUNS[@]} runs > $NUM_GPUS GPUs" >&2; exit 1; }
++# Keep only the runs whose name matches ONLY. Written as a full if/fi because
++# under `set -e` a false test as the last statement in a loop body exits.
++if [[ -n "$ONLY" ]]; then
++  declare -a FILTERED=()
++  for spec in "${RUNS[@]}"; do
++    IFS='|' read -r spec_name _ _ _ _ <<< "$spec"
++    if [[ "$spec_name" == *"$ONLY"* ]]; then
++      FILTERED+=( "$spec" )
++    fi
++  done
++  # Only expand FILTERED once known non-empty: "${FILTERED[@]-}" on an empty
++  # array yields one empty element, which would then launch a garbage run.
++  if [[ ${#FILTERED[@]} -eq 0 ]]; then
++    echo "error: no runs in ${WAVE_NAME} match ONLY=${ONLY}" >&2; exit 1
++  fi
++  RUNS=("${FILTERED[@]}")
++fi
++
++[[ $(( GPU_START + ${#RUNS[@]} )) -le $NUM_GPUS ]] || {
++  echo "error: ${#RUNS[@]} runs starting at GPU $GPU_START exceeds $NUM_GPUS GPUs" >&2; exit 1; }
+ 
+ ensure_ray_head
+ 
+ LOG_DIR="logs/aws/${WAVE_NAME}"
+ mkdir -p "$LOG_DIR"
+ 
+-echo "Launching ${#RUNS[@]} runs on $NUM_GPUS GPUs (shared Ray head, cpu_scheduler partitions ${TOTAL_CPUS} vCPUs)"
++echo "Launching ${#RUNS[@]} runs on GPUs ${GPU_START}..$(( GPU_START + ${#RUNS[@]} - 1 )) (shared Ray head, cpu_scheduler partitions ${TOTAL_CPUS} vCPUs)"
++echo "Python: $PYTHON"
+ echo "Logs: $LOG_DIR"
+ echo
+ 
+-gpu=0
++gpu=$GPU_START
+ for spec in "${RUNS[@]}"; do
+   IFS='|' read -r name env pidx arm extra <<< "$spec"
+   declare -n arm_flags="$arm"
+@@ -215,7 +262,7 @@ for spec in "${RUNS[@]}"; do
+   CUDA_VISIBLE_DEVICES="$gpu" \
+   PYTHONPATH="mLoRA:${PYTHONPATH:-}" \
+   setsid \
+-    python3 -m tinker_cookbook.rl.mlora_train \
++    "$PYTHON" -m tinker_cookbook.rl.mlora_train \
+       "${COMMON[@]}" \
+       "${arm_flags[@]}" \
+       "${extra_flags[@]}" \

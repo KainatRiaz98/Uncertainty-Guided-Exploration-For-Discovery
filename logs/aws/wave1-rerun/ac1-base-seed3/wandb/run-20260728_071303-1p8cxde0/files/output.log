@@ -1,0 +1,121 @@
+2026-07-28 07:13:04,670 [INFO] tinker_cookbook.utils.ml_log:
+Configuration:
+  base_model: 'Qwen/Qwen3-8B'
+  precision: 'fp16'
+  device: 'cuda'
+  env: 'ac1'
+  problem_idx: 'improvement'
+  budget_s: 1000
+  group_size: 8
+  groups_per_batch: 8
+  learning_rate: 4e-05
+  num_epochs: 6
+  max_tokens: 260000
+  temperature: 1.0
+  adv_estimator: 'entropic_adaptive_beta'
+  adv_estimator_beta: 2.0
+  loss_fn: 'importance_sampling'
+  ppo_clip: 0.2
+  num_substeps: 1
+  remove_constant_reward_groups: True
+  kl_penalty_coef: 0.01
+  kl_discount_factor: 0.0
+  compute_post_kl: False
+  dynamic_max_tokens: True
+  two_phase_sampling: True
+  phase1_max_tokens: 26000
+  context_window: 32768
+  context_buffer: 50
+  eval_timeout: 1000
+  dataset_timeout: 1000
+  num_cpus_per_task: 2
+  gpu_mode_score_scale: 3000.0
+  num_ensemble_members: 1
+  lora_rank: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  target_modules: {'q_proj': True, 'k_proj': True, 'v_proj': True, 'o_proj':
+True}
+  rmi_coef: 0.0
+  uncertainty_metric: 'true_mi'
+  gamma_max_ratio: 10.0
+  nnm_coef: 0.0
+  nnm_use_fro_norm: False
+  streaming_mi_enabled: False
+  streaming_mi_window_size: 4096
+  streaming_mi_check_interval: 2048
+  streaming_mi_min_gen: 4096
+  streaming_mi_warmup_epochs: 3
+  streaming_mi_wrap_budget: 6000
+  streaming_mi_threshold_percentile: 25.0
+  kv_quantize: False
+  sampler_type: 'puct_backprop'
+  initial_exp_type: 'random'
+  log_path: './logs/aws/wave1-rerun/ac1-base-seed3'
+  wandb_project: 'ugttt-rebuttal'
+  wandb_name: 'ac1-base-seed3'
+  eval_every: 3
+  save_every: 2
+  seed: 3
+  dataset_builder: None
+tinker_cookbook.utils.ml_log:525 [[92mINFO[0m] Logging to: logs/aws/wave1-rerun/ac1-base-seed3
+__main__:1657 [[92mINFO[0m] Active loggers: ['JsonLogger', 'PrettyPrintLogger', 'WandbLogger']
+__main__:1690 [[92mINFO[0m] Loading base model: Qwen/Qwen3-8B (fp16)
+root:227 [[92mINFO[0m] Loading model with precision - fp16
+`torch_dtype` is deprecated! Use `dtype` instead!
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/tinker_cookbook/rl/mlora_train.py", line 2568, in <module>
+    cli_main()
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/tinker_cookbook/rl/mlora_train.py", line 2555, in cli_main
+    main(
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/tinker_cookbook/rl/mlora_train.py", line 1700, in main
+    tokenizer, model = mlora_load_model(args)
+                       ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/tinker_cookbook/rl/../../mLoRA/mlora/model/loader.py", line 53, in load_model
+    model = load_full_model(args)
+            ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/tinker_cookbook/rl/../../mLoRA/mlora/model/loader.py", line 35, in load_full_model
+    return MODEL_TYPE_DICT[args.model_type].from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/tinker_cookbook/rl/../../mLoRA/mlora/model/llm/model_llama.py", line 250, in from_pretrained
+    llama_model = AutoModelForCausalLM.from_pretrained(path, **additional_load_args)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/.venv/lib/python3.12/site-packages/transformers/models/auto/auto_factory.py", line 604, in from_pretrained
+    return model_class.from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/.venv/lib/python3.12/site-packages/transformers/modeling_utils.py", line 277, in _wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/.venv/lib/python3.12/site-packages/transformers/modeling_utils.py", line 4806, in from_pretrained
+    raise ValueError(
+ValueError: Using a `device_map`, `tp_plan`, `torch.device` context manager or setting `torch.set_default_device(device)` requires `accelerate`. You can install it with `pip install accelerate`
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/tinker_cookbook/rl/mlora_train.py", line 2568, in <module>
+    cli_main()
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/tinker_cookbook/rl/mlora_train.py", line 2555, in cli_main
+    main(
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/tinker_cookbook/rl/mlora_train.py", line 1700, in main
+    tokenizer, model = mlora_load_model(args)
+                       ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/tinker_cookbook/rl/../../mLoRA/mlora/model/loader.py", line 53, in load_model
+    model = load_full_model(args)
+            ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/tinker_cookbook/rl/../../mLoRA/mlora/model/loader.py", line 35, in load_full_model
+    return MODEL_TYPE_DICT[args.model_type].from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/tinker_cookbook/rl/../../mLoRA/mlora/model/llm/model_llama.py", line 250, in from_pretrained
+    llama_model = AutoModelForCausalLM.from_pretrained(path, **additional_load_args)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/.venv/lib/python3.12/site-packages/transformers/models/auto/auto_factory.py", line 604, in from_pretrained
+    return model_class.from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/.venv/lib/python3.12/site-packages/transformers/modeling_utils.py", line 277, in _wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/Uncertainty-Guided-Exploration-For-Discovery/.venv/lib/python3.12/site-packages/transformers/modeling_utils.py", line 4806, in from_pretrained
+    raise ValueError(
+ValueError: Using a `device_map`, `tp_plan`, `torch.device` context manager or setting `torch.set_default_device(device)` requires `accelerate`. You can install it with `pip install accelerate`

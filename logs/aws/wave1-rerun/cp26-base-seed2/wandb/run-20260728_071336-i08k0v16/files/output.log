@@ -1,0 +1,66 @@
+2026-07-28 07:13:37,639 [INFO] tinker_cookbook.utils.ml_log:
+Configuration:
+  base_model: 'Qwen/Qwen3-8B'
+  precision: 'fp16'
+  device: 'cuda'
+  env: 'cp'
+  problem_idx: '26'
+  budget_s: 1000
+  group_size: 8
+  groups_per_batch: 8
+  learning_rate: 4e-05
+  num_epochs: 6
+  max_tokens: 260000
+  temperature: 1.0
+  adv_estimator: 'entropic_adaptive_beta'
+  adv_estimator_beta: 2.0
+  loss_fn: 'importance_sampling'
+  ppo_clip: 0.2
+  num_substeps: 1
+  remove_constant_reward_groups: True
+  kl_penalty_coef: 0.01
+  kl_discount_factor: 0.0
+  compute_post_kl: False
+  dynamic_max_tokens: True
+  two_phase_sampling: True
+  phase1_max_tokens: 26000
+  context_window: 32768
+  context_buffer: 50
+  eval_timeout: 1000
+  dataset_timeout: 1000
+  num_cpus_per_task: 2
+  gpu_mode_score_scale: 3000.0
+  num_ensemble_members: 1
+  lora_rank: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  target_modules: {'q_proj': True, 'k_proj': True, 'v_proj': True, 'o_proj':
+True}
+  rmi_coef: 0.0
+  uncertainty_metric: 'true_mi'
+  gamma_max_ratio: 10.0
+  nnm_coef: 0.0
+  nnm_use_fro_norm: False
+  streaming_mi_enabled: False
+  streaming_mi_window_size: 4096
+  streaming_mi_check_interval: 2048
+  streaming_mi_min_gen: 4096
+  streaming_mi_warmup_epochs: 3
+  streaming_mi_wrap_budget: 6000
+  streaming_mi_threshold_percentile: 25.0
+  kv_quantize: False
+  sampler_type: 'puct_backprop'
+  initial_exp_type: 'random'
+  log_path: './logs/aws/wave1-rerun/cp26-base-seed2'
+  wandb_project: 'ugttt-rebuttal'
+  wandb_name: 'cp26-base-seed2'
+  eval_every: 3
+  save_every: 2
+  seed: 2
+  dataset_builder: None
+tinker_cookbook.utils.ml_log:525 [[92mINFO[0m] Logging to: logs/aws/wave1-rerun/cp26-base-seed2
+__main__:1657 [[92mINFO[0m] Active loggers: ['JsonLogger', 'PrettyPrintLogger', 'WandbLogger']
+__main__:1690 [[92mINFO[0m] Loading base model: Qwen/Qwen3-8B (fp16)
+root:227 [[92mINFO[0m] Loading model with precision - fp16
+`torch_dtype` is deprecated! Use `dtype` instead!
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]

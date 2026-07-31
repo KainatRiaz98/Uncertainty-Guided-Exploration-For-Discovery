@@ -1,0 +1,37 @@
+{"time":"2026-07-30T12:27:43.458847435Z","level":"INFO","msg":"stream: starting","core version":"0.23.0"}
+{"time":"2026-07-30T12:27:43.661628136Z","level":"INFO","msg":"stream: created new stream","id":"y6y1mt4y"}
+{"time":"2026-07-30T12:27:43.661682735Z","level":"INFO","msg":"handler: started","stream_id":"y6y1mt4y"}
+{"time":"2026-07-30T12:27:43.661742992Z","level":"INFO","msg":"stream: started","id":"y6y1mt4y"}
+{"time":"2026-07-30T12:27:43.661753574Z","level":"INFO","msg":"sender: started","stream_id":"y6y1mt4y"}
+{"time":"2026-07-30T12:27:43.661758098Z","level":"INFO","msg":"writer: started","stream_id":"y6y1mt4y"}
+{"time":"2026-07-30T13:47:54.252048997Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-30T13:55:02.332538025Z","level":"INFO","msg":"api: retrying HTTP error","status":429,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"rate limit exceeded: filestream at capacity, retry after 5s\"}"}
+{"time":"2026-07-30T14:38:06.218171864Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-30T16:08:27.418405065Z","level":"INFO","msg":"api: retrying HTTP error","status":429,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"rate limit exceeded: filestream at capacity, retry after 6s\"}"}
+{"time":"2026-07-30T17:27:30.085685518Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-30T17:40:11.530555129Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-30T17:42:10.876985589Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-30T17:53:39.198802168Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-30T18:15:16.992962056Z","level":"INFO","msg":"api: retrying HTTP error","status":429,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"rate limit exceeded: filestream at capacity, retry after 6s\"}"}
+{"time":"2026-07-30T18:15:38.778123279Z","level":"INFO","msg":"api: retrying HTTP error","status":429,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"rate limit exceeded: filestream at capacity, retry after 7s\"}"}
+{"time":"2026-07-30T18:36:52.802094519Z","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":3987}
+{"time":"2026-07-30T18:36:52.802804674Z","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":63}
+{"time":"2026-07-30T19:07:34.212711613Z","level":"INFO","msg":"api: retrying HTTP error","status":429,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"rate limit exceeded: filestream at capacity, retry after 6s\"}"}
+{"time":"2026-07-30T19:07:51.542852354Z","level":"INFO","msg":"api: retrying HTTP error","status":429,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"rate limit exceeded: filestream at capacity, retry after 6s\"}"}
+{"time":"2026-07-30T19:08:06.958583062Z","level":"INFO","msg":"api: retrying HTTP error","status":429,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"rate limit exceeded: filestream at capacity, retry after 8s\"}"}
+{"time":"2026-07-30T19:15:49.54327688Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-30T19:17:01.69700907Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-30T19:30:09.313381537Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-30T20:11:06.110261383Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-30T21:08:30.968389579Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-30T21:48:30.029037774Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-30T21:50:05.644072159Z","level":"INFO","msg":"api: retrying HTTP error","status":429,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"rate limit exceeded: filestream at capacity, retry after 9s\"}"}
+{"time":"2026-07-30T22:06:56.113843499Z","level":"INFO","msg":"api: retrying HTTP error","status":500,"url":"https://api.wandb.ai/files/kriaz-msee20seecs-nust/ugttt-rebuttal/y6y1mt4y/file_stream","body":"{\"error\":\"context deadline exceeded\"}"}
+{"time":"2026-07-31T05:29:14.583793278Z","level":"INFO","msg":"flowcontrol: backed up, offloading to disk","recordNumber":10708}
+{"time":"2026-07-31T05:29:14.725096676Z","level":"INFO","msg":"flowcontrol: unblocked","totalOffloaded":17}
+{"time":"2026-07-31T06:27:23.884273397Z","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-07-31T06:27:24.21524718Z","level":"INFO","msg":"handler: operation stats","stats":{}}
+{"time":"2026-07-31T06:27:24.217581369Z","level":"INFO","msg":"stream: closing","id":"y6y1mt4y"}
+{"time":"2026-07-31T06:27:24.217593277Z","level":"INFO","msg":"handler: closed","stream_id":"y6y1mt4y"}
+{"time":"2026-07-31T06:27:24.217639032Z","level":"INFO","msg":"sender: closed","stream_id":"y6y1mt4y"}
+{"time":"2026-07-31T06:27:24.217643093Z","level":"INFO","msg":"stream: closed","id":"y6y1mt4y"}

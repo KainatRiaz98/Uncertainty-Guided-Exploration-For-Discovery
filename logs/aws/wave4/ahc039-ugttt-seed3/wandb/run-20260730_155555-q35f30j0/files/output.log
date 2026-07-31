@@ -1,0 +1,81 @@
+2026-07-30 15:55:57,259 [INFO] tinker_cookbook.utils.ml_log:
+Configuration:
+  base_model: 'Qwen/Qwen3-8B'
+  precision: 'fp16'
+  device: 'cuda'
+  env: 'ahc039'
+  problem_idx: 'ahc039'
+  budget_s: 1000
+  group_size: 8
+  groups_per_batch: 8
+  learning_rate: 4e-05
+  num_epochs: 6
+  max_tokens: 260000
+  temperature: 1.0
+  adv_estimator: 'entropic_adaptive_beta'
+  adv_estimator_beta: 2.0
+  loss_fn: 'importance_sampling'
+  ppo_clip: 0.2
+  num_substeps: 1
+  remove_constant_reward_groups: True
+  kl_penalty_coef: 0.01
+  kl_discount_factor: 0.0
+  compute_post_kl: False
+  dynamic_max_tokens: True
+  two_phase_sampling: True
+  phase1_max_tokens: 26000
+  context_window: 32768
+  context_buffer: 50
+  eval_timeout: 1000
+  dataset_timeout: 1000
+  num_cpus_per_task: 2
+  gpu_mode_score_scale: 3000.0
+  num_ensemble_members: 5
+  lora_rank: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  target_modules: {'q_proj': True, 'k_proj': True, 'v_proj': True, 'o_proj':
+True}
+  rmi_coef: 0.1
+  uncertainty_metric: 'true_mi'
+  gamma_max_ratio: 10.0
+  nnm_coef: 0.075
+  nnm_use_fro_norm: False
+  streaming_mi_enabled: False
+  streaming_mi_window_size: 4096
+  streaming_mi_check_interval: 2048
+  streaming_mi_min_gen: 4096
+  streaming_mi_warmup_epochs: 3
+  streaming_mi_wrap_budget: 6000
+  streaming_mi_threshold_percentile: 25.0
+  kv_quantize: False
+  sampler_type: 'puct_backprop'
+  initial_exp_type: 'random'
+  log_path: './logs/aws/wave4/ahc039-ugttt-seed3'
+  wandb_project: 'ugttt-rebuttal'
+  wandb_name: 'ahc039-ugttt-seed3'
+  eval_every: 3
+  save_every: 1
+  seed: 3
+  dataset_builder: None
+tinker_cookbook.utils.ml_log:525 [[92mINFO[0m] Logging to: logs/aws/wave4/ahc039-ugttt-seed3
+__main__:1657 [[92mINFO[0m] Active loggers: ['JsonLogger', 'PrettyPrintLogger', 'WandbLogger']
+__main__:1690 [[92mINFO[0m] Loading base model: Qwen/Qwen3-8B (fp16)
+root:227 [[92mINFO[0m] Loading model with precision - fp16
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards: 100%|██████████| 5/5 [00:03<00:00,  1.36it/s]
+root:255 [[92mINFO[0m] loading llama compatible model - qwen3
+root:49 [[92mINFO[0m] Adapter ensemble_0 without lr_scheduler.
+root:49 [[92mINFO[0m] Adapter ensemble_1 without lr_scheduler.
+root:49 [[92mINFO[0m] Adapter ensemble_2 without lr_scheduler.
+root:49 [[92mINFO[0m] Adapter ensemble_3 without lr_scheduler.
+root:49 [[92mINFO[0m] Adapter ensemble_4 without lr_scheduler.
+tinker_cookbook.rl.ensemble:123 [[92mINFO[0m] Initialized 5 LoRA ensemble members (rank=16)
+__main__:1779 [[92mINFO[0m] Training: 6 epochs, 8 groups/batch × 8 rollouts/group, K=5 adapters, γ=0.1
+__main__:1784 [[92mINFO[0m] Parallelism: batched generation (8 seqs/batch), threaded rewards (8 workers), batched ensemble scoring
+__main__:1807 [[92mINFO[0m] Two-phase sampling enabled: phase1_max=26000, context_window=32768, prefill_len=22, stop_ids=[151645]
+__main__:1836 [[92mINFO[0m] [Epoch 0/6] Starting rollout phase: 8 groups × 8 rollouts
+tinker_cookbook.rl.ensemble:1082 [[92mINFO[0m]   generate_batch_multi_adapter_two_phase: N=8 phase1_max=26000 streaming_mi=False kv_q=False
+/opt/dlami/nvme/ugttt-venv/lib/python3.12/site-packages/torch/utils/checkpoint.py:85: UserWarning: None of the inputs have requires_grad=True. Gradients will be None
+  warnings.warn(
+tinker_cookbook.rl.ensemble:1270 [[92mINFO[0m]     [gen/p1] step=2048/24800 active=8/8 mi_stopped=0
