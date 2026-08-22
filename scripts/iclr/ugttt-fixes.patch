@@ -1,0 +1,196 @@
+diff --git a/ale_bench/tool_wrappers/case_runner.py b/ale_bench/tool_wrappers/case_runner.py
+index 9ac6082..532926e 100644
+--- a/ale_bench/tool_wrappers/case_runner.py
++++ b/ale_bench/tool_wrappers/case_runner.py
+@@ -39,6 +39,69 @@ from ale_bench.utils import read_svg, run_command_remote, run_command_direct, ge
+ import ray
+ 
+ 
++# ── Per-case scratch: keep it local (fast) AND bounded (no disk overflow) ────
++#
++# Each evaluated case gets its own scratch dir for input/output. Two independent
++# problems had to be solved here:
++#
++#   1. LEAK. These dirs were never removed. ~128KB per case x ~57,600 cases in a
++#      6-epoch ahc039 run is ~7.4GB, which overran the 29GB root volume, killed a
++#      wave mid-run and truncated a LoRA checkpoint. Relocating them alone only
++#      moves the leak to a roomier disk -- it still grows without bound.
++#   2. SPEED. The dirs must stay on a fast node-local filesystem. Relocating them
++#      costs nothing here (/tmp and the nvme volume are both ext4 on this host);
++#      the 15x slowdown seen when swapping this file wholesale came from losing
++#      the parallel per-case Ray executor, not from the path.
++#
++# So: place them on a large local volume, and delete each one as soon as its case
++# finishes. Steady-state usage is bounded by concurrency (~24 dirs), not by the
++# total number of cases evaluated.
++_SCRATCH_FALLBACK_VOLUMES = ("/opt/dlami/nvme",)
++
++# Dirs created while serving the CURRENT case, cleaned up when it completes.
++# A Ray worker process runs one case at a time, so a module-level list is safe
++# and -- unlike globbing by prefix -- cannot delete a concurrent run's scratch.
++_ACTIVE_CASE_SCRATCH: list = []
++
++
++def get_local_scratch_root() -> str:
++    """Root for per-case scratch dirs, local to the node to avoid NFS latency.
++
++    Overridable via ALE_BENCH_LOCAL_TMPDIR, then TMPDIR. Note these are often
++    ABSENT here: evaluation runs in Ray workers forked from the raylet, so they
++    inherit the raylet's environment, not the training driver's. Exporting the
++    vars before a launch does not reach this code unless the Ray head was started
++    from that same environment -- hence the fallback matters more than the
++    overrides.
++    """
++    root = os.environ.get("ALE_BENCH_LOCAL_TMPDIR") or os.environ.get("TMPDIR")
++    if not root:
++        for vol in _SCRATCH_FALLBACK_VOLUMES:
++            if os.path.isdir(vol):
++                root = os.path.join(vol, "scratch", "ale_bench")
++                break
++        else:
++            root = "/tmp"
++    os.makedirs(root, exist_ok=True)
++    return root
++
++
++def make_case_scratch_dir(problem_id: str, case_idx: int) -> Path:
++    """Create a per-case scratch dir and register it for cleanup."""
++    d = Path(tempfile.mkdtemp(
++        prefix=f"ale_bench_local_{problem_id}_{case_idx}_", dir=get_local_scratch_root()
++    ))
++    _ACTIVE_CASE_SCRATCH.append(d)
++    return d
++
++
++def cleanup_case_scratch() -> None:
++    """Remove scratch dirs registered for the case that just finished."""
++    while _ACTIVE_CASE_SCRATCH:
++        d = _ACTIVE_CASE_SCRATCH.pop()
++        shutil.rmtree(d, ignore_errors=True)
++
++
+ class HostPathsCompile(BaseModel):
+     """Paths on the host for the compilation step of the submission."""
+ 
+@@ -189,9 +252,9 @@ def setup_paths_batch_run(
+             f"Please run cache_public_inputs.py to cache the input files."
+         )
+     
+-    # Create local temp directory for input/output files to avoid NFS I/O latency
+-    # Use /tmp which is typically local to each node
+-    local_temp_dir = Path(tempfile.mkdtemp(prefix=f"ale_bench_local_{problem_id}_{case_idx}_", dir="/tmp"))
++    # Create local temp directory for input/output files to avoid NFS I/O latency.
++    # Registered for cleanup when the case finishes -- see make_case_scratch_dir.
++    local_temp_dir = make_case_scratch_dir(problem_id, case_idx)
+     local_temp_dir.mkdir(parents=True, exist_ok=True)
+     
+     # Copy cached input file to local temp with proper synchronization
+@@ -476,9 +539,9 @@ def setup_paths_reactive_judge(
+             f"Please run cache_public_inputs.py to cache the input files."
+         )
+     
+-    # Create local temp directory for input/output files to avoid NFS I/O latency
+-    # Use /tmp which is typically local to each node
+-    local_temp_dir = Path(tempfile.mkdtemp(prefix=f"ale_bench_local_{problem_id}_{case_idx}_", dir="/tmp"))
++    # Create local temp directory for input/output files to avoid NFS I/O latency.
++    # Registered for cleanup when the case finishes -- see make_case_scratch_dir.
++    local_temp_dir = make_case_scratch_dir(problem_id, case_idx)
+     local_temp_dir.mkdir(parents=True, exist_ok=True)
+     
+     # Copy cached input file to local temp with proper synchronization
+@@ -1187,27 +1250,31 @@ def run_single_case_remote(
+     reactive_judge_command = build_reactive_judge_command(code_language, judge_version, time_limit)
+     vis_command = build_vis_command()
+     
+-    # Run the case
+-    return case_iter_func(
+-        problem_id=problem_id,
+-        time_limit=time_limit,
+-        memory_limit=memory_limit,
+-        problem_type=problem_type,
+-        case_idx=case_idx,
+-        input_str=input_str,
+-        code_language=code_language,
+-        judge_version=judge_version,
+-        temp_dir=temp_dir,
+-        tool_dir=tool_dir,
+-        return_details=return_details,
+-        skip_local_visualization=skip_local_visualization,
+-        host_paths_compile=host_paths_compile,
+-        batch_run_command=batch_run_command,
+-        batch_judge_command=batch_judge_command,
+-        reactive_judge_command=reactive_judge_command,
+-        vis_command=vis_command,
+-        generation_id=generation_id,
+-    )
++    # Run the case. The finally is what keeps per-case scratch bounded: without
++    # it these dirs accumulate for the lifetime of the run and fill the disk.
++    try:
++        return case_iter_func(
++            problem_id=problem_id,
++            time_limit=time_limit,
++            memory_limit=memory_limit,
++            problem_type=problem_type,
++            case_idx=case_idx,
++            input_str=input_str,
++            code_language=code_language,
++            judge_version=judge_version,
++            temp_dir=temp_dir,
++            tool_dir=tool_dir,
++            return_details=return_details,
++            skip_local_visualization=skip_local_visualization,
++            host_paths_compile=host_paths_compile,
++            batch_run_command=batch_run_command,
++            batch_judge_command=batch_judge_command,
++            reactive_judge_command=reactive_judge_command,
++            vis_command=vis_command,
++            generation_id=generation_id,
++        )
++    finally:
++        cleanup_case_scratch()
+ 
+ 
+ def case_iter_func(
+diff --git a/tasks/ale_bench/task.py b/tasks/ale_bench/task.py
+index 513ea33..cf19f8c 100644
+--- a/tasks/ale_bench/task.py
++++ b/tasks/ale_bench/task.py
+@@ -237,7 +237,14 @@ def run_cases_remote(
+         tool_dir=tool_dir_abs,
+         return_details=False,
+         skip_local_visualization=True,
+-        num_workers=150,
++        # Was hardcoded to 150 (one worker per public case). On a 48-core box
++        # that oversubscribes ~3x and the judge reports INTERNAL_ERROR/TLE for
++        # almost every case: measured on the reference ahc039 solution,
++        # 150 workers -> 7/150 accepted (142 INTERNAL_ERROR), 24 workers ->
++        # 150/150 accepted, at identical wall time (19s vs 18s). Because
++        # correctness requires ALL cases accepted, the oversubscription pinned
++        # every rollout's reward to exactly 0.0 with no error surfaced.
++        num_workers=max(1, min(24, (os.cpu_count() or 8) // 2)),
+         base_dir=base_dir,  # Use NFS directory for temp files
+     )
+     
+diff --git a/tinker_cookbook/rl/mlora_train.py b/tinker_cookbook/rl/mlora_train.py
+index 3decc47..6fcddbb 100644
+--- a/tinker_cookbook/rl/mlora_train.py
++++ b/tinker_cookbook/rl/mlora_train.py
+@@ -1998,7 +1998,17 @@ def main(
+                 prompt_text = wrap_qwen3_chat_template(prompt_text)
+             else:
+                 prompt_text = wrap_chatml_single_phase(prompt_text)
+-            prompt_tokens = tokenizer.encode(prompt_text, bos=True, eos=False)
++            # cutoff_len defaults to 4096 in Tokenizer.encode and was never
++            # overridden here. The <<<LAST_CODE>>> placeholder sits near the END
++            # of every template, so truncation removes the output-format
++            # instruction that last_codeblock_postprocess depends on, and the
++            # rollout scores exactly 0.0 with no other symptom. It switches on
++            # mid-run as the carried program grows. Measured on ahc039: template
++            # 1186 tokens, reference solution 10230 -> 7314 tokens (64%) of the
++            # prompt discarded. The context window is the correct bound here.
++            prompt_tokens = tokenizer.encode(
++                prompt_text, bos=True, eos=False, cutoff_len=cfg.context_window
++            )
+ 
+             group_rollouts = do_group_rollout_batched(
+                 ensemble=ensemble,
