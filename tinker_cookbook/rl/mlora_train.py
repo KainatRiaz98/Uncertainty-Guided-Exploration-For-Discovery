@@ -1929,6 +1929,18 @@ def main(
         f"{cfg.groups_per_batch} groups/batch × {cfg.group_size} rollouts/group, "
         f"K={cfg.num_ensemble_members} adapters, γ={cfg.rmi_coef}"
     )
+    # Make the β-coupling mode auditable from the log alone: a decoupled arm and a
+    # coupled arm differ only in this line and in train/gamma_eff/mean.
+    logger.info(
+        "Exploration coefficient: "
+        + (
+            f"DECOUPLED (gamma_max_ratio={cfg.gamma_max_ratio}) — "
+            f"γ_eff pinned at {cfg.rmi_coef} whenever β ≥ β_ref={cfg.adv_estimator_beta}"
+            if cfg.gamma_max_ratio <= 1.0
+            else f"β-COUPLED (Eq. 5, gamma_max_ratio={cfg.gamma_max_ratio}) — "
+                 f"γ_eff = {cfg.rmi_coef}·min(β/{cfg.adv_estimator_beta}, {cfg.gamma_max_ratio})"
+        )
+    )
     logger.info(
         f"Parallelism: batched generation ({cfg.group_size} seqs/batch), "
         f"threaded rewards ({cfg.group_size} workers), batched ensemble scoring"
@@ -2292,6 +2304,13 @@ def cli_main():
 
     # Uncertainty
     parser.add_argument("--rmi_coef", type=float, default=0.1)
+    parser.add_argument("--gamma_max_ratio", type=float, default=10.0,
+                        help="Clip on γ_eff/rmi_coef in the β-coupling of Eq. (5). "
+                             "Default 10.0 leaves the coupling active. Set to 1.0 to "
+                             "pin γ_eff = rmi_coef (constant exploration coefficient), "
+                             "which is the decoupled ablation arm for Remark 1 — pair it "
+                             "with an rmi_coef equal to the coupled run's realised mean "
+                             "γ_eff so the arms match on average strength, not just schedule.")
     parser.add_argument("--uncertainty_metric", default="true_mi",
                         choices=["true_mi", "rmi", "variance", "predictive_entropy"])
 
@@ -2386,6 +2405,7 @@ def cli_main():
         lora_alpha=args.lora_alpha,
         learning_rate=args.learning_rate,
         rmi_coef=args.rmi_coef,
+        gamma_max_ratio=args.gamma_max_ratio,
         uncertainty_metric=args.uncertainty_metric,
         nnm_coef=args.nnm_coef,
         nnm_use_fro_norm=args.nnm_use_fro_norm,
