@@ -127,3 +127,49 @@ ran in the rebuttal window and must stay frozen.
 - Never compare the gamma-ablation (8192) numbers to paper Table 1 (32768).
 - Both denoising arms on one box: base on GPU 0 / port 6402, ugttt on GPU 1 /
   port 6403, staggered by ~20 s.
+
+## Rebuilding the environment after an instance-store wipe
+
+`/opt/dlami/nvme` on the RTX PRO 6000 box is AWS **instance store**: it is wiped
+on every instance stop/start, taking the venvs and the HF cache with it. After a
+wipe, `scripts/aws/setup_denoising_venv.sh` cannot run — it builds the bio venv
+by *cloning* a training venv, and there is no longer one to clone.
+
+Use `scripts/iclr/rebuild_venvs.sh <cp|denoise|both>` instead. Four things that
+each broke a build, recorded so nobody rediscovers them:
+
+- **`requirements-denoising.txt` is not self-sufficient** (no `chz`, no
+  `tensorboard`). It was only ever an overlay on a cloned training venv, so the
+  rebuild adds the packages `requirements-math.txt` has and it lacks, under
+  `--constraint requirements-denoising.txt` so the denoising pins cannot move.
+- **`tensorboard` is missing from both requirements files** but is imported by
+  the trainer through `torch.utils.tensorboard`. Without it the trainer dies on
+  import. It is one of 7 packages present in the cp26 run's own wandb manifest
+  but absent from `requirements-math.txt`.
+- **openproblems must be the `v0.8.0` tag** (its `version.py` misreports 0.7.0)
+  installed `--no-deps --no-build-isolation`; its `setup.py` pins numpy<1.24 /
+  pandas 1.3.5 / scipy<1.10 against the modern stack. Needs `setuptools<81` for
+  `pkg_resources`. Apply **both** `openproblems_api_fix.patch` and
+  `openproblems_npint_fix.patch` — the latter is the `np.int -> int` fix this
+  README requires; `np.int` was removed in numpy 1.24 and the denoising verifier
+  hits it on the reward path.
+- **pip stalls at 179/900 MB on the torch wheel** on this host, every attempt;
+  curl fetches the same URL first try. The script curls it, checks the sha256
+  against PyPI, and installs from the local file.
+
+Storage split: venvs, HF cache, Ray tmp and scratch on `/opt/dlami/nvme`
+(rebuildable); the repo and all run directories on `/ssd2` (EBS), because
+checkpoints and `trajectories.jsonl` must survive a stop and because the
+launcher preflight needs >=40 GB, which `/` does not have.
+
+Launch the denoising pair with `RAY_TMP_ROOT=/nvme/raytmp`: Ray's AF_UNIX socket
+path cannot exceed 107 bytes and the default overruns it by 6. Create the alias
+once with `sudo ln -sfn /opt/dlami/nvme /nvme`.
+
+`scripts/iclr/watchdog.sh` keeps the GPUs busy across transient failures. It
+never resumes: `mlora_train.py:1889-1895` silently resumes from
+`last_epoch.txt`, which contaminates a seed mirror, so the watchdog archives the
+run directory and relaunches from epoch 0 with flags untouched. It refuses to
+restart on a Python traceback, disk-full, or a crash loop. Note it reads a
+deliberate kill as an external kill and will resurrect the run — stop the daemon
+first if you are killing something on purpose.
